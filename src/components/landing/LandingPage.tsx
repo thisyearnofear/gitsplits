@@ -271,19 +271,6 @@ const LandingPage: React.FC<LandingPageProps> = ({
             </div>
           </form>
 
-          {/* Email Waiting List Form */}
-          <form onSubmit={handleEmailSubmit} className="max-w-xl mx-auto mt-8">
-            <Input
-              placeholder="Enter your email to join the waiting list"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-            <Button type="submit" size="lg" variant="ghost" color="primary">
-              Join Waiting List
-            </Button>
-          </form>
-
           {/* Quick Benefits */}
           <div className="flex justify-center space-x-8 mt-6">
             <span className="flex items-center text-sm text-gray-600">
@@ -528,6 +515,27 @@ const LandingPage: React.FC<LandingPageProps> = ({
                 </Button>
               </a>
             </div>
+
+            {/* Email Waiting List Form */}
+            <form
+              onSubmit={handleEmailSubmit}
+              className="max-w-xl mx-auto mt-8 flex flex-col items-center"
+            >
+              <Input
+                placeholder="Enter your email for updates"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full text-center"
+              />
+              <Button
+                type="submit"
+                size="lg"
+                variant="ghost"
+                color="primary"
+                className="text-center"
+              ></Button>
+            </form>
 
             {/* Bottom text */}
             <div className="text-center text-gray-600">

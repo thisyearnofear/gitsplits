@@ -20,6 +20,7 @@ import {
 import RepoInfo from "@/components/dashboard/RepoInfo";
 import AttributionWidget from "@/components/dashboard/AttributionWidget";
 import SimplifiedSplitsSetup from "@/components/landing/SimplifiedSplitsSetup";
+import EmbedCodeDisplay from "@/components/shared/EmbedCodeDisplay";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 
@@ -138,6 +139,14 @@ const LandingPage: React.FC<LandingPageProps> = ({
   const [autoRepoUrl, setAutoRepoUrl] = useState("");
   const [email, setEmail] = useState("");
   const { toast } = useToast();
+  const [repoInfo, setRepoInfo] = useState<{
+    owner: string;
+    name: string;
+  } | null>(null);
+  const [contractAddress, setContractAddress] = useState("");
+  const [displayStyle, setDisplayStyle] = useState<"minimal" | "expanded">(
+    "minimal"
+  );
 
   useEffect(() => {
     // Any existing useEffect logic can remain here
@@ -151,9 +160,31 @@ const LandingPage: React.FC<LandingPageProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setShowRepoInfo(true);
+    try {
+      const response = await fetch("/api/generate-embed", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ repoUrl, contractAddress, displayStyle }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setRepoInfo(data.repoInfo);
+        setShowRepoInfo(true);
+      } else {
+        throw new Error("Failed to generate embed code");
+      }
+    } catch (error) {
+      console.error("Error generating embed code:", error);
+      toast({
+        description: "Failed to generate embed code. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleAutoSetup = () => {
@@ -267,9 +298,14 @@ const LandingPage: React.FC<LandingPageProps> = ({
           </div>
         </motion.div>
 
-        {showRepoInfo && (
-          <div className="flex justify-center">
+        {showRepoInfo && repoInfo && (
+          <div className="flex flex-col items-center mt-8">
             <RepoInfo url={repoUrl} />
+            <EmbedCodeDisplay
+              repoInfo={repoInfo}
+              contractAddress={contractAddress}
+              displayStyle={displayStyle}
+            />
           </div>
         )}
 

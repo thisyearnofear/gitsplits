@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { RepoInfo as RepoInfoType } from "@/types";
 import AttributionWidget from "@/components/dashboard/AttributionWidget";
-import EmbedCode from "@/components/dashboard/EmbedCode";
+import EmbedCodeDisplay from "@/components/shared/EmbedCodeDisplay";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getRepoInfo } from "@/utils/api"; // Import the utility function
@@ -18,6 +18,9 @@ const RepoInfo: React.FC<RepoInfoProps> = ({ url }) => {
   const [loading, setLoading] = useState(false);
   const [displayStyle, setDisplayStyle] = useState<"minimal" | "expanded">(
     "expanded"
+  );
+  const [contractAddress, setContractAddress] = useState(
+    "0x1234567890123456789012345678901234567890"
   );
 
   useEffect(() => {
@@ -75,7 +78,7 @@ const RepoInfo: React.FC<RepoInfoProps> = ({ url }) => {
         <div className="flex justify-center mb-4">
           <AttributionWidget
             repoInfo={repoInfo}
-            contractAddress="0x1234567890123456789012345678901234567890"
+            contractAddress={contractAddress}
             displayStyle={displayStyle}
             onSupportClick={function (): void {
               throw new Error("Function not implemented.");
@@ -92,9 +95,12 @@ const RepoInfo: React.FC<RepoInfoProps> = ({ url }) => {
           {/* Preview content is now above the tabs */}
         </TabsContent>
         <TabsContent value="embed" className="flex justify-center">
-          <EmbedCode
-            repoInfo={repoInfo}
-            contractAddress="0x1234567890123456789012345678901234567890"
+          <EmbedCodeDisplay
+            repoInfo={{
+              owner: repoInfo.owner,
+              name: repoInfo.name,
+            }}
+            contractAddress={contractAddress}
             displayStyle={displayStyle}
           />
         </TabsContent>

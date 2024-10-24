@@ -1,6 +1,8 @@
 import axios from "axios";
 import { RepoInfo } from "@/types";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+
 export async function getRepoInfo(url: string): Promise<RepoInfo> {
   const match = url.match(/github\.com\/([^\/]+)\/([^\/]+)/);
   if (!match) {
@@ -10,13 +12,11 @@ export async function getRepoInfo(url: string): Promise<RepoInfo> {
   const [, owner, repo] = match;
 
   try {
-    // Ensure the URL is absolute
     const response = await axios.get(
-      `http://localhost:3000/api/proxy?owner=${owner}&repo=${repo}`
+      `${API_BASE_URL}/api/proxy?owner=${owner}&repo=${repo}`
     );
     const data = response.data;
 
-    // The proxy now includes contributors, so we don't need to fetch them separately
     return data as RepoInfo;
   } catch (error) {
     console.error("Error fetching repo info:", error);

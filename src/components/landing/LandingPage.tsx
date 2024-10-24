@@ -162,17 +162,28 @@ const LandingPage: React.FC<LandingPageProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Debugging: Log the values before making the request
+    console.log("repoUrl:", repoUrl);
+    console.log("displayStyle:", displayStyle);
+
     try {
+      // Check if all required fields are set
+      if (!repoUrl || !displayStyle) {
+        throw new Error("Missing required fields");
+      }
+
       const response = await fetch("/api/generate-embed", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ repoUrl, contractAddress, displayStyle }),
+        body: JSON.stringify({ repoUrl, displayStyle }),
       });
 
       if (response.ok) {
         const data = await response.json();
+        console.log("Repo Info:", data.repoInfo); // Debugging
         setRepoInfo(data.repoInfo);
         setShowRepoInfo(true);
       } else {

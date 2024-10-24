@@ -10,11 +10,13 @@ export interface RepoInfo {
     name: string;
     owner: string;
   } | null;
-  contributors: {
-    username: string;
-    contributions: number;
-    avatar_url?: string;
-  }[];
+  contributors: Contributor[];
+}
+
+export interface Contributor {
+  username: string;
+  contributions: number;
+  avatar_url: string;
 }
 
 export interface FeatureCardProps {
@@ -43,7 +45,7 @@ export interface LandingPageProps {
 
 export interface AttributionWidgetProps {
   repoInfo: RepoInfo;
-  contractAddress: string;
+  contractAddress?: string; // Make contractAddress optional
   displayStyle: "minimal" | "expanded";
   onSupportClick: () => void;
 }
@@ -90,12 +92,6 @@ export interface SplitsTableProps {
     contributions: number;
     percentage: string;
   }[];
-}
-
-export interface Contributor {
-  login: string;
-  contributions: number;
-  avatar_url?: string;
 }
 
 export interface EmbedCodeProps {

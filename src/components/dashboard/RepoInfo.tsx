@@ -1,12 +1,10 @@
-// components/dashboard/RepoInfo.tsx
-
 import React, { useState, useEffect } from "react";
 import { RepoInfo as RepoInfoType } from "@/types";
 import AttributionWidget from "@/components/dashboard/AttributionWidget";
 import EmbedCodeDisplay from "@/components/shared/EmbedCodeDisplay";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRepoInfo } from "@/utils/api"; // Import the utility function
+import { getRepoInfo } from "@/utils/api";
 
 interface RepoInfoProps {
   url: string;
@@ -19,9 +17,9 @@ const RepoInfo: React.FC<RepoInfoProps> = ({ url }) => {
   const [displayStyle, setDisplayStyle] = useState<"minimal" | "expanded">(
     "expanded"
   );
-  const [contractAddress, setContractAddress] = useState(
-    "0x1234567890123456789012345678901234567890"
-  );
+
+  // Keep this commented out for future use
+  // const [contractAddress, setContractAddress] = useState("");
 
   useEffect(() => {
     const fetchRepoInfo = async () => {
@@ -78,10 +76,10 @@ const RepoInfo: React.FC<RepoInfoProps> = ({ url }) => {
         <div className="flex justify-center mb-4">
           <AttributionWidget
             repoInfo={repoInfo}
-            contractAddress={contractAddress}
             displayStyle={displayStyle}
-            onSupportClick={function (): void {
-              throw new Error("Function not implemented.");
+            onSupportClick={() => {
+              // Placeholder for future support functionality
+              console.log("Support clicked - functionality to be implemented");
             }}
           />
         </div>
@@ -94,13 +92,12 @@ const RepoInfo: React.FC<RepoInfoProps> = ({ url }) => {
         <TabsContent value="preview" className="flex justify-center">
           {/* Preview content is now above the tabs */}
         </TabsContent>
-        <TabsContent value="embed" className="flex justify-center">
+        <TabsContent value="embed" className="flex justify-center text-center">
           <EmbedCodeDisplay
             repoInfo={{
               owner: repoInfo.owner,
               name: repoInfo.name,
             }}
-            contractAddress={contractAddress}
             displayStyle={displayStyle}
           />
         </TabsContent>

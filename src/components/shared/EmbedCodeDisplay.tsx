@@ -5,17 +5,15 @@ import { useToast } from "@/hooks/use-toast";
 
 interface EmbedCodeDisplayProps {
   repoInfo: { owner: string; name: string };
-  contractAddress: string;
   displayStyle: "minimal" | "expanded";
 }
 
 const EmbedCodeDisplay: React.FC<EmbedCodeDisplayProps> = ({
   repoInfo,
-  contractAddress,
   displayStyle,
 }) => {
   const { toast } = useToast();
-  const embedCode = generateEmbedCode(repoInfo, contractAddress, displayStyle);
+  const embedCode = generateEmbedCode(repoInfo, displayStyle);
   const [isCopied, setIsCopied] = useState(false);
 
   const copyToClipboard = () => {
@@ -39,7 +37,7 @@ const EmbedCodeDisplay: React.FC<EmbedCodeDisplayProps> = ({
 
   return (
     <div className="mt-4 p-4 bg-gray-100 rounded-lg">
-      <h3 className="text-lg font-semibold mb-2">Your Embed Code:</h3>
+      <h3 className="text-lg font-semibold mb-2">🤝</h3>
       <pre className="bg-white p-2 rounded overflow-x-auto text-sm">
         <code>{embedCode}</code>
       </pre>

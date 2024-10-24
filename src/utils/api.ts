@@ -1,47 +1,23 @@
-// utils/api.ts
-
 import axios from "axios";
-import { RepoInfo as RepoInfoType, Contributor } from "@/types";
+import { RepoInfo } from "@/types";
 
-export async function getRepoInfo(url: string): Promise<RepoInfoType> {
-  const [, owner, repo] = url.match(/github\.com\/([^\/]+)\/([^\/]+)/) || [];
-  if (!owner || !repo) {
+export async function getRepoInfo(url: string): Promise<RepoInfo> {
+  const match = url.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+  if (!match) {
     throw new Error("Invalid GitHub URL");
   }
 
+  const [, owner, repo] = match;
+
   try {
-    const repoResponse = await axios.get(
-      `https://api.github.com/repos/${owner}/${repo}`
+    // Ensure the URL is absolute
+    const response = await axios.get(
+      `http://localhost:3000/api/proxy?owner=${owner}&repo=${repo}`
     );
-    const repoData = repoResponse.data;
+    const data = response.data;
 
-    const contributorsResponse = await axios.get(
-      `https://api.github.com/repos/${owner}/${repo}/contributors`
-    );
-    const contributors = contributorsResponse.data;
-
-    let originalRepo = null;
-    if (repoData.fork) {
-      const originalRepoResponse = await axios.get(repoData.source.url);
-      originalRepo = originalRepoResponse.data;
-    }
-
-    return {
-      name: repoData.name,
-      owner: repoData.owner.login,
-      isFork: repoData.fork,
-      originalRepo: originalRepo
-        ? {
-            name: originalRepo.name,
-            owner: originalRepo.owner.login,
-          }
-        : null,
-      contributors: contributors.map((c: Contributor) => ({
-        username: c.login,
-        contributions: c.contributions,
-        avatar_url: c.avatar_url,
-      })),
-    };
+    // The proxy now includes contributors, so we don't need to fetch them separately
+    return data as RepoInfo;
   } catch (error) {
     console.error("Error fetching repo info:", error);
     throw error;
@@ -53,13 +29,11 @@ export async function validateGitHubUsername(
 ): Promise<boolean> {
   try {
     const response = await axios.get(
-      `https://api.github.com/users/${username}`
+      `/api/validate-username?username=${username}`
     );
-    return response.status === 200;
+    return response.data.isValid;
   } catch (error) {
-    if (axios.isAxiosError(error) && error.response?.status === 404) {
-      return false;
-    }
-    throw error;
+    console.error("Error validating GitHub username:", error);
+    return false;
   }
 }

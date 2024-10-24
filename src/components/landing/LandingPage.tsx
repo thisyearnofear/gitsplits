@@ -301,11 +301,6 @@ const LandingPage: React.FC<LandingPageProps> = ({
         {showRepoInfo && repoInfo && (
           <div className="flex flex-col items-center mt-8">
             <RepoInfo url={repoUrl} />
-            <EmbedCodeDisplay
-              repoInfo={repoInfo}
-              contractAddress={contractAddress}
-              displayStyle={displayStyle}
-            />
           </div>
         )}
 

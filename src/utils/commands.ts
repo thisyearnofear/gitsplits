@@ -2,6 +2,8 @@ import axios from "axios";
 import { parseCommand } from "./parser";
 import { getRepoInfo } from "./api";
 import { VerificationLevel } from "@/types";
+import { twitterClient } from "./twitter";
+import { processTwitterCommand } from "./near";
 
 // Rate limiting maps
 const userCommandsMap = new Map<string, number[]>();
@@ -38,43 +40,19 @@ export async function processCommand(
     // Parse the command
     const { command, args } = parseCommand(tweetText);
 
-    // Process the command
-    let result;
-    switch (command.toLowerCase()) {
-      case "create":
-        result = await handleCreateCommand(args.repoUrl, sender);
-        break;
-      case "info":
-        result = await handleInfoCommand(args.repoUrl);
-        break;
-      case "distribute":
-        result = await handleDistributeCommand(
-          args.repoUrl,
-          args.amount,
-          args.token || "NEAR"
-        );
-        break;
-      case "verify":
-        result = await handleVerifyCommand(args.githubUsername, sender);
-        break;
-      case "help":
-        result = {
-          success: true,
-          message: getHelpMessage(),
-        };
-        break;
-      case "version":
-        result = {
-          success: true,
-          message: getVersionMessage(),
-        };
-        break;
-      default:
-        result = {
-          success: false,
-          message: `Unknown command: ${command}. Try '@bankrbot @gitsplits help' for a list of commands.`,
-        };
+    // Handle special commands that don't need contract interaction
+    if (command.toLowerCase() === "help") {
+      await sendTwitterReply(tweetId, getHelpMessage());
+      return;
     }
+
+    if (command.toLowerCase() === "version") {
+      await sendTwitterReply(tweetId, getVersionMessage());
+      return;
+    }
+
+    // Process the command using the NEAR contract
+    const result = await processTwitterCommand(command, args, tweetId, sender);
 
     // Send the reply
     await sendTwitterReply(tweetId, result.message);
@@ -149,234 +127,7 @@ function checkRateLimits(sender: string, tweetText: string): boolean {
   return true;
 }
 
-/**
- * Handle the create command
- */
-async function handleCreateCommand(repoUrl: string, sender: string) {
-  try {
-    // Validate repository URL
-    if (!repoUrl) {
-      return {
-        success: false,
-        message:
-          "❌ Missing repository URL. Usage: @bankrbot @gitsplits create github.com/user/repo",
-      };
-    }
-
-    // Normalize repository URL
-    const normalizedUrl = normalizeRepoUrl(repoUrl);
-
-    // Fetch repository data
-    const repoInfo = await getRepoInfo(normalizedUrl);
-
-    // Check if the repository exists
-    if (!repoInfo) {
-      return {
-        success: false,
-        message: `❌ Repository not found: ${normalizedUrl}`,
-      };
-    }
-
-    // Check if the user has the required verification level
-    const verificationLevel = await getUserVerificationLevel(sender);
-    if (verificationLevel < VerificationLevel.Basic) {
-      return {
-        success: false,
-        message:
-          "❌ Your account needs to be at least 3 months old with a minimum number of followers to create splits. Please verify your GitHub identity with '@bankrbot @gitsplits verify your-github-username'",
-      };
-    }
-
-    // Call the API to create the split
-    const response = await axios.post("/api/commands", {
-      command: "create",
-      repo_url: normalizedUrl,
-      sender,
-    });
-
-    if (response.data.success) {
-      const splitId = response.data.result.splitId;
-      return {
-        success: true,
-        message: `✅ Split created for ${repoInfo.owner}/${repoInfo.name}!\n\n${formatContributors(
-          repoInfo.contributors
-        )}\n\nView details: https://gitsplits.example.com/splits/${splitId}`,
-        splitId,
-      };
-    } else {
-      return {
-        success: false,
-        message: `❌ Failed to create split: ${response.data.message}`,
-      };
-    }
-  } catch (error) {
-    console.error("Error handling create command:", error);
-    return {
-      success: false,
-      message: `❌ Error creating split: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    };
-  }
-}
-
-/**
- * Handle the info command
- */
-async function handleInfoCommand(repoUrl: string) {
-  try {
-    // Validate repository URL
-    if (!repoUrl) {
-      return {
-        success: false,
-        message:
-          "❌ Missing repository URL. Usage: @bankrbot @gitsplits info github.com/user/repo",
-      };
-    }
-
-    // Normalize repository URL
-    const normalizedUrl = normalizeRepoUrl(repoUrl);
-
-    // Call the API to get split info
-    const response = await axios.post("/api/commands", {
-      command: "info",
-      repo_url: normalizedUrl,
-    });
-
-    if (response.data.success) {
-      const result = response.data.result;
-      return {
-        success: true,
-        message: result.message,
-      };
-    } else {
-      return {
-        success: false,
-        message: `❌ Failed to get split info: ${response.data.message}`,
-      };
-    }
-  } catch (error) {
-    console.error("Error handling info command:", error);
-    return {
-      success: false,
-      message: `❌ Error getting split info: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    };
-  }
-}
-
-/**
- * Handle the distribute command
- */
-async function handleDistributeCommand(
-  repoUrl: string,
-  amount: number,
-  token: string
-) {
-  try {
-    // Validate parameters
-    if (!repoUrl) {
-      return {
-        success: false,
-        message:
-          "❌ Missing repository URL. Usage: @bankrbot @gitsplits distribute 100 NEAR to github.com/user/repo",
-      };
-    }
-
-    if (!amount || amount <= 0) {
-      return {
-        success: false,
-        message: "❌ Invalid amount. Amount must be a positive number.",
-      };
-    }
-
-    // Normalize repository URL
-    const normalizedUrl = normalizeRepoUrl(repoUrl);
-
-    // Call the API to distribute funds
-    const response = await axios.post("/api/commands", {
-      command: "distribute",
-      repo_url: normalizedUrl,
-      amount,
-      token,
-    });
-
-    if (response.data.success) {
-      const result = response.data.result;
-      return {
-        success: true,
-        message: result.message,
-        distributionId: result.distributionId,
-      };
-    } else {
-      return {
-        success: false,
-        message: `❌ Failed to distribute funds: ${response.data.message}`,
-      };
-    }
-  } catch (error) {
-    console.error("Error handling distribute command:", error);
-    return {
-      success: false,
-      message: `❌ Error distributing funds: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    };
-  }
-}
-
-/**
- * Handle the verify command
- */
-async function handleVerifyCommand(githubUsername: string, sender: string) {
-  try {
-    // Validate GitHub username
-    if (!githubUsername) {
-      return {
-        success: false,
-        message:
-          "❌ Missing GitHub username. Usage: @bankrbot @gitsplits verify your-github-username",
-      };
-    }
-
-    // Generate a unique verification code
-    const verificationCode = generateVerificationCode();
-
-    // Call the API to initiate verification
-    const response = await axios.post("/api/commands", {
-      command: "verify",
-      github_username: githubUsername,
-      sender,
-    });
-
-    if (response.data.success) {
-      // Store the verification code for later validation
-      // In a real implementation, this would be stored in a database
-      const verificationId = response.data.result.verification_id;
-
-      return {
-        success: true,
-        message: `🔍 Verification initiated for GitHub user: ${githubUsername}\n\nTo complete verification, add this code to your GitHub profile or create a repository with this name:\n\n${verificationCode}\n\nVerification expires in 24 hours.`,
-        verificationId,
-        verificationCode,
-      };
-    } else {
-      return {
-        success: false,
-        message: `❌ Failed to initiate verification: ${response.data.message}`,
-      };
-    }
-  } catch (error) {
-    console.error("Error handling verify command:", error);
-    return {
-      success: false,
-      message: `❌ Error initiating verification: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    };
-  }
-}
+// These command handlers have been moved to src/utils/near.ts
 
 /**
  * Get the help message
@@ -417,89 +168,33 @@ Contract: ${process.env.NEXT_PUBLIC_contractId || "gitsplits.near"}`;
  */
 async function sendTwitterReply(tweetId: string, message: string) {
   try {
-    // In a real implementation, this would use the Twitter API to send a reply
-    console.log(`Sending Twitter reply to tweet ${tweetId}: ${message}`);
+    // Check if message is too long for Twitter (280 chars max)
+    if (message.length > 280) {
+      console.log("Message too long for Twitter, truncating and adding link");
 
-    // For now, we'll just log the message
-    // In a production environment, you would use the Twitter API client
-    return true;
+      // Create a unique ID for this message
+      const messageId = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+
+      // Store the full message (in a real implementation, this would be in a database)
+      // For now, we'll just log it
+      console.log(`Full message (${messageId}): ${message}`);
+
+      // Create a shortened message with a link to view the full message
+      const shortMessage = message.substring(0, 230) +
+        `... \n\nView full message: https://gitsplits.example.com/messages/${messageId}`;
+
+      // Send the shortened message
+      const replyId = await twitterClient.sendReply(tweetId, shortMessage);
+      return !!replyId;
+    }
+
+    // Send the reply using the Twitter client
+    const replyId = await twitterClient.sendReply(tweetId, message);
+    return !!replyId;
   } catch (error) {
     console.error("Error sending Twitter reply:", error);
     return false;
   }
 }
 
-/**
- * Normalize a repository URL
- */
-function normalizeRepoUrl(url: string): string {
-  // Remove protocol if present
-  let normalizedUrl = url.replace(/^https?:\/\//, "");
-
-  // Remove trailing slashes
-  normalizedUrl = normalizedUrl.replace(/\/+$/, "");
-
-  // Ensure it starts with github.com
-  if (!normalizedUrl.startsWith("github.com")) {
-    normalizedUrl = `github.com/${normalizedUrl}`;
-  }
-
-  return normalizedUrl;
-}
-
-/**
- * Format contributors for display in a tweet
- */
-function formatContributors(contributors: any[]): string {
-  // Sort contributors by contributions
-  const sortedContributors = [...contributors].sort(
-    (a, b) => b.contributions - a.contributions
-  );
-
-  // Take top 3 contributors
-  const topContributors = sortedContributors.slice(0, 3);
-
-  // Calculate total contributions
-  const totalContributions = contributors.reduce(
-    (sum, contributor) => sum + contributor.contributions,
-    0
-  );
-
-  // Format the contributors
-  return `Top contributors:
-${topContributors
-  .map(
-    (contributor) =>
-      `- ${contributor.username}: ${(
-        (contributor.contributions / totalContributions) *
-        100
-      ).toFixed(1)}%`
-  )
-  .join("\n")}
-Total contributors: ${contributors.length}`;
-}
-
-/**
- * Generate a unique verification code
- */
-function generateVerificationCode(): string {
-  const prefix = "gitsplits-verify-";
-  const randomString = Math.random().toString(36).substring(2, 10);
-  return `${prefix}${randomString}`;
-}
-
-/**
- * Get the verification level of a user
- */
-async function getUserVerificationLevel(
-  twitterUsername: string
-): Promise<VerificationLevel> {
-  try {
-    // In a real implementation, this would check the user's verification level in the database
-    // For now, we'll assume all users have Basic verification
-    return VerificationLevel.Basic;
-  } catch (error) {
-    console.error("Error getting user verification level:", error);
-    return VerificationLevel.None;
-  }
-}
+// These helper functions have been moved to src/utils/near.ts

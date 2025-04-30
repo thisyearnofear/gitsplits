@@ -3,16 +3,38 @@ services:
   worker:
     image: yourusername/gitsplits-agent:latest@sha256:your-image-hash
     environment:
+      # NEAR Contract Configuration
+      - NEXT_PUBLIC_PROJECT_ID=your_project_id_here
       - NEXT_PUBLIC_contractId=your_contract_id_here
-      - NEXT_PUBLIC_workerName=gitsplits-worker
+      - NEXT_PUBLIC_accountId=your_account_id_here
+      - NEXT_PUBLIC_secretKey=your_secret_key_here
+      - NEXT_PUBLIC_APP_URL=https://your-app-url.com
+
+      # X API Configuration
       - TWITTER_CONSUMER_KEY=your_twitter_consumer_key
       - TWITTER_CONSUMER_SECRET=your_twitter_consumer_secret
       - TWITTER_ACCESS_TOKEN=your_twitter_access_token
       - TWITTER_ACCESS_TOKEN_SECRET=your_twitter_access_token_secret
       - TWITTER_WEBHOOK_ENV=your_twitter_webhook_env
+      - TWITTER_SCREEN_NAME=gitsplits
+
+      # GitHub API Configuration
+      - GITHUB_TOKEN=your_github_personal_access_token
       - GITHUB_APP_ID=your_github_app_id
       - GITHUB_PRIVATE_KEY=your_github_private_key
       - GITHUB_WEBHOOK_SECRET=your_github_webhook_secret
+
+      # TEE Configuration
+      - TEE_WORKER_NAME=gitsplits-worker
+
+      # Application Configuration
       - NODE_ENV=production
     ports:
       - '3000:3000'
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

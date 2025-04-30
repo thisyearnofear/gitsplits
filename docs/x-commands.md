@@ -11,6 +11,7 @@ All commands follow this general format:
 ```
 
 Where:
+
 - `@bankrbot` is the Bankrbot account
 - `@gitsplits` is the GitSplits X Agent account
 - `[command]` is the specific action to perform
@@ -29,14 +30,17 @@ Creates a new split configuration for a GitHub repository.
 ```
 
 **Parameters:**
+
 - `repo_url`: URL of the GitHub repository (e.g., `github.com/user/repo`)
 
 **Example:**
+
 ```
 @bankrbot @gitsplits create github.com/near/near-sdk-rs
 ```
 
 **Response:**
+
 ```
 ✅ Split created for github.com/near/near-sdk-rs!
 Split ID: split-123456
@@ -53,14 +57,17 @@ Retrieves information about a repository split.
 ```
 
 **Parameters:**
+
 - `repo_url`: URL of the GitHub repository
 
 **Example:**
+
 ```
 @bankrbot @gitsplits info github.com/near/near-sdk-rs
 ```
 
 **Response:**
+
 ```
 📊 Split info for github.com/near/near-sdk-rs:
 Split ID: split-123456
@@ -82,14 +89,17 @@ Updates the split configuration for a repository.
 ```
 
 **Parameters:**
+
 - `repo_url`: URL of the GitHub repository
 
 **Example:**
+
 ```
 @bankrbot @gitsplits update github.com/near/near-sdk-rs
 ```
 
 **Response:**
+
 ```
 🔄 Split updated for github.com/near/near-sdk-rs!
 Contributors: 17 (2 new)
@@ -107,16 +117,19 @@ Distributes funds to contributors based on the split configuration.
 ```
 
 **Parameters:**
+
 - `repo_url`: URL of the GitHub repository
 - `amount`: Amount to distribute
 - `token`: (Optional) Token to distribute (default: NEAR)
 
 **Example:**
+
 ```
 @bankrbot @gitsplits distribute github.com/near/near-sdk-rs 100 NEAR
 ```
 
 **Response:**
+
 ```
 💸 Distribution initiated for github.com/near/near-sdk-rs!
 Amount: 100 NEAR
@@ -134,14 +147,17 @@ Checks the status of a distribution.
 ```
 
 **Parameters:**
+
 - `distribution_id`: ID of the distribution to check
 
 **Example:**
+
 ```
 @bankrbot @gitsplits status dist-789012
 ```
 
 **Response:**
+
 ```
 📊 Distribution dist-789012 status:
 Amount: 100 NEAR
@@ -161,14 +177,17 @@ Initiates GitHub identity verification to link a GitHub account to a wallet.
 ```
 
 **Parameters:**
+
 - `github_username`: GitHub username to verify
 
 **Example:**
+
 ```
 @bankrbot @gitsplits verify johndoe
 ```
 
 **Response:**
+
 ```
 🔍 Verification initiated for GitHub user: johndoe
 Complete verification at: https://gitsplits.example.com/verify/ver-123456
@@ -184,14 +203,17 @@ Checks the status of a GitHub identity verification.
 ```
 
 **Parameters:**
+
 - `github_username`: GitHub username to check
 
 **Example:**
+
 ```
 @bankrbot @gitsplits verification johndoe
 ```
 
 **Response:**
+
 ```
 ✅ GitHub user johndoe is verified!
 Linked to: johndoe.near
@@ -209,11 +231,13 @@ Displays help information about available commands.
 ```
 
 **Example:**
+
 ```
 @bankrbot @gitsplits help
 ```
 
 **Response:**
+
 ```
 🤖 GitSplits X Agent Commands:
 - create [repo_url]: Create a new split
@@ -237,11 +261,13 @@ Displays the current version of GitSplits X Agent.
 ```
 
 **Example:**
+
 ```
 @bankrbot @gitsplits version
 ```
 
 **Response:**
+
 ```
 GitSplits X Agent v1.0.0
 Built with NEAR Shade Agents
@@ -259,6 +285,7 @@ Please check the repository URL and try again.
 ```
 
 Common error types:
+
 - Repository not found
 - Invalid command format
 - Insufficient permissions
@@ -269,9 +296,37 @@ Common error types:
 ## Command Rate Limits
 
 To prevent abuse, the following rate limits apply:
+
 - 10 commands per user per hour
 - 3 distribution commands per user per day
 - 5 verification attempts per GitHub username per day
+
+## Hybrid Flow (X + Web)
+
+Some commands may require additional steps that are better completed on the web. In these cases, GitSplits X Agent will provide a link to continue the process on the web.
+
+### Long Responses
+
+When a response is too long for X (exceeds 280 characters), GitSplits X Agent will provide a shortened version with a link to view the full message:
+
+```
+📊 Split info for github.com/near/near-sdk-rs:
+Top contributors:
+- austinabell: 25.4%
+- evgenykuzyakov: 18.7%
+...
+
+View full message: https://gitsplits.example.com/messages/msg-123456
+```
+
+### Verification Flow
+
+The GitHub identity verification process is a hybrid flow:
+
+1. User initiates verification on X: `@bankrbot @gitsplits verify johndoe`
+2. GitSplits X Agent responds with a link to complete verification on the web
+3. User completes verification on the web by adding a verification code to their GitHub profile
+4. User can check verification status on X: `@bankrbot @gitsplits verification johndoe`
 
 ## Notes
 
@@ -280,3 +335,4 @@ To prevent abuse, the following rate limits apply:
 - Token amounts must be positive numbers
 - Token types are case-sensitive (e.g., `NEAR`, `ETH`, `USDC`)
 - Distribution IDs and verification IDs are provided in command responses and are needed for status checks
+- For security reasons, some operations may require additional verification steps on the web

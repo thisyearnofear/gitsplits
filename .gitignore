@@ -44,3 +44,14 @@ next-env.d.ts
 
 # TEE specific
 .tee-secrets/
+
+# Rust specific
+/target/
+**/target/
+Cargo.lock
+**/*.rs.bk
+*.wasm
+
+# NEAR specific
+.near-credentials/
+neardev/

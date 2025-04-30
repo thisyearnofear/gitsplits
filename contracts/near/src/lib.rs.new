@@ -1,7 +1,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault, BorshStorageKey};
 use near_sdk::collections::{LookupMap, UnorderedMap, Vector};
-use near_sdk::serde::{Deserialize, Serialize};
+use near_sdk::json_types::U128;
 use schemars::JsonSchema;
 
 /// Storage keys for collections
@@ -23,16 +23,14 @@ pub type SplitId = String;
 pub type DistributionId = String;
 
 /// Simple attestation structure
-#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(crate = "near_sdk::serde")]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, JsonSchema)]
 pub struct Attestation {
     pub quote: String,
     pub endorsements: String,
 }
 
 /// Worker information
-#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(crate = "near_sdk::serde")]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, JsonSchema)]
 pub struct WorkerInfo {
     pub code_hash: String,
     pub registered_at: u64,
@@ -40,17 +38,15 @@ pub struct WorkerInfo {
 }
 
 /// Contributor structure
-#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(crate = "near_sdk::serde")]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, JsonSchema)]
 pub struct Contributor {
     pub github_username: String,
     pub account_id: Option<String>, // Using String instead of AccountId for JsonSchema
-    pub percentage: u128, // Using u128 instead of U128 for JsonSchema
+    pub percentage: U128,
 }
 
 /// Split structure
-#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(crate = "near_sdk::serde")]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, JsonSchema)]
 pub struct Split {
     pub id: SplitId,
     pub repo_url: String,
@@ -61,8 +57,7 @@ pub struct Split {
 }
 
 /// Transaction status enum
-#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(crate = "near_sdk::serde")]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, JsonSchema)]
 pub enum TransactionStatus {
     Pending,
     Completed,
@@ -70,8 +65,7 @@ pub enum TransactionStatus {
 }
 
 /// Transaction structure
-#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(crate = "near_sdk::serde")]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, JsonSchema)]
 pub struct Transaction {
     pub chain_id: String,
     pub recipient: String,
@@ -81,20 +75,18 @@ pub struct Transaction {
 }
 
 /// Distribution structure
-#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(crate = "near_sdk::serde")]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, JsonSchema)]
 pub struct Distribution {
     pub id: DistributionId,
     pub split_id: SplitId,
-    pub amount: u128, // Using u128 instead of U128 for JsonSchema
+    pub amount: U128,
     pub token_id: Option<String>,
     pub timestamp: u64,
     pub transactions: Vec<Transaction>,
 }
 
 /// Chain signature structure
-#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(crate = "near_sdk::serde")]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, JsonSchema)]
 pub struct ChainSignature {
     pub signature: String,
     pub public_key: String,
@@ -144,7 +136,7 @@ impl GitSplitsContract {
 
     // Worker Agent Management
 
-    pub fn register_worker(&mut self, _attestation: Attestation, code_hash: String) -> bool {
+    pub fn register_worker(&mut self, attestation: Attestation, code_hash: String) -> bool {
         // In a real implementation, we would verify the attestation
         // For now, we'll just check if the code hash is allowed
 
@@ -160,12 +152,8 @@ impl GitSplitsContract {
             }
         }
 
-        // If the owner is registering, allow it
-        // LookupMap doesn't have is_empty(), so we'll check if any workers exist
-        let first_worker = self.registered_workers.get(&self.owner).is_none() && 
-                          self.allowed_code_hashes.len() == 0;
-                          
-        if first_worker || env::predecessor_account_id() == self.owner {
+        // If this is the first worker or the owner is registering, allow it
+        if self.registered_workers.is_empty() || env::predecessor_account_id() == self.owner {
             is_allowed = true;
 
             // Add the code hash to allowed list if it's not already there
@@ -228,7 +216,7 @@ impl GitSplitsContract {
         if let Some(mut split) = self.splits.get(&split_id) {
             // Validate that percentages add up to 100%
             let total_percentage: u128 = contributors.iter()
-                .map(|c| c.percentage)
+                .map(|c| c.percentage.0)
                 .sum();
 
             assert_eq!(total_percentage, 100_000_000_000_000_000_000_000, "Percentages must add up to 100%");

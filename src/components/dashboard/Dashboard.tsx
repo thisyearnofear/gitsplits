@@ -9,6 +9,9 @@ import DashboardOverview from "./DashboardOverview";
 import VerificationCenter from "./VerificationCenter";
 import MySplits from "./MySplits";
 import MyEarnings from "./MyEarnings";
+import AgentActivity from "./AgentActivity";
+import Bounties from "./Bounties";
+import SecurityLog from "./SecurityLog";
 
 const Dashboard: React.FC<DashboardProps> = ({
   isGitHubConnected,
@@ -72,17 +75,22 @@ const Dashboard: React.FC<DashboardProps> = ({
           onValueChange={setActiveTab}
           className="space-y-6"
         >
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="verification">Verification</TabsTrigger>
             <TabsTrigger value="splits">My Splits</TabsTrigger>
             <TabsTrigger value="earnings">My Earnings</TabsTrigger>
+            <TabsTrigger value="bounties">Bounties</TabsTrigger>
+            <TabsTrigger value="security">Security Log</TabsTrigger>
             <TabsTrigger value="commands">X Commands</TabsTrigger>
           </TabsList>
 
           {/* Tab Content */}
           <TabsContent value="overview">
             <DashboardOverview />
+            <div className="mt-8">
+              <AgentActivity />
+            </div>
           </TabsContent>
 
           <TabsContent value="verification">
@@ -100,8 +108,26 @@ const Dashboard: React.FC<DashboardProps> = ({
             <MyEarnings />
           </TabsContent>
 
+          <TabsContent value="bounties">
+            <Bounties />
+          </TabsContent>
+
+          <TabsContent value="security">
+            <SecurityLog />
+          </TabsContent>
+
           <TabsContent value="commands">
             <XCommandsGuide />
+            <div className="mt-4 text-center">
+              <a
+                href="/docs/x-commands.md"
+                className="text-blue-600 underline"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Full X Command Reference
+              </a>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

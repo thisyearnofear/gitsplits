@@ -1,210 +1,272 @@
-# GitHub Split Contract Implementation Plan
+# GitSplits X Agent
 
 ## Overview
 
-A smart contract system that splits ETH payments between Linus Torvalds and 0xSplits, with secure GitHub identity verification before wallet connection.
+GitSplits X Agent is an autonomous agent built on the NEAR Shade Agents stack that enables GitHub repository contributors to receive fair compensation based on their contributions. Users interact with the agent entirely through X (Twitter), making it easy to create and manage revenue splits for any GitHub repository.
 
-## Core Components
+![GitSplits X Agent Banner](https://placeholder-for-banner-image.com)
 
-### 1. Frontend Authentication
+## 🚀 Features
 
-- GitHub OAuth flow implementation
-- User signs in with GitHub
-- Frontend verifies user is either "torvalds" or "0xSplits"
-- After verification, user connects their Ethereum wallet
-- Frontend calls Chainlink oracle to verify GitHub identity on-chain
+- **X-Native Interaction**: Interact with GitSplits directly through X using simple, intuitive commands
+- **Automatic Contribution Analysis**: Analyze GitHub repositories to determine fair contribution splits
+- **Multi-Chain Fund Distribution**: Distribute funds across multiple blockchains to contributors
+- **GitHub Identity Verification**: Securely link GitHub identities to crypto wallets
+- **Transparent Split Management**: Create, view, and update splits with full transparency
+- **Web Dashboard**: Monitor all agent activity through our web interface
+- **Original Creator Recognition**: Automatically identify and compensate original repository creators
+- **Contribution Incentives**: Set up bounties for specific tasks to encourage community contributions
 
-### 2. Oracle Implementation
+## 🤖 How It Works
 
-Using Chainlink's External Adapter:
+GitSplits X Agent combines the power of NEAR Shade Agents with Bankrbot to create a seamless experience:
 
-- Custom external adapter that verifies GitHub OAuth tokens
-- Chainlink node calls the adapter and returns verification to contract
-- Estimated cost: ~0.1 LINK per verification
-- Chainlink job spec needs to verify:
-  - GitHub username ownership
-  - Account age > 1 year
-  - Minimum activity threshold
+1. **Command GitSplits on X**: Mention `@bankrbot @gitsplits` with a simple command
+2. **Smart Repository Matching**: The agent intelligently identifies your repository
+3. **Secure Verification**: Security checks ensure proper attribution and prevent abuse
+4. **On-Chain Recording**: All actions are verified and recorded on-chain
+5. **Funds Distribution**: Funds are automatically distributed to contributors based on their GitHub activity
 
-### 3. Smart Contract Architecture
+## 📋 User-Friendly X Commands
 
-```solidity
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+Interact with GitSplits using these intuitive commands on X:
 
-import "@chainlink/contracts/src/v0.8/ChainlinkClient.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
+| Command                                              | Description                            | Example                                                  |
+| ---------------------------------------------------- | -------------------------------------- | -------------------------------------------------------- |
+| `@bankrbot @gitsplits create myrepo`                 | Create a new split for your repository | `@bankrbot @gitsplits create near-sdk-rs`                |
+| `@bankrbot @gitsplits distribute 100 NEAR to myrepo` | Distribute funds to contributors       | `@bankrbot @gitsplits distribute 100 NEAR to my-project` |
+| `@bankrbot @gitsplits verify johndoe`                | Link your GitHub identity              | `@bankrbot @gitsplits verify myusername`                 |
+| `@bankrbot @gitsplits info myrepo`                   | Get split information                  | `@bankrbot @gitsplits info my-project`                   |
+| `@bankrbot @gitsplits help`                          | Get help with commands                 | `@bankrbot @gitsplits help`                              |
 
-contract GitHubSplit is ChainlinkClient, ReentrancyGuard, Pausable {
-    using Chainlink for Chainlink.Request;
+> **Note**: For maximum precision, you can always use the full repository URL as a fallback: `@bankrbot @gitsplits create github.com/user/repo`
 
-    struct Verification {
-        bool isVerified;
-        uint256 verificationTime;
-        address walletAddress;
-    }
+The agent understands natural language, so you can also use commands like:
 
-    mapping(string => Verification) public verifiedUsers;
-    uint256 public constant VERIFICATION_DELAY = 7 days;
-    uint256 public constant TOTAL_SHARES = 2;
-    bytes32 private immutable jobId;
-    uint256 private immutable fee;
+- `@bankrbot @gitsplits make a split for my-project`
+- `@bankrbot @gitsplits send 50 NEAR to contributors of my-project`
+- `@bankrbot @gitsplits show me info about my-project`
 
-    event VerificationRequested(string githubUsername, address wallet);
-    event VerificationCompleted(string githubUsername, address wallet);
-    event PaymentReleased(address to, uint256 amount);
+## 🔒 Security Architecture
 
-    constructor(address _link, address _oracle, bytes32 _jobId) {
-        setChainlinkToken(_link);
-        setChainlinkOracle(_oracle);
-        jobId = _jobId;
-        fee = (1 * LINK_DIVISIBILITY) / 10; // 0.1 LINK
-    }
+GitSplits X Agent is built with security at its core, balancing user-friendliness with robust protection:
 
-    function requestVerification(string calldata githubUsername) external {
-        require(
-            keccak256(bytes(githubUsername)) == keccak256(bytes("torvalds")) ||
-            keccak256(bytes(githubUsername)) == keccak256(bytes("0xSplits")),
-            "Invalid username"
-        );
-        require(!verifiedUsers[githubUsername].isVerified, "Already verified");
+### 1. Worker Agent (TEE-Secured)
 
-        Chainlink.Request memory req = buildChainlinkRequest(
-            jobId,
-            address(this),
-            this.fulfill.selector
-        );
-        req.add("username", githubUsername);
-        req.add("wallet", Strings.toHexString(msg.sender));
-        sendChainlinkRequest(req, fee);
+- Runs in a Trusted Execution Environment (TEE) on NEAR AI Hub
+- Processes X commands and GitHub API requests
+- Generates and signs transactions using ephemeral keys
+- Verifies GitHub identities and contribution data
 
-        emit VerificationRequested(githubUsername, msg.sender);
-    }
+### 2. NEAR Smart Contract
 
-    function fulfill(bytes32 _requestId, bool _isValid, string memory username, address wallet)
-        public
-        recordChainlinkFulfillment(_requestId)
-    {
-        if (_isValid) {
-            verifiedUsers[username] = Verification({
-                isVerified: true,
-                verificationTime: block.timestamp,
-                walletAddress: wallet
-            });
-            emit VerificationCompleted(username, wallet);
-        }
-    }
+- Verifies worker agent attestations
+- Manages repository split configurations
+- Handles fund distribution logic
+- Uses chain signatures for cross-chain transactions
 
-    function withdraw() external nonReentrant {
-        string[2] memory validUsers = ["torvalds", "0xSplits"];
-        bool isValidUser = false;
+### 3. Multi-Chain Integration
 
-        for (uint i = 0; i < validUsers.length; i++) {
-            Verification memory verification = verifiedUsers[validUsers[i]];
-            if (verification.walletAddress == msg.sender) {
-                require(verification.isVerified, "Not verified");
-                require(
-                    block.timestamp >= verification.verificationTime + VERIFICATION_DELAY,
-                    "Verification delay not passed"
-                );
-                isValidUser = true;
-                break;
-            }
-        }
+- Leverages NEAR's chain signatures for cross-chain transactions
+- Supports fund distribution on Ethereum, Solana, and other major chains
+- Ensures secure and verifiable transactions across blockchains
 
-        require(isValidUser, "Not authorized");
+### 4. Identity Verification System
 
-        uint256 share = address(this).balance / TOTAL_SHARES;
-        (bool success, ) = msg.sender.call{value: share}("");
-        require(success, "Transfer failed");
+- **Tiered Verification Levels**:
+  - Level 1: Basic X account verification
+  - Level 2: GitHub account linking
+  - Level 3: Repository ownership proof
+- **Progressive Security**: Higher-value actions require stronger verification
+- **GitHub-X Linking**: Secure methods to verify ownership of both accounts
 
-        emit PaymentReleased(msg.sender, share);
-    }
-}
+### 5. Anti-Gaming Protections
+
+- **Sophisticated Contribution Analysis**: Beyond simple commit counts
+- **Time-Based Restrictions**: Minimum repository age requirements
+- **Suspicious Activity Detection**: Monitoring for manipulation attempts
+- **Transparent Attribution**: Public records of all splits and distributions
+
+## 🛡️ Security & UX Balance
+
+GitSplits X Agent implements security measures that feel natural in the user flow:
+
+1. **Progressive Security**: More verification for higher-value actions
+2. **Contextual Challenges**: Security checks that make sense for the specific action
+3. **Guided Verification**: Clear instructions for completing security steps
+4. **Sensible Defaults**: Safe assumptions that work for most users
+
+This approach ensures that:
+
+- Casual users can get started easily
+- Legitimate creators receive proper attribution
+- Bad actors face significant barriers to abuse
+- The system remains intuitive despite the security layers
+
+## 🛠️ Technical Architecture
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│                 │     │                 │     │                 │
+│   X (Twitter)   │────▶│  Worker Agent   │────▶│  NEAR Contract  │
+│                 │     │     (TEE)       │     │                 │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+        │                       │                       │
+        │                       │                       │
+        ▼                       ▼                       ▼
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│                 │     │                 │     │                 │
+│   Bankrbot      │     │   GitHub API    │     │  Chain Signatures│
+│                 │     │                 │     │                 │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
 ```
 
-## Security Measures
+## 🧩 Core Components
 
-1. Time Delay
+### 1. X Integration
 
-- 7-day waiting period after verification before withdrawal
-- Prevents immediate withdrawals if verification is compromised
-- Can be adjusted based on security needs
+- Monitors X for mentions and commands
+- Parses user commands and validates inputs
+- Provides feedback and status updates to users
 
-2. Oracle Verification Requirements
+### 2. GitHub Integration
 
-- Must be authorized GitHub account
-- Account must satisfy minimum criteria
-- Verification through multiple data points
+- Fetches repository contribution data
+- Analyzes contribution patterns
+- Calculates fair distribution percentages
 
-3. Smart Contract Safety
+### 3. Smart Contract
 
-- ReentrancyGuard for withdrawal function
-- Pausable for emergency stops
-- Limited to exactly two predefined users
-- Immutable constants for critical values
+- Manages repository split configurations
+- Handles fund distribution logic
+- Verifies GitHub identities
+- Uses chain signatures for cross-chain transactions
 
-## Implementation Steps
+### 4. Web Dashboard
 
-1. Development Phase
+- Displays all agent activity
+- Shows split configurations and distribution history
+- Provides detailed analytics on repository contributions
 
-- Deploy Chainlink external adapter for GitHub verification
-- Create and test frontend OAuth flow
-- Deploy and verify smart contract
-- Comprehensive testing of verification flow
+## 📝 Implementation Plan
 
-2. Security Review
+Our implementation follows a phased approach to deliver a secure, user-friendly system:
 
-- Full audit of smart contract
-- Penetration testing of frontend
-- Oracle verification flow review
+### Phase 1: Core Identity System ✅
 
-3. Launch Phase
+- Implement tiered verification approach for GitHub-X linking
+- Build repository verification flow
+- Create secure identity storage in smart contract
 
-- Gradual rollout with small test amounts
-- Initial higher verification delay
-- Monitor oracle costs and adjust as needed
+### Phase 2: Smart Repository Matching ✅
 
-## Cost Considerations
+- Develop fuzzy matching for repository names
+- Implement context awareness for recent interactions
+- Build fallback mechanisms for ambiguous cases
 
-1. One-time Costs
+### Phase 3: Secure Split Creation ✅
 
-- Smart contract deployment: ~0.1-0.2 ETH
-- Oracle adapter deployment: ~$100-200
-- Initial LINK token funding: ~100 LINK
+- Verify repository relationships and ownership
+- Implement contribution analysis algorithms
+- Create transparent on-chain records
 
-2. Per-verification Costs
+### Phase 4: Safe Distribution Mechanism ✅
 
-- Chainlink oracle fee: 0.1 LINK per verification
-- Gas costs for verification: ~0.002-0.005 ETH
-- Gas costs for withdrawal: ~0.001-0.003 ETH
+- Implement verification level requirements based on amount
+- Create notification and claim system
+- Build dispute resolution process
 
-## Technical Requirements
+### Phase 5: Incentive & Bounty System 🔄
 
-- Solidity ^0.8.0
+- Implement task-based bounties
+- Create verification system for task completion
+- Build automatic distribution for completed tasks
+
+## 🚀 Getting Started
+
+### Prerequisites
+
 - Node.js >= 16.0.0
-- Chainlink node
-- GitHub OAuth credentials
-- Frontend: React + ethers.js
-- Hardhat development environment
+- Rust and cargo-near
+- Docker for TEE deployment
 
-## Risks and Mitigations
+### Local Development
 
-1. Oracle Failure
+1. Clone the repository:
 
-- Backup verification method available
-- Manual override by contract owner
-- Multiple oracle providers possible
+   ```bash
+   git clone https://github.com/yourusername/gitsplits-x-agent
+   cd gitsplits-x-agent
+   ```
 
-2. Frontend Security
+2. Install dependencies:
 
-- Server-side OAuth token validation
-- Rate limiting on verification requests
-- Multiple verification steps
+   ```bash
+   yarn
+   ```
 
-3. Smart Contract Risks
+3. Set up environment variables:
 
-- Limited fund exposure
-- Time-delayed withdrawals
-- Emergency pause functionality
+   ```bash
+   cp .env.example .env.local
+   # Edit .env.local with your configuration
+   ```
+
+4. Run the development server:
+   ```bash
+   yarn dev
+   ```
+
+### Deploying the Smart Contract
+
+1. Build the contract:
+
+   ```bash
+   cd contracts/near
+   cargo near build
+   ```
+
+2. Deploy to NEAR:
+   ```bash
+   cargo near deploy --accountId YOUR_ACCOUNT_ID
+   ```
+
+### Deploying the Worker Agent
+
+1. Build the Docker image:
+
+   ```bash
+   yarn docker:build
+   yarn docker:push
+   ```
+
+2. Deploy to Phala Cloud following the instructions in the [Deployment Guide](docs/deployment.md).
+
+## 📚 Documentation
+
+- [Architecture Overview](docs/architecture.md)
+- [Smart Contract API](docs/contract-api.md)
+- [Worker Agent API](docs/worker-api.md)
+- [X Command Reference](docs/x-commands.md)
+- [Deployment Guide](docs/deployment.md)
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgements
+
+- [NEAR Protocol](https://near.org) for the Shade Agents infrastructure
+- [Bankrbot](https://x.com/bankrbot) for the X integration
+- [Phala Network](https://phala.network) for the TEE infrastructure
+- [GitHub API](https://docs.github.com/en/rest) for repository data

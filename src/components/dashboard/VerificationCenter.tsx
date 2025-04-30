@@ -18,6 +18,39 @@ const VerificationCenter: React.FC<VerificationCenterProps> = ({
   setIsGitHubConnected,
 }) => {
   const [verificationLevel, setVerificationLevel] = useState(1); // Basic level by default
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Simulated async verification
+  const handleVerifyGitHub = () => {
+    setIsLoading(true);
+    setStatusMessage("Verifying your GitHub identity...");
+    setTimeout(() => {
+      setIsGitHubConnected(true);
+      setVerificationLevel(2);
+      setIsLoading(false);
+      setStatusMessage("GitHub identity verified! You are now Level 2.");
+    }, 1500);
+  };
+
+  const handleVerifyRepo = () => {
+    setIsLoading(true);
+    setStatusMessage("Checking repository ownership...");
+    setTimeout(() => {
+      setVerificationLevel(3);
+      setIsLoading(false);
+      setStatusMessage("Repository ownership verified! You are now Level 3.");
+    }, 1500);
+  };
+
+  const handleRefresh = () => {
+    setIsLoading(true);
+    setStatusMessage("Refreshing verification status...");
+    setTimeout(() => {
+      setIsLoading(false);
+      setStatusMessage("Status is up-to-date.");
+    }, 1000);
+  };
   
   return (
     <div className="space-y-6">
@@ -54,21 +87,25 @@ const VerificationCenter: React.FC<VerificationCenterProps> = ({
               
               <div className="flex flex-wrap gap-2">
                 {verificationLevel < 2 && (
-                  <Button onClick={() => setIsGitHubConnected(true)}>
-                    <Github className="mr-2 h-4 w-4" /> Verify GitHub Identity
+                  <Button onClick={handleVerifyGitHub} disabled={isLoading || isGitHubConnected}>
+                    <Github className="mr-2 h-4 w-4" />
+                    {isLoading && statusMessage?.includes("GitHub") ? "Verifying..." : "Verify GitHub Identity"}
                   </Button>
                 )}
-                
                 {verificationLevel === 2 && (
-                  <Button>
-                    <GitBranch className="mr-2 h-4 w-4" /> Verify Repository Ownership
+                  <Button onClick={handleVerifyRepo} disabled={isLoading}>
+                    <GitBranch className="mr-2 h-4 w-4" />
+                    {isLoading && statusMessage?.includes("repository") ? "Verifying..." : "Verify Repository Ownership"}
                   </Button>
                 )}
-                
-                <Button variant="outline">
-                  <RefreshCw className="mr-2 h-4 w-4" /> Check Verification Status
+                <Button variant="outline" onClick={handleRefresh} disabled={isLoading}>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  {isLoading && statusMessage?.includes("Refreshing") ? "Refreshing..." : "Check Verification Status"}
                 </Button>
               </div>
+              {statusMessage && (
+                <div className="mt-4 text-blue-700 text-sm">{statusMessage}</div>
+              )}
             </div>
           </div>
         </CardContent>
@@ -87,7 +124,7 @@ const VerificationCenter: React.FC<VerificationCenterProps> = ({
               <div>
                 <h3 className="font-medium">Basic Verification</h3>
                 <p className="text-sm text-gray-600 mb-2">
-                  X account age > 3 months, minimum followers
+                  X account age &gt; 3 months, minimum followers
                 </p>
                 <div className="text-sm text-gray-600">
                   <span className="font-medium">Capabilities:</span> View splits, receive small distributions
@@ -150,7 +187,7 @@ const VerificationCenter: React.FC<VerificationCenterProps> = ({
             </li>
             
             <li className="pl-2">
-              <span className="font-medium">For repository verification, you'll need admin permissions on the repository</span>
+              <span className="font-medium">For repository verification, you'll need admin permissions on the repository. After requesting, follow the instructions from the agent in your X DMs or dashboard notifications.</span>
             </li>
           </ol>
         </CardContent>

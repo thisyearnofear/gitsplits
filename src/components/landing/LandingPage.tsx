@@ -224,20 +224,40 @@ const LandingPage: React.FC<LandingPageProps> = ({
   // Add this near the top of your file
   const features = [
     {
-      icon: <Github className="w-6 h-6" />,
-      title: "GitHub Integration",
-      description: "Seamlessly connect with your GitHub repositories.",
+      icon: <Twitter className="w-6 h-6" />,
+      title: "X Commands",
+      description:
+        "Tweet '@bankrbot @gitsplits create myrepo' to instantly create splits.",
+    },
+    {
+      icon: <Share2 className="w-6 h-6" />,
+      title: "Embed Attribution",
+      description:
+        "Widget showcasing contributors & enabling direct tips.",
     },
     {
       icon: <DollarSign className="w-6 h-6" />,
-      title: "Automated Splits",
-      description: "Fairly distribute contributions based on commit history.",
+      title: "Secure Distribution",
+      description:
+        "Non-custodial fund distribution in Trusted Execution Environment.",
+    },
+  ];
+
+  const steps = [
+    {
+      number: 1,
+      title: "Choose Your Method",
+      description: "Use X commands or our web dashboard - whatever works for you.",
     },
     {
-      icon: <Code className="w-6 h-6" />,
-      title: "Easy Embedding",
-      description:
-        "Embed attribution widgets in your project with a single line of code.",
+      number: 2,
+      title: "Set Up Splits",
+      description: "Create onchain splits easily, optionally embed our widget to showcase them.",
+    },
+    {
+      number: 3,
+      title: "Start Distributing",
+      description: "Securely distribute funds to all verified contributors.",
     },
   ];
 
@@ -303,118 +323,40 @@ const LandingPage: React.FC<LandingPageProps> = ({
         )}
 
         {/* How It Works Section */}
-        <div className="py-16">
-          <div className="grid md:grid-cols-3 gap-8">
-            <StepCard
-              number="1"
-              title="Enter GitHub URL"
-              description="Provide your repository URL to fetch contributor information"
-            />
-            <StepCard
-              number="2"
-              title="Customize Attribution"
-              description="Choose between minimal and expanded display styles"
-            />
-            <StepCard
-              number="3"
-              title="Get Embed Code"
-              description="Copy the generated code and add it to your project"
-            />
+        <div className="py-16 bg-gray-50">
+          <div className="max-w-6xl mx-auto px-4">
+            <h2 className="text-3xl font-bold text-center mb-4">How It Works</h2>
+            <p className="text-gray-600 text-center mb-12 max-w-2xl mx-auto">
+              Get started in minutes. Fork code with honour. Cultivate collaborators.
+            </p>
+            <div className="grid md:grid-cols-3 gap-8">
+              {steps.map((step, index) => (
+                <StepCard
+                  key={index}
+                  number={step.number.toString()}
+                  title={step.title}
+                  description={step.description}
+                />
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Modified Enhanced Attribution Section */}
-        <div className="py-16 bg-white rounded-lg shadow-lg">
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-xl font-semibold mb-4 text-center">
-                  Basic
-                </h3>
-                <AttributionWidget
-                  repoInfo={{
-                    owner: "torvalds",
-                    name: "linux",
-                    contributors: [
-                      {
-                        username: "torvalds",
-                        contributions: 50,
-                        avatar_url: "",
-                      },
-                      {
-                        username: "gregkh",
-                        contributions: 30,
-                        avatar_url: "",
-                      },
-                    ],
-                    isFork: false,
-                    originalRepo: null,
-                  }}
-                  contractAddress=""
-                  displayStyle="expanded"
-                  onSupportClick={handleSupportClick}
+        {/* Features Section */}
+        <div className="py-16 bg-white">
+          <div className="max-w-6xl mx-auto px-4">
+            <h2 className="text-3xl font-bold text-center mb-4">Key Features</h2>
+          
+            <div className="grid md:grid-cols-3 gap-8">
+              {features.map((feature, index) => (
+                <FeatureCard
+                  key={index}
+                  icon={feature.icon}
+                  title={feature.title}
+                  description={feature.description}
                 />
-                {/* Rest of Basic card content */}
-                <ul className="mt-4 space-y-2 text-gray-600">
-                  <li>✓ MIT License frontend attribution</li>
-                  <li>✓ Contributor recognition + kudos</li>
-                  <li>✗ Support for donations, tips, royalties</li>
-                  <li>✗ Onchain recognition of forked code </li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-xl font-semibold mb-4 text-center">
-                  Enhanced
-                </h3>
-                <EnhancedAttributionWidget
-                  repoInfo={{
-                    owner: "sindresorhus",
-                    name: "awesome",
-                    contributors: [
-                      {
-                        username: "sindresorhus",
-                        contributions: 50,
-                        avatar_url: "",
-                      },
-                      {
-                        username: "johnjago",
-                        contributions: 30,
-                        avatar_url: "",
-                      },
-                    ],
-                    isFork: false,
-                    originalRepo: null,
-                  }}
-                  contractAddress="0x1234...5678"
-                  displayStyle="expanded"
-                />
-                {/* Rest of Enhanced card content */}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* How It Works Section */}
-        <div className="py-16">
-          <div className="grid md:grid-cols-3 gap-8">
-            <StepCard
-              number="4"
-              title="Add Splits"
-              description="Use fork history to auto-split tips, donations, & royalties"
-            />
-            <StepCard
-              number="5"
-              title="Accept Onchain Contributions"
-              description="Transparent, trustless transactions"
-            />
-            <StepCard
-              number="6"
-              title="Grow Community"
-              description="Reward offchain devs, expand your network"
-            />
+              ))}
+            </div>
           </div>
         </div>
 
@@ -445,9 +387,22 @@ const LandingPage: React.FC<LandingPageProps> = ({
                       value={autoRepoUrl}
                       onChange={(e) => setAutoRepoUrl(e.target.value)}
                     />
-                    <Button onClick={handleAutoSetup} className="w-full">
-                      Generate Splits & Embed
-                    </Button>
+                    <div className="flex gap-4">
+                      <Button
+                        onClick={handleAutoSetup}
+                        size="lg"
+                        className="bg-blue-600 text-white hover:bg-blue-700"
+                      >
+                        Try X Commands <Twitter className="ml-2 h-4 w-4" />
+                      </Button>
+                      <Button
+                        onClick={handleDashboardNavigation}
+                        size="lg"
+                        variant="outline"
+                      >
+                        Use Dashboard <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -550,25 +505,12 @@ const LandingPage: React.FC<LandingPageProps> = ({
 
             {/* Bottom text */}
             <div className="text-center text-gray-600">
-              <p>Built with ❤️ for the open source community</p>
-              <p className="mt-2 text-sm">GitSplits</p>
+              <p>Built with ❤️ by <a href="https://warpcast.com/papa" className="text-blue-600 hover:underline">papa</a></p>
+              <p className="mt-2 text-sm">A <a href="https://x.com/bankrbot" className="text-blue-600 hover:underline">Bankrbot</a> Extension using NEAR Shade Agents</p>
             </div>
           </div>
         </div>
 
-        {/* Add this inside your return statement, perhaps after the "How It Works" section */}
-        <div className="py-16 mt-0">
-          <div className="grid md:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <FeatureCard
-                key={index}
-                icon={feature.icon}
-                title={feature.title}
-                description={feature.description}
-              />
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );

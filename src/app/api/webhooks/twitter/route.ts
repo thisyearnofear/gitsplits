@@ -29,33 +29,41 @@ export async function GET(request: Request) {
 // Handle Twitter webhook events
 export async function POST(request: Request) {
   try {
-    const payload = await request.json();
+    // Get the raw body for signature validation
+    const rawBody = await request.text();
+    const payload = JSON.parse(rawBody);
 
     // Validate the request signature
     const signature = request.headers.get("x-twitter-webhooks-signature") || "";
     const isValid = validateSignature(
       signature,
-      JSON.stringify(payload),
+      rawBody,
       process.env.TWITTER_CONSUMER_SECRET || ""
     );
 
     if (!isValid) {
+      console.error("Invalid Twitter webhook signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
+
+    // Log the event type for debugging
+    console.log("Received Twitter webhook event:", Object.keys(payload).join(", "));
 
     // Process tweet_create_events
     if (payload.tweet_create_events && payload.tweet_create_events.length > 0) {
       for (const tweet of payload.tweet_create_events) {
-        // Skip if it's our own tweet
+        // Skip if it's our own tweet to avoid infinite loops
         if (
           tweet.user.screen_name.toLowerCase() ===
           (process.env.TWITTER_SCREEN_NAME || "").toLowerCase()
         ) {
+          console.log("Skipping our own tweet:", tweet.id_str);
           continue;
         }
 
-        // Check if the tweet mentions @bankrbot and @gitsplits
+        // Check if the tweet mentions both @bankrbot and @gitsplits
         const mentionsGitSplits =
+          tweet.entities.user_mentions &&
           tweet.entities.user_mentions.some(
             (mention: any) =>
               mention.screen_name.toLowerCase() === "gitsplits"
@@ -66,17 +74,35 @@ export async function POST(request: Request) {
           );
 
         if (mentionsGitSplits) {
+          console.log("Processing command from tweet:", tweet.id_str);
+
           // Extract the command from the tweet text
           const tweetText = tweet.text;
           const sender = tweet.user.screen_name;
           const tweetId = tweet.id_str;
 
-          // Process the command
-          await processCommand(tweetText, sender, tweetId);
+          try {
+            // Process the command asynchronously
+            // We don't await here to avoid blocking the webhook response
+            processCommand(tweetText, sender, tweetId).catch(err => {
+              console.error(`Error processing command from tweet ${tweetId}:`, err);
+            });
+
+            console.log(`Command from tweet ${tweetId} queued for processing`);
+          } catch (cmdError) {
+            console.error(`Error queuing command from tweet ${tweetId}:`, cmdError);
+          }
         }
       }
     }
 
+    // Process direct_message_events (for future implementation)
+    if (payload.direct_message_events && payload.direct_message_events.length > 0) {
+      console.log("Received direct message events, but handling is not implemented yet");
+      // Future implementation for DM handling
+    }
+
+    // Always return success to acknowledge receipt of the webhook
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error processing Twitter webhook:", error);

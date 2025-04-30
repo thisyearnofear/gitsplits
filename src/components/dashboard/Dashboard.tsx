@@ -12,6 +12,7 @@ import MyEarnings from "./MyEarnings";
 import AgentActivity from "./AgentActivity";
 import Bounties from "./Bounties";
 import SecurityLog from "./SecurityLog";
+import NearContractManager from "./NearContractManager";
 
 const Dashboard: React.FC<DashboardProps> = ({
   isGitHubConnected,
@@ -75,7 +76,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           onValueChange={setActiveTab}
           className="space-y-6"
         >
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="verification">Verification</TabsTrigger>
             <TabsTrigger value="splits">My Splits</TabsTrigger>
@@ -83,6 +84,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             <TabsTrigger value="bounties">Bounties</TabsTrigger>
             <TabsTrigger value="security">Security Log</TabsTrigger>
             <TabsTrigger value="commands">X Commands</TabsTrigger>
+            <TabsTrigger value="contract">NEAR Contract</TabsTrigger>
           </TabsList>
 
           {/* Tab Content */}
@@ -128,6 +130,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                 Full X Command Reference
               </a>
             </div>
+          </TabsContent>
+
+          <TabsContent value="contract">
+            <NearContractManager />
           </TabsContent>
         </Tabs>
       </div>

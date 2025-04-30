@@ -1,0 +1,224 @@
+use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault, BorshStorageKey};
+use near_sdk::collections::{LookupMap, UnorderedMap};
+use schemars::JsonSchema;
+
+#[derive(BorshSerialize, BorshStorageKey)]
+enum StorageKey {
+    RegisteredWorkers,
+    Splits,
+    SplitsByRepo,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, JsonSchema)]
+pub struct WorkerInfo {
+    pub registered_at: u64,
+    pub code_hash: String,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, JsonSchema)]
+pub struct Contributor {
+    pub github_username: String,
+    pub percentage: u128,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, JsonSchema)]
+pub struct Split {
+    pub id: String,
+    pub repo_url: String,
+    pub owner: AccountId,
+    pub contributors: Vec<Contributor>,
+    pub created_at: u64,
+    pub updated_at: u64,
+}
+
+#[near_bindgen]
+#[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
+pub struct GitSplitsContract {
+    pub owner: AccountId,
+    pub registered_workers: LookupMap<AccountId, WorkerInfo>,
+    pub splits: UnorderedMap<String, Split>,
+    pub splits_by_repo: LookupMap<String, String>,
+}
+
+#[near_bindgen]
+impl GitSplitsContract {
+    #[init]
+    pub fn new(owner: AccountId) -> Self {
+        Self {
+            owner,
+            registered_workers: LookupMap::new(StorageKey::RegisteredWorkers),
+            splits: UnorderedMap::new(StorageKey::Splits),
+            splits_by_repo: LookupMap::new(StorageKey::SplitsByRepo),
+        }
+    }
+
+    pub fn register_worker(&mut self, code_hash: String) -> bool {
+        let account_id = env::predecessor_account_id();
+        
+        // Only owner can register the first worker
+        if !self.registered_workers.contains_key(&self.owner) && account_id != self.owner {
+            return false;
+        }
+        
+        // Register the worker
+        self.registered_workers.insert(&account_id, &WorkerInfo {
+            registered_at: env::block_timestamp(),
+            code_hash,
+        });
+        
+        true
+    }
+
+    pub fn is_registered_worker(&self, account_id: AccountId) -> bool {
+        self.registered_workers.contains_key(&account_id)
+    }
+
+    pub fn create_split(&mut self, split_id: String, repo_url: String, contributors: Vec<Contributor>) -> bool {
+        // Check if split already exists
+        if self.splits.contains_key(&split_id) || self.splits_by_repo.contains_key(&repo_url) {
+            return false;
+        }
+        
+        // Create the split
+        let split = Split {
+            id: split_id.clone(),
+            repo_url: repo_url.clone(),
+            owner: env::predecessor_account_id(),
+            contributors,
+            created_at: env::block_timestamp(),
+            updated_at: env::block_timestamp(),
+        };
+        
+        // Store the split
+        self.splits.insert(&split_id, &split);
+        self.splits_by_repo.insert(&repo_url, &split_id);
+        
+        true
+    }
+
+    pub fn update_split(&mut self, split_id: String, contributors: Vec<Contributor>) -> bool {
+        // Check if split exists
+        if let Some(mut split) = self.splits.get(&split_id) {
+            // Only owner can update
+            if env::predecessor_account_id() != split.owner {
+                return false;
+            }
+            
+            // Update the split
+            split.contributors = contributors;
+            split.updated_at = env::block_timestamp();
+            
+            // Store the updated split
+            self.splits.insert(&split_id, &split);
+            
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn get_split(&self, split_id: String) -> Option<Split> {
+        self.splits.get(&split_id)
+    }
+
+    pub fn get_split_by_repo(&self, repo_url: String) -> Option<Split> {
+        if let Some(split_id) = self.splits_by_repo.get(&repo_url) {
+            self.splits.get(&split_id)
+        } else {
+            None
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use near_sdk::test_utils::{accounts, VMContextBuilder};
+    use near_sdk::testing_env;
+
+    fn get_context(predecessor_account_id: AccountId) -> VMContextBuilder {
+        let mut builder = VMContextBuilder::new();
+        builder.predecessor_account_id(predecessor_account_id);
+        builder
+    }
+
+    #[test]
+    fn test_new() {
+        let context = get_context(accounts(1));
+        testing_env!(context.build());
+        
+        let contract = GitSplitsContract::new(accounts(1));
+        assert_eq!(contract.owner, accounts(1));
+    }
+
+    #[test]
+    fn test_register_worker() {
+        let mut context = get_context(accounts(1));
+        testing_env!(context.build());
+        
+        let mut contract = GitSplitsContract::new(accounts(1));
+        
+        // Owner can register
+        assert!(contract.register_worker("code_hash".to_string()));
+        assert!(contract.is_registered_worker(accounts(1)));
+        
+        // Another account can register after owner
+        testing_env!(context.predecessor_account_id(accounts(2)).build());
+        assert!(contract.register_worker("code_hash2".to_string()));
+        assert!(contract.is_registered_worker(accounts(2)));
+    }
+
+    #[test]
+    fn test_create_and_update_split() {
+        let mut context = get_context(accounts(1));
+        testing_env!(context.build());
+        
+        let mut contract = GitSplitsContract::new(accounts(1));
+        
+        // Create a split
+        let contributors = vec![
+            Contributor {
+                github_username: "user1".to_string(),
+                percentage: 7000, // 70%
+            },
+            Contributor {
+                github_username: "user2".to_string(),
+                percentage: 3000, // 30%
+            },
+        ];
+        
+        assert!(contract.create_split(
+            "split1".to_string(),
+            "github.com/repo1".to_string(),
+            contributors.clone()
+        ));
+        
+        // Get the split
+        let split = contract.get_split("split1".to_string()).unwrap();
+        assert_eq!(split.repo_url, "github.com/repo1".to_string());
+        assert_eq!(split.contributors.len(), 2);
+        
+        // Update the split
+        let new_contributors = vec![
+            Contributor {
+                github_username: "user1".to_string(),
+                percentage: 6000, // 60%
+            },
+            Contributor {
+                github_username: "user2".to_string(),
+                percentage: 2000, // 20%
+            },
+            Contributor {
+                github_username: "user3".to_string(),
+                percentage: 2000, // 20%
+            },
+        ];
+        
+        assert!(contract.update_split("split1".to_string(), new_contributors));
+        
+        // Get the updated split
+        let updated_split = contract.get_split("split1".to_string()).unwrap();
+        assert_eq!(updated_split.contributors.len(), 3);
+    }
+}

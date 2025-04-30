@@ -1,6 +1,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault, BorshStorageKey};
 use near_sdk::collections::{LookupMap, UnorderedMap, Vector};
+use near_sdk::json_types::U128;
 use near_sdk::serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
 
@@ -45,7 +46,7 @@ pub struct WorkerInfo {
 pub struct Contributor {
     pub github_username: String,
     pub account_id: Option<String>, // Using String instead of AccountId for JsonSchema
-    pub percentage: u128, // Using u128 instead of U128 for JsonSchema
+    pub percentage: U128,
 }
 
 /// Split structure
@@ -86,7 +87,7 @@ pub struct Transaction {
 pub struct Distribution {
     pub id: DistributionId,
     pub split_id: SplitId,
-    pub amount: u128, // Using u128 instead of U128 for JsonSchema
+    pub amount: U128,
     pub token_id: Option<String>,
     pub timestamp: u64,
     pub transactions: Vec<Transaction>,
@@ -144,7 +145,7 @@ impl GitSplitsContract {
 
     // Worker Agent Management
 
-    pub fn register_worker(&mut self, _attestation: Attestation, code_hash: String) -> bool {
+    pub fn register_worker(&mut self, attestation: Attestation, code_hash: String) -> bool {
         // In a real implementation, we would verify the attestation
         // For now, we'll just check if the code hash is allowed
 
@@ -228,7 +229,7 @@ impl GitSplitsContract {
         if let Some(mut split) = self.splits.get(&split_id) {
             // Validate that percentages add up to 100%
             let total_percentage: u128 = contributors.iter()
-                .map(|c| c.percentage)
+                .map(|c| c.percentage.0)
                 .sum();
 
             assert_eq!(total_percentage, 100_000_000_000_000_000_000_000, "Percentages must add up to 100%");

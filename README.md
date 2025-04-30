@@ -228,8 +228,12 @@ Our implementation follows a phased approach to deliver a secure, user-friendly 
 
 2. Deploy to NEAR:
    ```bash
-   cargo near deploy --accountId YOUR_ACCOUNT_ID
+   near create-account gitsplits.YOUR_ACCOUNT_ID.near --masterAccount YOUR_ACCOUNT_ID.near --initialBalance 5
+   near deploy gitsplits.YOUR_ACCOUNT_ID.near target/near/gitsplits_x_agent.wasm
+   near call gitsplits.YOUR_ACCOUNT_ID.near new '{}' --accountId YOUR_ACCOUNT_ID.near
    ```
+
+> **Note**: The contract is currently deployed on NEAR testnet at `gitsplits-test.testnet`. See [CONTRACT_DETAILS.md](contracts/near/CONTRACT_DETAILS.md) for more information.
 
 ### Deploying the Worker Agent
 

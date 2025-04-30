@@ -10,6 +10,8 @@ Before deployment, ensure you have:
 - Docker Hub account for publishing the Worker Agent image
 - Access to Phala Cloud for TEE deployment
 - Node.js and Rust development environment set up
+- Twitter developer account with API credentials
+- GitHub personal access token for repository access
 
 ## Smart Contract Deployment
 
@@ -69,7 +71,7 @@ Note the SHA256 hash of your Docker image, which will be displayed in the build 
 Create a `docker-compose.yaml` file for Phala Cloud deployment:
 
 ```yaml
-version: '3'
+version: "3"
 services:
   worker:
     image: yourusername/gitsplits-agent:latest@sha256:your-image-hash
@@ -78,10 +80,11 @@ services:
       - NEXT_PUBLIC_workerName=gitsplits-worker
       - NODE_ENV=production
     ports:
-      - '3000:3000'
+      - "3000:3000"
 ```
 
 Replace:
+
 - `yourusername` with your Docker Hub username
 - `your-image-hash` with the SHA256 hash of your Docker image
 - `YOUR_ACCOUNT_ID` with your NEAR account ID
@@ -130,16 +133,44 @@ This will generate a remote attestation quote and register the Worker Agent with
 2. Create a new project and app
 3. Enable OAuth 2.0 and set up the required permissions
 
-### 2. Configure Webhook
+### 2. Configure Twitter API Credentials
 
-1. Set up an Account Activity API webhook subscription
-2. Configure the webhook URL to point to your Worker Agent:
-   ```
-   https://your-worker-url/api/webhooks/twitter
-   ```
-3. Complete the CRC (Challenge-Response Check) validation
+For the Cookie Auth method (free Twitter account):
 
-### 3. Update Environment Variables
+1. Log in to Twitter with your bot account in a web browser
+2. Open the browser's developer tools (F12 or right-click > Inspect)
+3. Go to the "Application" tab (Chrome) or "Storage" tab (Firefox)
+4. Look for cookies or local storage items related to authentication
+5. Copy the relevant tokens to your environment variables:
+   - `auth_token` cookie → `TWITTER_ACCESS_TOKEN`
+   - `ct0` cookie (CSRF token) → `TWITTER_ACCESS_TOKEN_SECRET`
+
+For the API Account method (paid Twitter account):
+
+1. Create a developer account and set up a project
+2. Generate API keys and tokens
+3. Add the keys and tokens to your environment variables:
+   - `TWITTER_CONSUMER_KEY`
+   - `TWITTER_CONSUMER_SECRET`
+   - `TWITTER_ACCESS_TOKEN`
+   - `TWITTER_ACCESS_TOKEN_SECRET`
+
+### 3. Configure Webhook
+
+1. Deploy your Worker Agent to a publicly accessible URL
+2. Use the admin interface to register your webhook:
+   - Navigate to `/admin/twitter-setup` in your browser
+   - Enter your webhook URL: `https://your-worker-url/api/webhooks/twitter`
+   - Click "Register Webhook"
+3. The webhook will automatically handle the CRC (Challenge-Response Check) validation
+
+### 4. Test the Integration
+
+1. Send a test tweet mentioning `@bankrbot @gitsplits help`
+2. Check your server logs to verify that the webhook is receiving the mention
+3. Verify that your bot responds to the tweet
+
+### 5. Update Environment Variables
 
 Update your Worker Agent's environment variables in Phala Cloud:
 

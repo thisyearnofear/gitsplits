@@ -99,3 +99,62 @@ export interface EmbedCodeProps {
   contractAddress: string;
   displayStyle: "minimal" | "expanded";
 }
+
+// Security and verification types
+
+export enum VerificationLevel {
+  None = 0,
+  Basic = 1, // X account age > 3 months, minimum followers
+  GitHub = 2, // Verified GitHub account connection
+  Repository = 3, // Demonstrated repository control
+}
+
+export interface VerificationRequest {
+  id: string;
+  twitterUsername: string;
+  githubUsername: string;
+  verificationCode: string;
+  createdAt: number;
+  expiresAt: number;
+  status: "pending" | "completed" | "expired" | "failed";
+}
+
+export interface UserIdentity {
+  twitterUsername: string;
+  githubUsername: string;
+  verificationLevel: VerificationLevel;
+  walletAddress?: string;
+  verifiedAt: number;
+}
+
+export interface SplitConfig {
+  id: string;
+  repoUrl: string;
+  owner: string;
+  contributors: SplitContributor[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface SplitContributor {
+  githubUsername: string;
+  walletAddress?: string;
+  percentage: number;
+}
+
+export interface Distribution {
+  id: string;
+  splitId: string;
+  amount: number;
+  token: string;
+  timestamp: number;
+  transactions: Transaction[];
+}
+
+export interface Transaction {
+  chainId: string;
+  recipient: string;
+  amount: string;
+  txHash?: string;
+  status: "pending" | "completed" | "failed";
+}

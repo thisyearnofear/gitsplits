@@ -1,0 +1,18 @@
+version: '3'
+services:
+  worker:
+    image: yourusername/gitsplits-agent:latest@sha256:your-image-hash
+    environment:
+      - NEXT_PUBLIC_contractId=your_contract_id_here
+      - NEXT_PUBLIC_workerName=gitsplits-worker
+      - TWITTER_CONSUMER_KEY=your_twitter_consumer_key
+      - TWITTER_CONSUMER_SECRET=your_twitter_consumer_secret
+      - TWITTER_ACCESS_TOKEN=your_twitter_access_token
+      - TWITTER_ACCESS_TOKEN_SECRET=your_twitter_access_token_secret
+      - TWITTER_WEBHOOK_ENV=your_twitter_webhook_env
+      - GITHUB_APP_ID=your_github_app_id
+      - GITHUB_PRIVATE_KEY=your_github_private_key
+      - GITHUB_WEBHOOK_SECRET=your_github_webhook_secret
+      - NODE_ENV=production
+    ports:
+      - '3000:3000'

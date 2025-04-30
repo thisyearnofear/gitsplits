@@ -92,11 +92,11 @@ const AgentActivity: React.FC = () => {
   const getActivityTitle = (activity: ActivityItem) => {
     switch (activity.type) {
       case 'command':
-        return `Command: ${activity.details.command}`;
+        return `Split ${activity.details.command}`;
       case 'distribution':
-        return `Distribution: ${activity.details.amount} ${activity.details.token}`;
+        return `Distribute ${activity.details.amount} ${activity.details.token}`;
       case 'verification':
-        return `Verification: ${activity.details.github_username}`;
+        return `Verify GitHub: ${activity.details.github_username}`;
       default:
         return 'Unknown Activity';
     }
@@ -118,7 +118,7 @@ const AgentActivity: React.FC = () => {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Agent Activity</CardTitle>
+        <CardTitle>GitSplits Activity</CardTitle>
         <Button
           variant="outline"
           size="sm"
@@ -133,9 +133,9 @@ const AgentActivity: React.FC = () => {
         <Tabs defaultValue="all">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="commands">Commands</TabsTrigger>
-            <TabsTrigger value="distributions">Distributions</TabsTrigger>
-            <TabsTrigger value="verifications">Verifications</TabsTrigger>
+            <TabsTrigger value="commands">Split Commands</TabsTrigger>
+            <TabsTrigger value="distributions">Fund Distributions</TabsTrigger>
+            <TabsTrigger value="verifications">Identity Verifications</TabsTrigger>
           </TabsList>
           
           <TabsContent value="all">
@@ -199,7 +199,7 @@ const ActivityTable: React.FC<ActivityTableProps> = ({
   getActivityDescription,
 }) => {
   if (activities.length === 0) {
-    return <div className="py-4 text-center text-gray-500">No activities found</div>;
+    return <div className="py-4 text-center text-gray-500">No GitSplits activity yet</div>;
   }
 
   return (
@@ -207,11 +207,11 @@ const ActivityTable: React.FC<ActivityTableProps> = ({
       <TableHeader>
         <TableRow>
           <TableHead>ID</TableHead>
-          <TableHead>Type</TableHead>
+          <TableHead>Action</TableHead>
           <TableHead>Details</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead>Time</TableHead>
-          <TableHead>Actions</TableHead>
+          <TableHead>When</TableHead>
+          <TableHead>View</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>

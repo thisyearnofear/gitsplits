@@ -1,17 +1,13 @@
 import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, AlertCircle } from "lucide-react";
+import { Shield, AlertCircle, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DashboardProps } from "@/types";
 import XCommandsGuide from "./XCommandsGuide";
 import DashboardOverview from "./DashboardOverview";
 import VerificationCenter from "./VerificationCenter";
-import MySplits from "./MySplits";
-import MyEarnings from "./MyEarnings";
 import AgentActivity from "./AgentActivity";
-import Bounties from "./Bounties";
-import SecurityLog from "./SecurityLog";
 import NearContractManager from "./NearContractManager";
 
 const Dashboard: React.FC<DashboardProps> = ({
@@ -76,15 +72,11 @@ const Dashboard: React.FC<DashboardProps> = ({
           onValueChange={setActiveTab}
           className="space-y-6"
         >
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="verification">Verification</TabsTrigger>
-            <TabsTrigger value="splits">My Splits</TabsTrigger>
-            <TabsTrigger value="earnings">My Earnings</TabsTrigger>
-            <TabsTrigger value="bounties">Bounties</TabsTrigger>
-            <TabsTrigger value="security">Security Log</TabsTrigger>
             <TabsTrigger value="commands">X Commands</TabsTrigger>
             <TabsTrigger value="contract">NEAR Contract</TabsTrigger>
+            <TabsTrigger value="verification">Verification</TabsTrigger>
           </TabsList>
 
           {/* Tab Content */}
@@ -100,22 +92,6 @@ const Dashboard: React.FC<DashboardProps> = ({
               isGitHubConnected={isGitHubConnected}
               setIsGitHubConnected={setIsGitHubConnected}
             />
-          </TabsContent>
-
-          <TabsContent value="splits">
-            <MySplits />
-          </TabsContent>
-
-          <TabsContent value="earnings">
-            <MyEarnings />
-          </TabsContent>
-
-          <TabsContent value="bounties">
-            <Bounties />
-          </TabsContent>
-
-          <TabsContent value="security">
-            <SecurityLog />
           </TabsContent>
 
           <TabsContent value="commands">
@@ -135,6 +111,44 @@ const Dashboard: React.FC<DashboardProps> = ({
           <TabsContent value="contract">
             <NearContractManager />
           </TabsContent>
+
+          {/* Coming Soon Section */}
+          <div className="mt-8 p-6 bg-white/80 rounded-lg shadow-sm">
+            <h3 className="text-xl font-semibold mb-4 flex items-center">
+              <Lock className="mr-2 h-5 w-5 text-blue-500" />
+              Coming Soon
+            </h3>
+            <p className="text-gray-600 mb-4">
+              We're actively developing additional features to enhance your
+              GitSplits experience:
+            </p>
+            <div className="grid md:grid-cols-3 gap-4">
+              <Card className="bg-gray-50">
+                <CardContent className="p-4">
+                  <h4 className="font-medium mb-2">My Splits</h4>
+                  <p className="text-sm text-gray-500">
+                    Manage your repository splits and contributor allocations
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="bg-gray-50">
+                <CardContent className="p-4">
+                  <h4 className="font-medium mb-2">My Earnings</h4>
+                  <p className="text-sm text-gray-500">
+                    Track your earnings from contributions across repositories
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="bg-gray-50">
+                <CardContent className="p-4">
+                  <h4 className="font-medium mb-2">Security Log</h4>
+                  <p className="text-sm text-gray-500">
+                    View detailed security events and verification activities
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </Tabs>
       </div>
     </div>

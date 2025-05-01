@@ -7,10 +7,25 @@ import {
   ArrowRight,
   Twitter,
   Share2,
+  Wallet,
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   FeatureCardProps,
   StepCardProps,
@@ -22,6 +37,7 @@ import AttributionWidget from "@/components/dashboard/AttributionWidget";
 import SimplifiedSplitsSetup from "@/components/landing/SimplifiedSplitsSetup";
 import EmbedCodeDisplay from "@/components/shared/EmbedCodeDisplay";
 import { useToast } from "@/hooks/use-toast";
+import { useNearWallet } from "@/hooks/useNearWallet";
 import Image from "next/image";
 
 const FeatureCard: React.FC<FeatureCardProps> = ({
@@ -148,9 +164,22 @@ const LandingPage: React.FC<LandingPageProps> = ({
     "minimal"
   );
 
+  // NEAR wallet integration
+  const {
+    isConnected: isNearConnected,
+    accountId: nearAccountId,
+    connect: connectNear,
+  } = useNearWallet();
+
+  // Combined connection status - connected to either wallet
+  const isAnyWalletConnected = isConnected || isNearConnected;
+
   useEffect(() => {
-    // Any existing useEffect logic can remain here
-  }, []);
+    // If any wallet is connected, we can automatically navigate to dashboard
+    if (isAnyWalletConnected) {
+      // Ready for dashboard navigation
+    }
+  }, [isConnected, isNearConnected, isAnyWalletConnected]);
 
   const handleSupportClick = () => {
     if (isConnected) {
@@ -206,10 +235,42 @@ const LandingPage: React.FC<LandingPageProps> = ({
   };
 
   const handleDashboardNavigation = () => {
-    if (isConnected) {
+    if (isAnyWalletConnected) {
       onDashboardClick();
     } else {
-      onLoginPrompt();
+      // Show wallet selection modal instead of direct login prompt
+      showWalletSelectionModal();
+    }
+  };
+
+  // Function to show wallet selection modal
+  const [showWalletModal, setShowWalletModal] = useState(false);
+
+  const showWalletSelectionModal = () => {
+    setShowWalletModal(true);
+  };
+
+  const handleEVMLogin = () => {
+    setShowWalletModal(false);
+    onLoginPrompt(); // Original EVM login flow
+  };
+
+  const handleNEARLogin = async () => {
+    setShowWalletModal(false);
+    try {
+      await connectNear();
+
+      // Add a delay to allow the connection state to update
+      setTimeout(() => {
+        // Navigate to dashboard regardless of the current connection state
+        // The connection state might not be updated immediately
+        onDashboardClick();
+      }, 2000);
+    } catch (error) {
+      toast({
+        description: "Failed to connect to NEAR wallet. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -232,8 +293,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
     {
       icon: <Share2 className="w-6 h-6" />,
       title: "Embed Attribution",
-      description:
-        "Widget showcasing contributors & enabling direct tips.",
+      description: "Widget showcasing contributors & enabling direct tips.",
     },
     {
       icon: <DollarSign className="w-6 h-6" />,
@@ -247,12 +307,14 @@ const LandingPage: React.FC<LandingPageProps> = ({
     {
       number: 1,
       title: "Choose Your Method",
-      description: "Use X commands or our web dashboard - whatever works for you.",
+      description:
+        "Use X commands or our web dashboard - whatever works for you.",
     },
     {
       number: 2,
       title: "Set Up Splits",
-      description: "Create onchain splits easily, optionally embed our widget to showcase them.",
+      description:
+        "Create onchain splits easily, optionally embed our widget to showcase them.",
     },
     {
       number: 3,
@@ -263,6 +325,97 @@ const LandingPage: React.FC<LandingPageProps> = ({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gentle-blue via-gentle-purple to-gentle-orange">
+      {/* Wallet Selection Modal */}
+      <Dialog open={showWalletModal} onOpenChange={setShowWalletModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Connect Your Wallet</DialogTitle>
+            <DialogDescription>
+              Choose a wallet to connect to GitSplits
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-4">
+            <Card
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={handleEVMLogin}
+            >
+              <CardContent className="flex flex-col items-center justify-center p-6">
+                <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-4">
+                  <svg
+                    width="32"
+                    height="32"
+                    viewBox="0 0 784 784"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M392 784C608.5 784 784 608.5 784 392C784 175.5 608.5 0 392 0C175.5 0 0 175.5 0 392C0 608.5 175.5 784 392 784Z"
+                      fill="#627EEA"
+                    />
+                    <path
+                      d="M392 100V315L587 400L392 100Z"
+                      fill="white"
+                      fillOpacity="0.6"
+                    />
+                    <path d="M392 100L197 400L392 315V100Z" fill="white" />
+                    <path
+                      d="M392 539V684L587 432L392 539Z"
+                      fill="white"
+                      fillOpacity="0.6"
+                    />
+                    <path d="M392 684V539L197 432L392 684Z" fill="white" />
+                    <path
+                      d="M392 505L587 400L392 315V505Z"
+                      fill="white"
+                      fillOpacity="0.2"
+                    />
+                    <path
+                      d="M197 400L392 505V315L197 400Z"
+                      fill="white"
+                      fillOpacity="0.6"
+                    />
+                  </svg>
+                </div>
+                <h3 className="font-medium text-lg">EVM Wallet</h3>
+                <p className="text-sm text-gray-500 text-center mt-2">
+                  Connect with MetaMask, WalletConnect, or other EVM wallets
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={handleNEARLogin}
+            >
+              <CardContent className="flex flex-col items-center justify-center p-6">
+                <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-4">
+                  <svg
+                    width="32"
+                    height="32"
+                    viewBox="0 0 32 32"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M16 32C24.8366 32 32 24.8366 32 16C32 7.16344 24.8366 0 16 0C7.16344 0 0 7.16344 0 16C0 24.8366 7.16344 32 16 32Z"
+                      fill="#000000"
+                    />
+                    <path
+                      d="M21.2105 9.15789L18.1053 14.0211L17.6842 14.7368L13.8947 21.0526L10.7895 15.7895H8L13.8947 26.5263L21.2105 14.0211V22.1053H24V9.15789H21.2105Z"
+                      fill="white"
+                    />
+                  </svg>
+                </div>
+                <h3 className="font-medium text-lg">NEAR Wallet</h3>
+                <p className="text-sm text-gray-500 text-center mt-2">
+                  Connect with Bitte Wallet for NEAR blockchain operations
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="container mx-auto px-4 pt-20">
         {/* Existing header content */}
         <motion.div
@@ -278,12 +431,21 @@ const LandingPage: React.FC<LandingPageProps> = ({
             Attribution. Open Source Splits. Onchain.
           </p>
 
-          {isConnected && (
+          {isAnyWalletConnected && (
             <Button
               onClick={onDashboardClick}
               className="mt-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-2 px-4 rounded-full transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-110"
             >
               Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          )}
+
+          {!isAnyWalletConnected && (
+            <Button
+              onClick={showWalletSelectionModal}
+              className="mt-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-2 px-4 rounded-full transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-110"
+            >
+              Connect Wallet <Wallet className="ml-2 h-4 w-4" />
             </Button>
           )}
 
@@ -325,9 +487,12 @@ const LandingPage: React.FC<LandingPageProps> = ({
         {/* How It Works Section */}
         <div className="py-16 bg-gray-50">
           <div className="max-w-6xl mx-auto px-4">
-            <h2 className="text-3xl font-bold text-center mb-4">How It Works</h2>
+            <h2 className="text-3xl font-bold text-center mb-4">
+              How It Works
+            </h2>
             <p className="text-gray-600 text-center mb-12 max-w-2xl mx-auto">
-              Get started in minutes. Fork code with honour. Cultivate collaborators.
+              Get started in minutes. Fork code with honour. Cultivate
+              collaborators.
             </p>
             <div className="grid md:grid-cols-3 gap-8">
               {steps.map((step, index) => (
@@ -345,8 +510,10 @@ const LandingPage: React.FC<LandingPageProps> = ({
         {/* Features Section */}
         <div className="py-16 bg-white">
           <div className="max-w-6xl mx-auto px-4">
-            <h2 className="text-3xl font-bold text-center mb-4">Key Features</h2>
-          
+            <h2 className="text-3xl font-bold text-center mb-4">
+              Key Features
+            </h2>
+
             <div className="grid md:grid-cols-3 gap-8">
               {features.map((feature, index) => (
                 <FeatureCard
@@ -414,8 +581,14 @@ const LandingPage: React.FC<LandingPageProps> = ({
               size="lg"
               className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-2 px-4 rounded-full transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-110"
             >
-              {isConnected ? "Go to Dashboard" : "Login to Access Dashboard"}{" "}
-              <ArrowRight className="ml-2 h-4 w-4" />
+              {isAnyWalletConnected
+                ? "Go to Dashboard"
+                : "Connect Wallet to Access Dashboard"}{" "}
+              {isAnyWalletConnected ? (
+                <ArrowRight className="ml-2 h-4 w-4" />
+              ) : (
+                <Wallet className="ml-2 h-4 w-4" />
+              )}
             </Button>
           </div>
         </div>
@@ -505,12 +678,28 @@ const LandingPage: React.FC<LandingPageProps> = ({
 
             {/* Bottom text */}
             <div className="text-center text-gray-600">
-              <p>Built with ❤️ by <a href="https://warpcast.com/papa" className="text-blue-600 hover:underline">papa</a></p>
-              <p className="mt-2 text-sm">A <a href="https://x.com/bankrbot" className="text-blue-600 hover:underline">Bankrbot</a> Extension using NEAR Shade Agents</p>
+              <p>
+                Built with ❤️ by{" "}
+                <a
+                  href="https://warpcast.com/papa"
+                  className="text-blue-600 hover:underline"
+                >
+                  papa
+                </a>
+              </p>
+              <p className="mt-2 text-sm">
+                A{" "}
+                <a
+                  href="https://x.com/bankrbot"
+                  className="text-blue-600 hover:underline"
+                >
+                  Bankrbot
+                </a>{" "}
+                Extension using NEAR Shade Agents
+              </p>
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );

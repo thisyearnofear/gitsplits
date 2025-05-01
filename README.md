@@ -246,6 +246,80 @@ Our implementation follows a phased approach to deliver a secure, user-friendly 
 
 2. Deploy to Phala Cloud following the instructions in the [Deployment Guide](docs/deployment.md).
 
+## 🔐 Wallet Integration
+
+GitSplits supports two wallet systems for different blockchain ecosystems:
+
+### EVM Wallet (Ethereum, Arbitrum, etc.)
+
+The EVM wallet integration uses AppKit/Wagmi for connecting to Ethereum-based chains:
+
+```bash
+# Install dependencies
+npm install @reown/appkit/react wagmi
+```
+
+### NEAR Wallet (Bitte Wallet)
+
+For NEAR blockchain operations, GitSplits uses Bitte Wallet:
+
+```bash
+# Install dependencies
+npm install @bitte-ai/react @near-wallet-selector/modal-ui
+```
+
+To set up Bitte Wallet in your application:
+
+1. Create a Bitte Wallet Provider component:
+
+```tsx
+// src/components/near/BitteWalletProvider.tsx
+import React from "react";
+import "@near-wallet-selector/modal-ui/styles.css";
+import { BitteWalletContextProvider } from "@bitte-ai/react";
+
+const BitteWalletProvider = ({ children }) => {
+  return (
+    <BitteWalletContextProvider network="testnet">
+      {children}
+    </BitteWalletContextProvider>
+  );
+};
+
+export default BitteWalletProvider;
+```
+
+2. Wrap your application with the provider:
+
+```tsx
+// In your layout or app component
+<BitteWalletProvider>{children}</BitteWalletProvider>
+```
+
+3. Use the wallet in your components:
+
+```tsx
+import { useBitteWallet } from "@bitte-ai/react";
+
+function MyComponent() {
+  const { selector, modal, accounts, accountId } = useBitteWallet();
+
+  const handleConnect = () => {
+    modal.show();
+  };
+
+  return (
+    <div>
+      {accountId ? (
+        <p>Connected as: {accountId}</p>
+      ) : (
+        <button onClick={handleConnect}>Connect NEAR Wallet</button>
+      )}
+    </div>
+  );
+}
+```
+
 ## 📚 Documentation
 
 - [Architecture Overview](docs/architecture.md)

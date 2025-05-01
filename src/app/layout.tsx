@@ -3,6 +3,7 @@ import "./globals.css";
 
 import { headers } from "next/headers";
 import ContextProvider from "@/context";
+import BitteWalletProvider from "@/components/near/BitteWalletProvider";
 
 export const metadata: Metadata = {
   title: "Gitsplits",
@@ -19,7 +20,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ContextProvider cookies={cookies}>{children}</ContextProvider>
+        <ContextProvider cookies={cookies}>
+          <BitteWalletProvider>{children}</BitteWalletProvider>
+        </ContextProvider>
       </body>
     </html>
   );

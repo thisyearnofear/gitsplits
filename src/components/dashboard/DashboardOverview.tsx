@@ -70,7 +70,8 @@ const DashboardOverview: React.FC = () => {
               </div>
               <div>
                 <p className="font-medium">
-                  Split created for near/near-sdk-rs
+                  // sourcery skip: binary-operator-identity Split created for
+                  near/near-sdk-rs
                 </p>
                 <p className="text-sm text-gray-500">2 hours ago</p>
               </div>

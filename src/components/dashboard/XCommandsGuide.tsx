@@ -34,49 +34,42 @@ const XCommandsGuide: React.FC = () => {
 
   const commandCategories = [
     {
-      id: "repository",
-      name: "Repository Management",
+      id: "analyze",
+      name: "Analyze Repository",
       icon: <GitBranch className="h-4 w-4 text-blue-600" />,
       commands: [
         {
-          name: "create",
-          description: "Create a new split for a repository",
-          format: "@bankrbot @gitsplits create [repo_url]",
-          example: "@bankrbot @gitsplits create github.com/near/near-sdk-rs",
-        },
-        {
-          name: "info",
-          description: "Get split information",
-          format: "@bankrbot @gitsplits info [repo_url]",
-          example: "@bankrbot @gitsplits info github.com/near/near-sdk-rs",
+          name: "analyze",
+          description: "Analyze repository contributions",
+          format: "@gitsplits <repo>",
+          example: "@gitsplits github.com/near/near-sdk-rs",
         },
       ],
     },
     {
-      id: "distribution",
-      name: "Fund Distribution",
+      id: "create",
+      name: "Create Split",
       icon: <DollarSign className="h-4 w-4 text-green-600" />,
       commands: [
         {
-          name: "distribute",
-          description: "Distribute funds to contributors",
-          format:
-            "@bankrbot @gitsplits distribute [amount] [token] to [repo_url]",
-          example:
-            "@bankrbot @gitsplits distribute 100 NEAR to github.com/near/near-sdk-rs",
+          name: "create split",
+          description:
+            "Create a split for a repository (default or custom allocation)",
+          format: "@gitsplits create split <repo> [allocation]",
+          example: "@gitsplits create split near/near-sdk-rs default",
         },
       ],
     },
     {
-      id: "verification",
-      name: "GitHub Identity Verification",
-      icon: <Github className="h-4 w-4 text-purple-600" />,
+      id: "view",
+      name: "View Splits",
+      icon: <Info className="h-4 w-4 text-purple-600" />,
       commands: [
         {
-          name: "verify",
-          description: "Verify GitHub identity",
-          format: "@bankrbot @gitsplits verify [github_username]",
-          example: "@bankrbot @gitsplits verify johndoe",
+          name: "splits",
+          description: "View active splits for a repository",
+          format: "@gitsplits splits <repo>",
+          example: "@gitsplits splits near/near-sdk-rs",
         },
       ],
     },
@@ -87,25 +80,19 @@ const XCommandsGuide: React.FC = () => {
       commands: [
         {
           name: "help",
-          description: "Display help information",
-          format: "@bankrbot @gitsplits help",
-          example: "@bankrbot @gitsplits help",
-        },
-        {
-          name: "version",
-          description: "Display version information",
-          format: "@bankrbot @gitsplits version",
-          example: "@bankrbot @gitsplits version",
+          description: "Show help message",
+          format: "@gitsplits help",
+          example: "@gitsplits help",
         },
       ],
     },
   ];
 
   const naturalLanguageExamples = [
-    "@bankrbot @gitsplits make a split for my-project",
-    "@bankrbot @gitsplits send 50 NEAR to contributors of my-project",
-    "@bankrbot @gitsplits show me info about my-project",
-    "@bankrbot @gitsplits connect my GitHub account johndoe",
+    "@gitsplits github.com/torvalds/linux",
+    "@gitsplits create split github.com/torvalds/linux default",
+    "@gitsplits create split github.com/torvalds/linux 80/10/10",
+    "@gitsplits splits github.com/near/near-sdk-rs",
   ];
 
   return (

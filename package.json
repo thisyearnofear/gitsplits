@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "docker:build": "docker build -t yourusername/gitsplits-agent:latest .",
-    "docker:push": "docker push yourusername/gitsplits-agent:latest"
+    "docker:push": "docker push yourusername/gitsplits-agent:latest",
+    "init:firestore": "node scripts/init-firestore.js",
+    "init:github-callback": "echo 'See README for instructions on creating /pages/api/auth/github/callback.js'"
   },
   "dependencies": {
     "@bitte-ai/react": "^0.8.2",
@@ -29,11 +31,17 @@
     "axios": "^1.7.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dotenv": "^16.5.0",
     "encoding": "^0.1.13",
+    "ethers": "^6.13.7",
+    "firebase": "^10.14.1",
+    "firebase-admin": "^13.3.0",
     "framer-motion": "^11.11.9",
+    "graphql-request": "^6.1.0",
     "lucide-react": "^0.453.0",
     "near-api-js": "^5.1.1",
     "next": "14.2.15",
+    "next-auth": "^4.24.11",
     "oauth-1.0a": "^2.2.6",
     "react": "^18",
     "react-dom": "^18",

@@ -1,0 +1,37 @@
+version: '3'
+services:
+  worker:
+    build: .
+    image: gitsplits-worker-agent:latest
+    container_name: gitsplits-worker
+    environment:
+      # NEAR Configuration
+      - NEAR_NETWORK_ID=mainnet
+      - NEAR_NODE_URL=https://rpc.mainnet.near.org
+      - NEAR_CONTRACT_ID=${NEAR_CONTRACT_ID}
+      - NEAR_WALLET_URL=https://wallet.mainnet.near.org
+      - NEAR_HELPER_URL=https://helper.mainnet.near.org
+      - NEAR_ACCOUNT_ID=${NEAR_ACCOUNT_ID}
+      - NEAR_PRIVATE_KEY=${NEAR_PRIVATE_KEY}
+
+      # GitHub Configuration
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+
+      # Twitter Configuration (Cookie Auth)
+      - TWITTER_AUTH_TOKEN=${TWITTER_AUTH_TOKEN}
+      - TWITTER_CT0=${TWITTER_CT0}
+      - TWITTER_SCREEN_NAME=${TWITTER_SCREEN_NAME}
+      - TWITTER_LAST_TIMESTAMP=${TWITTER_LAST_TIMESTAMP}
+
+      # Server Configuration
+      - PORT=3001
+      - NODE_ENV=production
+    ports:
+      - "3001:3001"
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

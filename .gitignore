@@ -41,6 +41,7 @@ next-env.d.ts
 .env.development.local
 .env.test.local
 .env.production.local
+worker.env
 
 # TEE specific
 .tee-secrets/
@@ -55,3 +56,21 @@ Cargo.lock
 # NEAR specific
 .near-credentials/
 neardev/
+
+# Worker specific
+/worker/node_modules/
+/worker/package-lock.json
+/worker/phala-docker-compose.yaml
+/worker/.env
+/worker/.env.local
+/worker/dist/
+/worker/build/
+/worker/logs/
+/worker/tmp/
+
+# Private deployment details
+PRIVATE_DEPLOYMENT_DETAILS.md
+
+# Config
+
+config/

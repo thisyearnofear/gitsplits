@@ -2,9 +2,9 @@
 
 ## Deployment Information
 
-- **Contract Account ID**: `gitsplits-test.testnet`
-- **Network**: NEAR Testnet
-- **Deployment Date**: $(date +"%Y-%m-%d")
+- **Contract Account ID**: `gitsplits-worker.papajams.near`
+- **Network**: NEAR Mainnet
+- **Deployment Date**: 2024-05-30
 - **Contract Binary**: `/target/near/gitsplits_x_agent.wasm`
 - **Contract ABI**: `/target/near/gitsplits_x_agent_abi.json`
 
@@ -15,8 +15,14 @@
 
 ## Deployment Transactions
 
+- **Deploy Transaction**: [Fc4bD44WdKHRN3hXuVpymtiZXjMtD8C2z54WBMtJgG3g](https://www.nearblocks.io/txns/Fc4bD44WdKHRN3hXuVpymtiZXjMtD8C2z54WBMtJgG3g)
+- **Initialize Transaction**: [EGYAs2eJNWYJYeDvT9EiitvDXPF9H9gJuvkLXX6GH8E1](https://www.nearblocks.io/txns/EGYAs2eJNWYJYeDvT9EiitvDXPF9H9gJuvkLXX6GH8E1)
+
+## Previous Testnet Deployment
+
+- **Contract Account ID**: `gitsplits-test.testnet`
+- **Network**: NEAR Testnet
 - **Deploy Transaction**: [HNocv31Z3cFqCchxUW6W68jVXcTPzszdQjY8u1StygiJ](https://testnet.nearblocks.io/txns/HNocv31Z3cFqCchxUW6W68jVXcTPzszdQjY8u1StygiJ)
-- **Initialize Transaction**: [GdYNX78RNL6DziQXtpUv8QokVQXdgzjw21i7y5JVJYMS](https://testnet.nearblocks.io/txns/GdYNX78RNL6DziQXtpUv8QokVQXdgzjw21i7y5JVJYMS)
 
 ## Contract Methods
 

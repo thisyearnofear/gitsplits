@@ -1,338 +1,295 @@
-# X Command Reference
+# GitSplits X Commands
 
-GitSplits X Agent can be controlled entirely through X (Twitter) using simple commands. This document provides a comprehensive reference for all available commands.
+This document outlines the X (Twitter) commands supported by the GitSplits agent.
 
 ## Command Format
 
-All commands follow this general format:
-
-```
-@bankrbot @gitsplits [command] [parameters]
-```
-
-Where:
-
-- `@bankrbot` is the Bankrbot account
-- `@gitsplits` is the GitSplits X Agent account
-- `[command]` is the specific action to perform
-- `[parameters]` are command-specific parameters
+All commands should mention `@gitsplits` followed by the command and any required parameters.
 
 ## Available Commands
 
-### Repository Management
-
-#### Create Split
-
-Creates a new split configuration for a GitHub repository.
+### Repository Analysis
 
 ```
-@bankrbot @gitsplits create [repo_url]
+@gitsplits <repo>
 ```
+
+Analyzes a GitHub repository and responds with suggested splits based on contribution history.
 
 **Parameters:**
 
-- `repo_url`: URL of the GitHub repository (e.g., `github.com/user/repo`)
+- `<repo>`: GitHub repository URL or name (e.g., `github.com/near/near-sdk-rs` or `near/near-sdk-rs`)
 
 **Example:**
 
 ```
-@bankrbot @gitsplits create github.com/near/near-sdk-rs
+@gitsplits github.com/near/near-sdk-rs
+```
+
+**Response:**
+
+```
+📊 Analysis for github.com/near/near-sdk-rs:
+
+Contributors:
+- austinabell: 35.2%
+- willemneal: 28.7%
+- evgenykuzyakov: 15.5%
+- ...
+
+To create a split with these percentages:
+@gitsplits create split github.com/near/near-sdk-rs default
+
+Or specify custom percentages:
+@gitsplits create split github.com/near/near-sdk-rs 35/29/16/...
+```
+
+### Create Split
+
+```
+@gitsplits create split <repo> [allocation]
+```
+
+Creates a smart contract split for a repository with either default percentages based on contribution history or custom allocations.
+
+**Parameters:**
+
+- `<repo>`: GitHub repository URL or name
+- `[allocation]`: (Optional) Custom allocation percentages. Use `default` for contribution-based percentages or specify percentages separated by slashes (e.g., `50/30/20`)
+
+**Examples:**
+
+```
+@gitsplits create split github.com/near/near-sdk-rs default
+```
+
+```
+@gitsplits create split github.com/near/near-sdk-rs 50/30/20
 ```
 
 **Response:**
 
 ```
 ✅ Split created for github.com/near/near-sdk-rs!
-Split ID: split-123456
-Contributors: 15
-View details: https://gitsplits.example.com/splits/split-123456
+
+Split ID: split-1234567890
+
+Contributors:
+- austinabell: 35.2%
+- willemneal: 28.7%
+- evgenykuzyakov: 15.5%
+- ...
+
+To view this split:
+@gitsplits split split-1234567890
 ```
 
-#### Get Split Info
-
-Retrieves information about a repository split.
+### View Splits
 
 ```
-@bankrbot @gitsplits info [repo_url]
+@gitsplits splits <repo>
 ```
+
+Shows active splits for a repository.
 
 **Parameters:**
 
-- `repo_url`: URL of the GitHub repository
+- `<repo>`: GitHub repository URL or name
 
 **Example:**
 
 ```
-@bankrbot @gitsplits info github.com/near/near-sdk-rs
+@gitsplits splits github.com/near/near-sdk-rs
 ```
 
 **Response:**
 
 ```
-📊 Split info for github.com/near/near-sdk-rs:
-Split ID: split-123456
-Top contributors:
-- austinabell: 25.4%
-- evgenykuzyakov: 18.7%
-- willemneal: 12.3%
-...and 12 more
-Total distributions: 3 (500 NEAR)
-View details: https://gitsplits.example.com/splits/split-123456
+📋 Splits for github.com/near/near-sdk-rs:
+
+Split ID: split-1234567890
+Created by: papajams.near
+Contributors: 8
+Created: 2023-05-01 12:34:56
+
+For more details:
+@gitsplits split split-1234567890
 ```
 
-#### Update Split
-
-Updates the split configuration for a repository.
+### View Split Details
 
 ```
-@bankrbot @gitsplits update [repo_url]
+@gitsplits split <split_id>
 ```
+
+Shows details for a specific split.
 
 **Parameters:**
 
-- `repo_url`: URL of the GitHub repository
+- `<split_id>`: Split ID
 
 **Example:**
 
 ```
-@bankrbot @gitsplits update github.com/near/near-sdk-rs
+@gitsplits split split-1234567890
 ```
 
 **Response:**
 
 ```
-🔄 Split updated for github.com/near/near-sdk-rs!
-Contributors: 17 (2 new)
-View details: https://gitsplits.example.com/splits/split-123456
+📊 Split Details:
+
+Split ID: split-1234567890
+Repository: github.com/near/near-sdk-rs
+Owner: papajams.near
+Created: 2023-05-01 12:34:56
+
+Contributors:
+- austinabell: 35.2%
+- willemneal: 28.7%
+- evgenykuzyakov: 15.5%
+- ...
+
+To distribute funds to this split, use Bankrbot.
 ```
 
-### Fund Distribution
-
-#### Distribute Funds
-
-Distributes funds to contributors based on the split configuration.
+### Verify GitHub Identity
 
 ```
-@bankrbot @gitsplits distribute [repo_url] [amount] [token]
+@gitsplits verify <github_username>
 ```
+
+Provides information on how to verify your GitHub identity.
 
 **Parameters:**
 
-- `repo_url`: URL of the GitHub repository
-- `amount`: Amount to distribute
-- `token`: (Optional) Token to distribute (default: NEAR)
+- `<github_username>`: Your GitHub username
 
 **Example:**
 
 ```
-@bankrbot @gitsplits distribute github.com/near/near-sdk-rs 100 NEAR
+@gitsplits verify papajams
 ```
 
 **Response:**
 
 ```
-💸 Distribution initiated for github.com/near/near-sdk-rs!
-Amount: 100 NEAR
-Recipients: 15 contributors
-Distribution ID: dist-789012
-Track status: https://gitsplits.example.com/distributions/dist-789012
+🔐 GitHub Verification:
+
+To verify your GitHub identity (papajams), please visit:
+https://gitsplits.xyz/verify
+
+This will allow you to claim your portion of any splits you're included in.
 ```
 
-#### Distribution Status
-
-Checks the status of a distribution.
+### Help
 
 ```
-@bankrbot @gitsplits status [distribution_id]
+@gitsplits help
 ```
 
-**Parameters:**
-
-- `distribution_id`: ID of the distribution to check
+Shows help information about available commands.
 
 **Example:**
 
 ```
-@bankrbot @gitsplits status dist-789012
+@gitsplits help
 ```
 
 **Response:**
 
 ```
-📊 Distribution dist-789012 status:
-Amount: 100 NEAR
-Recipients: 15/15 completed
-Transactions: 15/15 confirmed
-View details: https://gitsplits.example.com/distributions/dist-789012
+🔍 GitSplits Commands:
+
+- @gitsplits <repo>: Analyze repository contributions
+- @gitsplits create split <repo> [allocation]: Create a split
+- @gitsplits splits <repo>: View active splits for a repository
+- @gitsplits split <split_id>: View split details
+- @gitsplits help: Show this help message
+
+For more information, visit: https://gitsplits.xyz
 ```
 
-### GitHub Identity Verification
+## Parameter Formats
 
-#### Verify GitHub Identity
+### Repository
 
-Initiates GitHub identity verification to link a GitHub account to a wallet.
+You can specify a repository in two formats:
 
-```
-@bankrbot @gitsplits verify [github_username]
-```
+1. **Full URL**: `github.com/owner/repo`
+2. **Short Name**: `owner/repo`
 
-**Parameters:**
+Examples:
 
-- `github_username`: GitHub username to verify
+- `github.com/near/near-sdk-rs`
+- `near/near-sdk-rs`
 
-**Example:**
+### Allocation
 
-```
-@bankrbot @gitsplits verify johndoe
-```
+You can specify allocation percentages in two ways:
 
-**Response:**
+1. **Default**: Use `default` to use contribution-based percentages
+2. **Custom**: Specify percentages separated by slashes (e.g., `50/30/20`)
 
-```
-🔍 Verification initiated for GitHub user: johndoe
-Complete verification at: https://gitsplits.example.com/verify/ver-123456
-Verification expires in 24 hours
-```
-
-#### Check Verification Status
-
-Checks the status of a GitHub identity verification.
-
-```
-@bankrbot @gitsplits verification [github_username]
-```
-
-**Parameters:**
-
-- `github_username`: GitHub username to check
-
-**Example:**
-
-```
-@bankrbot @gitsplits verification johndoe
-```
-
-**Response:**
-
-```
-✅ GitHub user johndoe is verified!
-Linked to: johndoe.near
-Verified on: April 25, 2025
-```
-
-### Miscellaneous Commands
-
-#### Help
-
-Displays help information about available commands.
-
-```
-@bankrbot @gitsplits help
-```
-
-**Example:**
-
-```
-@bankrbot @gitsplits help
-```
-
-**Response:**
-
-```
-🤖 GitSplits X Agent Commands:
-- create [repo_url]: Create a new split
-- info [repo_url]: Get split information
-- update [repo_url]: Update split configuration
-- distribute [repo_url] [amount] [token]: Distribute funds
-- status [distribution_id]: Check distribution status
-- verify [github_username]: Verify GitHub identity
-- verification [github_username]: Check verification status
-- help: Display this help message
-
-Learn more: https://gitsplits.example.com/docs
-```
-
-#### Version
-
-Displays the current version of GitSplits X Agent.
-
-```
-@bankrbot @gitsplits version
-```
-
-**Example:**
-
-```
-@bankrbot @gitsplits version
-```
-
-**Response:**
-
-```
-GitSplits X Agent v1.0.0
-Built with NEAR Shade Agents
-Worker: TEE-secured (Phala Cloud)
-Contract: gitsplits.near
-```
+The percentages should add up to 100%.
 
 ## Error Handling
 
-When a command fails, GitSplits X Agent will respond with an error message explaining the issue:
+The agent will respond with appropriate error messages if:
+
+- The repository doesn't exist
+- The repository is private and not accessible
+- The allocation percentages don't add up to 100%
+- The split ID doesn't exist
+- The command format is invalid
+
+## Examples
+
+### Analyzing a Repository
 
 ```
-❌ Error: Repository not found: github.com/user/nonexistent-repo
-Please check the repository URL and try again.
+@gitsplits github.com/near/near-sdk-rs
 ```
 
-Common error types:
+This command will analyze the repository and show the contribution percentages of each contributor.
 
-- Repository not found
-- Invalid command format
-- Insufficient permissions
-- GitHub API rate limit exceeded
-- Verification expired
-- Distribution failed
-
-## Command Rate Limits
-
-To prevent abuse, the following rate limits apply:
-
-- 10 commands per user per hour
-- 3 distribution commands per user per day
-- 5 verification attempts per GitHub username per day
-
-## Hybrid Flow (X + Web)
-
-Some commands may require additional steps that are better completed on the web. In these cases, GitSplits X Agent will provide a link to continue the process on the web.
-
-### Long Responses
-
-When a response is too long for X (exceeds 280 characters), GitSplits X Agent will provide a shortened version with a link to view the full message:
+### Creating a Split with Default Percentages
 
 ```
-📊 Split info for github.com/near/near-sdk-rs:
-Top contributors:
-- austinabell: 25.4%
-- evgenykuzyakov: 18.7%
-...
-
-View full message: https://gitsplits.example.com/messages/msg-123456
+@gitsplits create split github.com/near/near-sdk-rs default
 ```
 
-### Verification Flow
+This command will create a split using the contribution percentages from the repository analysis.
 
-The GitHub identity verification process is a hybrid flow:
+### Creating a Split with Custom Percentages
 
-1. User initiates verification on X: `@bankrbot @gitsplits verify johndoe`
-2. GitSplits X Agent responds with a link to complete verification on the web
-3. User completes verification on the web by adding a verification code to their GitHub profile
-4. User can check verification status on X: `@bankrbot @gitsplits verification johndoe`
+```
+@gitsplits create split github.com/near/near-sdk-rs 50/30/20
+```
 
-## Notes
+This command will create a split with custom percentages for the top 3 contributors.
 
-- All commands are case-insensitive
-- Repository URLs can be in various formats (e.g., `github.com/user/repo`, `https://github.com/user/repo`, or just `user/repo`)
-- Token amounts must be positive numbers
-- Token types are case-sensitive (e.g., `NEAR`, `ETH`, `USDC`)
-- Distribution IDs and verification IDs are provided in command responses and are needed for status checks
-- For security reasons, some operations may require additional verification steps on the web
+### Viewing Splits for a Repository
+
+```
+@gitsplits splits github.com/near/near-sdk-rs
+```
+
+This command will show all splits created for the repository.
+
+### Viewing Split Details
+
+```
+@gitsplits split split-1234567890
+```
+
+This command will show detailed information about a specific split.
+
+<!-- Legacy commands section removed -->
+
+## Future Commands
+
+The following commands are planned for future releases:
+
+- `@gitsplits claim <split_id>`: Claim funds from a split (will redirect to web interface)
+- `@gitsplits template <template_name> <repo>`: Create a split using a template

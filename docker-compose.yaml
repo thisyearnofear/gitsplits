@@ -1,31 +1,19 @@
 version: '3'
 services:
-  worker:
-    image: yourusername/gitsplits-agent:latest@sha256:your-image-hash
+  # Frontend service
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gitsplits-frontend:latest
+    container_name: gitsplits-frontend
     environment:
       # NEAR Contract Configuration
-      - NEXT_PUBLIC_PROJECT_ID=your_project_id_here
-      - NEXT_PUBLIC_contractId=your_contract_id_here
-      - NEXT_PUBLIC_accountId=your_account_id_here
-      - NEXT_PUBLIC_secretKey=your_secret_key_here
-      - NEXT_PUBLIC_APP_URL=https://your-app-url.com
-
-      # X API Configuration
-      - TWITTER_CONSUMER_KEY=your_twitter_consumer_key
-      - TWITTER_CONSUMER_SECRET=your_twitter_consumer_secret
-      - TWITTER_ACCESS_TOKEN=your_twitter_access_token
-      - TWITTER_ACCESS_TOKEN_SECRET=your_twitter_access_token_secret
-      - TWITTER_WEBHOOK_ENV=your_twitter_webhook_env
-      - TWITTER_SCREEN_NAME=gitsplits
-
-      # GitHub API Configuration
-      - GITHUB_TOKEN=your_github_personal_access_token
-      - GITHUB_APP_ID=your_github_app_id
-      - GITHUB_PRIVATE_KEY=your_github_private_key
-      - GITHUB_WEBHOOK_SECRET=your_github_webhook_secret
-
-      # TEE Configuration
-      - TEE_WORKER_NAME=gitsplits-worker
+      - NEXT_PUBLIC_PROJECT_ID=${NEXT_PUBLIC_PROJECT_ID}
+      - NEXT_PUBLIC_contractId=${NEXT_PUBLIC_contractId}
+      - NEXT_PUBLIC_accountId=${NEXT_PUBLIC_accountId}
+      - NEXT_PUBLIC_secretKey=${NEXT_PUBLIC_secretKey}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 
       # Application Configuration
       - NODE_ENV=production
@@ -38,3 +26,54 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - gitsplits-network
+
+  # Worker agent service
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    image: gitsplits-worker-agent:latest
+    container_name: gitsplits-worker
+    environment:
+      # NEAR Configuration
+      - NEAR_NETWORK_ID=mainnet
+      - NEAR_NODE_URL=https://rpc.mainnet.near.org
+      - NEAR_CONTRACT_ID=${NEAR_CONTRACT_ID}
+      - NEAR_WALLET_URL=https://wallet.mainnet.near.org
+      - NEAR_HELPER_URL=https://helper.mainnet.near.org
+      - NEAR_ACCOUNT_ID=${NEAR_ACCOUNT_ID}
+      - NEAR_PRIVATE_KEY=${NEAR_PRIVATE_KEY}
+
+      # GitHub Configuration
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+
+      # Twitter Configuration (Cookie Auth)
+      - TWITTER_AUTH_TOKEN=${TWITTER_AUTH_TOKEN}
+      - TWITTER_CT0=${TWITTER_CT0}
+      - TWITTER_SCREEN_NAME=${TWITTER_SCREEN_NAME}
+      - TWITTER_LAST_TIMESTAMP=${TWITTER_LAST_TIMESTAMP}
+
+      # Server Configuration
+      - PORT=3001
+      - NODE_ENV=production
+    ports:
+      - "3001:3001"
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    volumes:
+      - ./worker/logs:/app/logs
+    networks:
+      - gitsplits-network
+
+networks:
+  gitsplits-network:
+    driver: bridge

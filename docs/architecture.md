@@ -1,111 +1,115 @@
-# GitSplits X Agent Architecture
+# GitSplits Architecture
 
-## System Overview
+This document outlines the architecture of the GitSplits system, which enables GitHub repository contributors to receive fair compensation based on their contributions through smart contract splits.
 
-GitSplits X Agent is built on the NEAR Shade Agents stack, enabling secure, autonomous operations for managing GitHub repository contribution splits and fund distribution. The system consists of several key components working together to provide a seamless experience for users interacting via X (Twitter).
+## Overview
 
-## Architecture Components
+GitSplits consists of three main components:
 
-### 1. X Interface Layer
+1. **Worker Agent**: Processes X (Twitter) commands, analyzes GitHub repositories, and interacts with the NEAR smart contract.
+2. **NEAR Smart Contract**: Manages repository splits and handles fund allocation to contributors.
+3. **Identity Verification**: Links GitHub identities to blockchain accounts through a web interface.
 
-Users interact with GitSplits X Agent through X by mentioning `@bankrbot @gitsplits` with specific commands. This layer:
+## Worker Agent
 
-- Monitors X for mentions and commands
-- Parses and validates user inputs
-- Provides feedback and status updates to users
+The worker agent is responsible for:
 
-### 2. Worker Agent (TEE-Secured)
+- Processing X (Twitter) commands
+- Analyzing GitHub repositories to determine contribution percentages
+- Interacting with the NEAR smart contract
+- Responding to user commands
 
-The Worker Agent runs in a Trusted Execution Environment (TEE) on NEAR AI Hub, ensuring secure and verifiable execution. It:
+### X Command Processing
 
-- Processes X commands received via webhooks
-- Interacts with the GitHub API to fetch repository data
-- Calculates contribution percentages based on repository activity
-- Generates and signs transactions using ephemeral keys
-- Communicates with the NEAR smart contract
+The worker agent monitors X (Twitter) for mentions of `@gitsplits` followed by a command. When a command is detected, the agent parses the command and executes the appropriate action.
 
-### 3. NEAR Smart Contract
+### GitHub Repository Analysis
 
-The smart contract serves as the on-chain component of the system, providing:
+When a user requests information about a repository or creates a split, the worker agent:
 
-- Worker agent verification through remote attestation
-- Repository split configuration management
-- Fund distribution logic
-- GitHub identity verification
-- Chain signature generation for cross-chain transactions
+1. Fetches the repository's contributors from the GitHub API
+2. Calculates the contribution percentages based on commit history
+3. Formats the percentages for the NEAR smart contract (24 decimal places)
 
-### 4. Multi-Chain Integration
+### NEAR Contract Interaction
 
-GitSplits leverages NEAR's chain signatures to enable cross-chain transactions:
+The worker agent interacts with the NEAR smart contract to:
 
-- Generates signatures for transactions on Ethereum, Solana, and other chains
-- Ensures secure and verifiable transactions across blockchains
-- Enables fund distribution to contributors on their preferred chains
+1. Create splits for repositories
+2. Update splits with contributor information
+3. Check split information
 
-### 5. Web Dashboard
+## NEAR Smart Contract
 
-The web dashboard provides a visual interface for monitoring agent activity:
+The NEAR smart contract is responsible for:
 
-- Displays all agent actions and transactions
-- Shows split configurations and distribution history
-- Provides detailed analytics on repository contributions
-- Serves as a verification tool for X-based interactions
+- Managing repository splits
+- Handling fund allocation to contributors
+- Verifying GitHub identities
+- Allowing contributors to claim their portion
+
+### Split Management
+
+The smart contract stores split information, including:
+
+- Repository URL
+- Owner (creator of the split)
+- Contributors (GitHub usernames and percentages)
+- Creation timestamp
+
+### Fund Allocation
+
+The contract:
+
+1. Receives funds sent to its address
+2. Allocates funds to contributors based on split percentages
+3. Allows verified contributors to claim their portion
+
+### GitHub Identity Verification
+
+The smart contract maintains a record of verified GitHub identities, linking GitHub usernames to blockchain accounts.
+
+## Identity Verification
+
+The identity verification system links GitHub identities to blockchain accounts through a web interface using the social-verifier library.
+
+### GitHub Verification Process
+
+1. User visits the verification web interface
+2. User signs a message with their blockchain private key
+3. User creates a GitHub gist with the signed message
+4. User submits the gist ID to the verification system
+5. System verifies the signature and links the GitHub username to the blockchain account
 
 ## Data Flow
 
-1. **Command Initiation**:
-   - User posts a command on X mentioning `@bankrbot @gitsplits`
-   - X webhook notifies the Worker Agent of the mention
-
-2. **Command Processing**:
-   - Worker Agent parses the command and validates inputs
-   - For repository-related commands, the agent fetches data from GitHub API
-   - Agent calculates contribution percentages and prepares transaction data
-
-3. **On-Chain Verification**:
-   - Worker Agent communicates with the NEAR smart contract
-   - Smart contract verifies the Worker Agent's attestation
-   - Contract processes the command and updates on-chain state
-
-4. **Transaction Execution**:
-   - For fund distribution, the contract generates chain signatures
-   - Transactions are executed on target blockchains
-   - Results are recorded on-chain and reported back to the user on X
-
-5. **Dashboard Updates**:
-   - All actions and transactions are logged and displayed on the web dashboard
-   - Users can verify the status and history of their commands
+1. User sends a command on X (Twitter)
+2. Worker agent processes the command
+3. Worker agent interacts with the GitHub API (if needed)
+4. Worker agent interacts with the NEAR smart contract (if needed)
+5. Worker agent responds to the user on X (Twitter)
+6. User sends funds to the contract address via Bankrbot
+7. Contributors verify their identity through the web interface
+8. Contributors claim their portion of the funds
 
 ## Security Considerations
 
-1. **TEE Security**:
-   - Worker Agent code is verified through remote attestation
-   - Ephemeral keys are generated within the TEE and never exposed
-   - All sensitive operations occur within the secure enclave
+- **Smart Contract Security**: The smart contract is audited and follows best practices for secure smart contract development.
+- **GitHub API Rate Limits**: The worker agent handles GitHub API rate limits to ensure reliable operation.
+- **X (Twitter) API Rate Limits**: The worker agent handles X (Twitter) API rate limits to ensure reliable operation.
+- **Private Key Management**: Private keys are stored securely and never exposed.
+- **Identity Verification**: The verification process is secure and resistant to spoofing.
 
-2. **Smart Contract Security**:
-   - Method access control ensures only verified Worker Agents can call sensitive methods
-   - Transaction verification prevents unauthorized fund distribution
-   - Time-delayed operations for high-value transactions
+## Deployment Architecture
 
-3. **X Command Security**:
-   - Command validation prevents malicious inputs
-   - User verification ensures only authorized users can perform certain actions
-   - Rate limiting prevents abuse
+- **Worker Agent**: Deployed as a Docker container on a server or cloud provider.
+- **NEAR Smart Contract**: Deployed on the NEAR mainnet.
+- **Identity Verification**: Deployed as a web application.
 
-## Scalability Considerations
+## Future Enhancements
 
-1. **Worker Agent Scaling**:
-   - Multiple Worker Agents can be deployed to handle increased load
-   - Stateless design allows for horizontal scaling
-   - Load balancing across multiple TEE instances
-
-2. **Smart Contract Optimization**:
-   - Efficient storage patterns to minimize gas costs
-   - Batched operations for handling multiple repositories
-   - Optimized fund distribution logic
-
-3. **Cross-Chain Efficiency**:
-   - Batched transactions for multi-recipient distributions
-   - Gas optimization for cross-chain operations
-   - Fallback mechanisms for failed transactions
+- **Permanent Splits**: Splits are permanent once created, with funds distributed according to the defined percentages.
+- **Multi-Chain Support**: Support for more tokens and chains.
+- **Streamlined Identity Verification**: Improve the identity verification process.
+- **Private Repository Support**: Support for private GitHub repositories.
+- **Custom Split Configurations**: Allow users to customize split configurations.

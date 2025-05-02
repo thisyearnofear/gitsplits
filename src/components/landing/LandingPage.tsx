@@ -39,6 +39,7 @@ import EmbedCodeDisplay from "@/components/shared/EmbedCodeDisplay";
 import { useToast } from "@/hooks/use-toast";
 import { useNearWallet } from "@/hooks/useNearWallet";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 const FeatureCard: React.FC<FeatureCardProps> = ({
   icon,
@@ -174,6 +175,10 @@ const LandingPage: React.FC<LandingPageProps> = ({
   // Combined connection status - connected to either wallet
   const isAnyWalletConnected = isConnected || isNearConnected;
 
+  const router = useRouter();
+
+  const [isDashboardLoading, setIsDashboardLoading] = useState(false);
+
   useEffect(() => {
     // If any wallet is connected, we can automatically navigate to dashboard
     if (isAnyWalletConnected) {
@@ -235,11 +240,12 @@ const LandingPage: React.FC<LandingPageProps> = ({
   };
 
   const handleDashboardNavigation = () => {
+    setIsDashboardLoading(true);
     if (isAnyWalletConnected) {
       onDashboardClick();
     } else {
-      // Show wallet selection modal instead of direct login prompt
       showWalletSelectionModal();
+      setIsDashboardLoading(false);
     }
   };
 
@@ -288,7 +294,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
       icon: <Twitter className="w-6 h-6" />,
       title: "X Commands",
       description:
-        "Tweet '@bankrbot @gitsplits create myrepo' to instantly create splits.",
+        "Tweet '@gitsplitscreate splits https://github.com/thisyearnofear/gitsplits.",
     },
     {
       icon: <Share2 className="w-6 h-6" />,
@@ -433,7 +439,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
 
           {isAnyWalletConnected && (
             <Button
-              onClick={onDashboardClick}
+              onClick={() => router.push("/dashboard")}
               className="mt-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-2 px-4 rounded-full transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-110"
             >
               Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
@@ -449,32 +455,32 @@ const LandingPage: React.FC<LandingPageProps> = ({
             </Button>
           )}
 
-          {/* Repository Input */}
-          <form onSubmit={handleSubmit} className="max-w-xl mx-auto mt-8">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Enter your GitHub repository URL"
-                value={repoUrl}
-                onChange={(e) => setRepoUrl(e.target.value)}
-                required
-              />
-              <Button type="submit" className="whitespace-nowrap">
-                Generate Attribution
-              </Button>
+          {/* Attribution/Feature List Section - moved here */}
+          <div className="mt-8">
+            <form onSubmit={handleSubmit} className="max-w-xl mx-auto">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter your GitHub repository URL"
+                  value={repoUrl}
+                  onChange={(e) => setRepoUrl(e.target.value)}
+                  required
+                />
+                <Button type="submit" className="whitespace-nowrap">
+                  Generate Attribution
+                </Button>
+              </div>
+            </form>
+            <div className="flex justify-center space-x-8 mt-6">
+              <span className="flex items-center text-sm text-gray-600">
+                <Code className="w-4 h-4 mr-2" /> Easy Embed
+              </span>
+              <span className="flex items-center text-sm text-gray-600">
+                <Github className="w-4 h-4 mr-2" /> Auto-sync with GitHub
+              </span>
+              <span className="flex items-center text-sm text-gray-600">
+                <Share2 className="w-4 h-4 mr-2" /> Customizable Display
+              </span>
             </div>
-          </form>
-
-          {/* Quick Benefits */}
-          <div className="flex justify-center space-x-8 mt-6">
-            <span className="flex items-center text-sm text-gray-600">
-              <Code className="w-4 h-4 mr-2" /> Easy Embed
-            </span>
-            <span className="flex items-center text-sm text-gray-600">
-              <Github className="w-4 h-4 mr-2" /> Auto-sync with GitHub
-            </span>
-            <span className="flex items-center text-sm text-gray-600">
-              <Share2 className="w-4 h-4 mr-2" /> Customizable Display
-            </span>
           </div>
         </motion.div>
 
@@ -580,14 +586,41 @@ const LandingPage: React.FC<LandingPageProps> = ({
               onClick={handleDashboardNavigation}
               size="lg"
               className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-2 px-4 rounded-full transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-110"
+              disabled={isDashboardLoading}
             >
-              {isAnyWalletConnected
-                ? "Go to Dashboard"
-                : "Connect Wallet to Access Dashboard"}{" "}
-              {isAnyWalletConnected ? (
-                <ArrowRight className="ml-2 h-4 w-4" />
+              {isDashboardLoading ? (
+                <span className="flex items-center">
+                  <svg
+                    className="animate-spin h-5 w-5 mr-2 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v8z"
+                    ></path>
+                  </svg>
+                  Loading...
+                </span>
+              ) : isAnyWalletConnected ? (
+                <>
+                  Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
+                </>
               ) : (
-                <Wallet className="ml-2 h-4 w-4" />
+                <>
+                  Connect Wallet to Access Dashboard{" "}
+                  <Wallet className="ml-2 h-4 w-4" />
+                </>
               )}
             </Button>
           </div>

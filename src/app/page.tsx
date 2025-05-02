@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense } from "react";
 import dynamic from "next/dynamic";
 import { useAppKitAccount, useAppKit } from "@reown/appkit/react";
 import Header from "@/components/shared/Header";
@@ -11,32 +11,14 @@ import { useNearWallet } from "@/hooks/useNearWallet";
 const LandingPage = dynamic(() => import("@/components/landing/LandingPage"), {
   ssr: false,
 });
-const Dashboard = dynamic(() => import("@/components/dashboard/Dashboard"), {
-  ssr: false,
-});
 
 const Home: React.FC<HomeProps> = () => {
   const { isConnected: isEvmConnected } = useAppKitAccount();
   const { open } = useAppKit();
   const { isConnected: isNearConnected } = useNearWallet();
-  const [isGitHubConnected, setIsGitHubConnected] = useState(false);
-  const [showDashboard, setShowDashboard] = useState(false);
 
   // Combined connection status - connected to either wallet
   const isAnyWalletConnected = isEvmConnected || isNearConnected;
-
-  // Check if user is already connected to any wallet on initial load
-  useEffect(() => {
-    if (isAnyWalletConnected && !showDashboard) {
-      console.log("Wallet already connected, showing dashboard");
-      console.log("EVM connected:", isEvmConnected);
-      console.log("NEAR connected:", isNearConnected);
-    }
-  }, [isEvmConnected, isNearConnected, showDashboard]);
-
-  const handleDashboardClick = () => {
-    setShowDashboard(true);
-  };
 
   const handleLoginPrompt = () => {
     if (!isEvmConnected) {
@@ -45,8 +27,8 @@ const Home: React.FC<HomeProps> = () => {
   };
 
   const landingPageProps: LandingPageProps = {
-    isConnected: isEvmConnected, // Keep this as is for backward compatibility
-    onDashboardClick: handleDashboardClick,
+    isConnected: isEvmConnected,
+    onDashboardClick: () => {}, // No-op, dashboard is now a separate route
     onLoginPrompt: handleLoginPrompt,
   };
 
@@ -54,14 +36,7 @@ const Home: React.FC<HomeProps> = () => {
     <TooltipProvider>
       <Header />
       <Suspense fallback={<div>Loading...</div>}>
-        {!showDashboard ? (
-          <LandingPage {...landingPageProps} />
-        ) : (
-          <Dashboard
-            isGitHubConnected={isGitHubConnected}
-            setIsGitHubConnected={setIsGitHubConnected}
-          />
-        )}
+        <LandingPage {...landingPageProps} />
       </Suspense>
     </TooltipProvider>
   );

@@ -16,6 +16,9 @@ pub enum StorageKey {
     Distributions,
     SplitDistributions,
     SplitDistributionsInner { split_id: String },
+    GithubToXMappings,
+    VerifiedWallets,
+    PendingDistributions,
 }
 
 /// Type aliases for better readability
@@ -92,6 +95,18 @@ pub struct Distribution {
     pub transactions: Vec<Transaction>,
 }
 
+/// Pending distribution structure
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(crate = "near_sdk::serde")]
+pub struct PendingDistribution {
+    pub id: String,
+    pub github_username: String,
+    pub amount: u128,
+    pub token: String,
+    pub timestamp: u64,
+    pub claimed: bool,
+}
+
 /// Chain signature structure
 #[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(crate = "near_sdk::serde")]
@@ -120,6 +135,11 @@ pub struct GitSplitsContract {
     distributions: UnorderedMap<DistributionId, Distribution>,
     split_distributions: LookupMap<SplitId, Vector<DistributionId>>,
 
+    // Social verification
+    github_to_x_mappings: LookupMap<String, String>,
+    verified_wallets: LookupMap<String, AccountId>,
+    pending_distributions: UnorderedMap<String, PendingDistribution>,
+
     // Admin settings
     owner: AccountId,
 }
@@ -138,6 +158,9 @@ impl GitSplitsContract {
             account_github_identities: LookupMap::new(StorageKey::AccountGithubIdentities),
             distributions: UnorderedMap::new(StorageKey::Distributions),
             split_distributions: LookupMap::new(StorageKey::SplitDistributions),
+            github_to_x_mappings: LookupMap::new(StorageKey::GithubToXMappings),
+            verified_wallets: LookupMap::new(StorageKey::VerifiedWallets),
+            pending_distributions: UnorderedMap::new(StorageKey::PendingDistributions),
             owner: env::predecessor_account_id(),
         }
     }
@@ -162,9 +185,9 @@ impl GitSplitsContract {
 
         // If the owner is registering, allow it
         // LookupMap doesn't have is_empty(), so we'll check if any workers exist
-        let first_worker = self.registered_workers.get(&self.owner).is_none() && 
+        let first_worker = self.registered_workers.get(&self.owner).is_none() &&
                           self.allowed_code_hashes.len() == 0;
-                          
+
         if first_worker || env::predecessor_account_id() == self.owner {
             is_allowed = true;
 
@@ -268,6 +291,95 @@ impl GitSplitsContract {
             signature: "signature_placeholder".to_string(),
             public_key: "public_key_placeholder".to_string(),
             chain_id,
+        }
+    }
+
+    // Social Verification Methods
+
+    /// Store verification of GitHub and X/Twitter identities
+    pub fn store_verification(&mut self, github_username: String, x_username: String, wallet_address: AccountId) -> bool {
+        self.assert_worker_caller();
+
+        // Store the mappings
+        self.github_to_x_mappings.insert(&github_username, &x_username);
+        self.verified_wallets.insert(&github_username, &wallet_address);
+
+        // Process any pending distributions
+        self.process_pending_distributions(&github_username);
+
+        true
+    }
+
+    /// Check if GitHub username is verified
+    pub fn is_github_verified(&self, github_username: String) -> bool {
+        self.verified_wallets.contains_key(&github_username)
+    }
+
+    /// Get X/Twitter username for GitHub username
+    pub fn get_x_username(&self, github_username: String) -> Option<String> {
+        self.github_to_x_mappings.get(&github_username)
+    }
+
+    /// Get wallet address for GitHub username
+    pub fn get_wallet_address(&self, github_username: String) -> Option<AccountId> {
+        self.verified_wallets.get(&github_username)
+    }
+
+    /// Get GitHub username for wallet address
+    pub fn get_github_by_wallet(&self, wallet_address: AccountId) -> Option<String> {
+        for (github_username, account_id) in self.verified_wallets.iter() {
+            if account_id == wallet_address {
+                return Some(github_username);
+            }
+        }
+        None
+    }
+
+    /// Store a pending distribution for a GitHub username
+    pub fn store_pending_distribution(&mut self, github_username: String, amount: u128, token: String) -> String {
+        self.assert_worker_caller();
+
+        let id = format!("pending-{}-{}", github_username, env::block_timestamp());
+
+        let pending_distribution = PendingDistribution {
+            id: id.clone(),
+            github_username: github_username.clone(),
+            amount,
+            token,
+            timestamp: env::block_timestamp(),
+            claimed: false,
+        };
+
+        self.pending_distributions.insert(&id, &pending_distribution);
+
+        id
+    }
+
+    /// Get pending distributions for a GitHub username
+    pub fn get_pending_distributions(&self, github_username: String) -> Vec<PendingDistribution> {
+        let mut result = Vec::new();
+
+        for i in self.pending_distributions.keys() {
+            if let Some(distribution) = self.pending_distributions.get(&i) {
+                if distribution.github_username == github_username && !distribution.claimed {
+                    result.push(distribution);
+                }
+            }
+        }
+
+        result
+    }
+
+    /// Process pending distributions after verification
+    fn process_pending_distributions(&mut self, github_username: &String) {
+        let pending = self.get_pending_distributions(github_username.clone());
+
+        for distribution in pending {
+            // Mark as claimed
+            if let Some(mut dist) = self.pending_distributions.get(&distribution.id) {
+                dist.claimed = true;
+                self.pending_distributions.insert(&distribution.id, &dist);
+            }
         }
     }
 

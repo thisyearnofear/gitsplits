@@ -1,16 +1,21 @@
 // Twitter Client using Cookie Auth
-const axios = require('axios');
-const crypto = require('crypto');
+const axios = require("axios");
+const crypto = require("crypto");
 
 class TwitterCookieClient {
   constructor(options = {}) {
-    this.auth_token = options.auth_token || process.env.TWITTER_AUTH_TOKEN;
-    this.ct0 = options.ct0 || process.env.TWITTER_CT0;
-    this.baseUrl = 'https://api.twitter.com/1.1';
-    this.screenName = options.screenName || process.env.TWITTER_SCREEN_NAME || 'gitsplits';
-    
+    this.auth_token =
+      options.auth_token || process.env.TWITTER_COOKIES_AUTH_TOKEN;
+    this.ct0 = options.ct0 || process.env.TWITTER_COOKIES_CT0;
+    this.guest_id = options.guest_id || process.env.TWITTER_COOKIES_GUEST_ID;
+    this.baseUrl = "https://api.twitter.com/1.1";
+    this.screenName =
+      options.screenName || process.env.TWITTER_SCREEN_NAME || "gitsplits";
+
     if (!this.auth_token || !this.ct0) {
-      console.warn('Twitter Cookie Auth credentials not provided. Some functionality may be limited.');
+      console.warn(
+        "Twitter Cookie Auth credentials not provided. Some functionality may be limited."
+      );
     }
   }
 
@@ -19,12 +24,20 @@ class TwitterCookieClient {
    * @returns {Object} - Headers
    */
   getHeaders() {
+    const cookies = [`auth_token=${this.auth_token}`, `ct0=${this.ct0}`];
+
+    if (this.guest_id) {
+      cookies.push(`guest_id=${this.guest_id}`);
+    }
+
     return {
-      'Authorization': 'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs=1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA',
-      'Cookie': `auth_token=${this.auth_token}; ct0=${this.ct0}`,
-      'X-Csrf-Token': this.ct0,
-      'Content-Type': 'application/json',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      Authorization:
+        "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs=1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
+      Cookie: cookies.join("; "),
+      "X-Csrf-Token": this.ct0,
+      "Content-Type": "application/json",
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
     };
   }
 
@@ -36,17 +49,24 @@ class TwitterCookieClient {
   async tweet(text) {
     try {
       // Check if we're in development mode
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         console.log(`[DEV] Would tweet: ${text}`);
-        return { id_str: 'mock-tweet-id-' + Date.now() };
+        return { id_str: "mock-tweet-id-" + Date.now() };
       }
 
       const url = `${this.baseUrl}/statuses/update.json`;
-      const response = await axios.post(url, { status: text }, { headers: this.getHeaders() });
+      const response = await axios.post(
+        url,
+        { status: text },
+        { headers: this.getHeaders() }
+      );
       return response.data;
     } catch (error) {
-      console.error('Error posting tweet:', error.response?.data || error.message);
-      throw new Error('Failed to post tweet');
+      console.error(
+        "Error posting tweet:",
+        error.response?.data || error.message
+      );
+      throw new Error("Failed to post tweet");
     }
   }
 
@@ -59,21 +79,28 @@ class TwitterCookieClient {
   async reply(text, in_reply_to_status_id) {
     try {
       // Check if we're in development mode
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         console.log(`[DEV] Would reply to ${in_reply_to_status_id}: ${text}`);
-        return { id_str: 'mock-tweet-id-' + Date.now() };
+        return { id_str: "mock-tweet-id-" + Date.now() };
       }
 
       const url = `${this.baseUrl}/statuses/update.json`;
       const response = await axios.post(
         url,
-        { status: text, in_reply_to_status_id, auto_populate_reply_metadata: true },
+        {
+          status: text,
+          in_reply_to_status_id,
+          auto_populate_reply_metadata: true,
+        },
         { headers: this.getHeaders() }
       );
       return response.data;
     } catch (error) {
-      console.error('Error replying to tweet:', error.response?.data || error.message);
-      throw new Error('Failed to reply to tweet');
+      console.error(
+        "Error replying to tweet:",
+        error.response?.data || error.message
+      );
+      throw new Error("Failed to reply to tweet");
     }
   }
 
@@ -88,8 +115,11 @@ class TwitterCookieClient {
       const response = await axios.get(url, { headers: this.getHeaders() });
       return response.data;
     } catch (error) {
-      console.error('Error getting tweet:', error.response?.data || error.message);
-      throw new Error('Failed to get tweet');
+      console.error(
+        "Error getting tweet:",
+        error.response?.data || error.message
+      );
+      throw new Error("Failed to get tweet");
     }
   }
 
@@ -102,16 +132,19 @@ class TwitterCookieClient {
     try {
       const params = new URLSearchParams({
         count: options.count || 20,
-        tweet_mode: 'extended',
+        tweet_mode: "extended",
         ...options,
       }).toString();
-      
+
       const url = `${this.baseUrl}/statuses/mentions_timeline.json?${params}`;
       const response = await axios.get(url, { headers: this.getHeaders() });
       return response.data;
     } catch (error) {
-      console.error('Error getting mentions:', error.response?.data || error.message);
-      throw new Error('Failed to get mentions');
+      console.error(
+        "Error getting mentions:",
+        error.response?.data || error.message
+      );
+      throw new Error("Failed to get mentions");
     }
   }
 
@@ -126,17 +159,20 @@ class TwitterCookieClient {
       const params = new URLSearchParams({
         q: query,
         count: options.count || 20,
-        tweet_mode: 'extended',
-        result_type: options.result_type || 'recent',
+        tweet_mode: "extended",
+        result_type: options.result_type || "recent",
         ...options,
       }).toString();
-      
+
       const url = `${this.baseUrl}/search/tweets.json?${params}`;
       const response = await axios.get(url, { headers: this.getHeaders() });
       return response.data.statuses;
     } catch (error) {
-      console.error('Error searching tweets:', error.response?.data || error.message);
-      throw new Error('Failed to search tweets');
+      console.error(
+        "Error searching tweets:",
+        error.response?.data || error.message
+      );
+      throw new Error("Failed to search tweets");
     }
   }
 }

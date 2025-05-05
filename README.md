@@ -45,6 +45,7 @@ GitSplits shows active splits for the specified repository, including contract a
 ## 🚀 Features
 
 - **X-Native Interaction**: Interact with GitSplits directly through X using simple commands
+- **Farcaster Integration**: Interact with GitSplits through Farcaster mentions
 - **Contribution Analysis**: Analyze GitHub repositories to determine contribution splits based on commit history
 - **Smart Contract Splits**: Create permanent splits for repositories with customizable allocations
 - **Multi-Chain Integration**: Distribute funds across blockchains to contributors via Bankrbot
@@ -65,7 +66,20 @@ GitSplits combines the power of NEAR blockchain with GitHub integration to creat
 
 5. **Fund Claiming**: Verified contributors can claim their portion of the funds from the contract.
 
-## 📋 X Commands
+## 📋 Social Commands
+
+### X Commands
+
+| Command                            | Description                         | Example                                            |
+| ---------------------------------- | ----------------------------------- | -------------------------------------------------- |
+| `<repo>`                           | Analyze repository contributions    | `@gitsplits github.com/near/near-sdk-rs`           |
+| `create split <repo> [allocation]` | Create a split for a repository     | `@gitsplits create split near/near-sdk-rs default` |
+| `splits <repo>`                    | View active splits for a repository | `@gitsplits splits near/near-sdk-rs`               |
+| `help`                             | Show help message                   | `@gitsplits help`                                  |
+
+### Farcaster Commands
+
+The same commands are available on Farcaster:
 
 | Command                            | Description                         | Example                                            |
 | ---------------------------------- | ----------------------------------- | -------------------------------------------------- |
@@ -123,6 +137,7 @@ GitSplits is built on the NEAR blockchain, ensuring security and transparency:
 - Docker and Docker Compose
 - Firebase account (for identity verification)
 - GitHub API token (for repository analysis and verification)
+- Twitter account (for X integration)
 
 ### Setup
 
@@ -141,18 +156,32 @@ GitSplits is built on the NEAR blockchain, ensuring security and transparency:
    - Create a new OAuth app at [github.com/settings/developers](https://github.com/settings/developers)
    - Set the Authorization callback URL to `http://localhost:3000/api/auth/github/callback` (make sure this matches your Next.js API route)
    - Copy the Client ID and Client Secret to your `.env.local` file
-6. Build the smart contract:
+6. Set up Twitter authentication:
+   - See [docs/twitter/TWITTER_AUTH_GUIDE.md](docs/twitter/TWITTER_AUTH_GUIDE.md) for detailed instructions
+   - Use the `scripts/get-twitter-cookies.sh` script to extract Twitter cookies from your browser
+7. Set up Farcaster integration (optional):
+   - Create a Neynar account at [dev.neynar.com](https://dev.neynar.com)
+   - Create a Farcaster bot using the `scripts/farcaster/create-farcaster-bot.js` script
+   - Register a webhook using the `scripts/farcaster/register-webhook.js` script
+   - See [docs/farcaster/FARCASTER_INTEGRATION.md](docs/farcaster/FARCASTER_INTEGRATION.md) for detailed instructions
+8. Build the smart contract:
    ```bash
    cd contracts/near && cargo build
    ```
-7. Start the worker agent:
+9. Start the worker agent:
    ```bash
-   cd worker && npm run dev
+   ./scripts/run-mock-worker.sh  # For testing with mock Twitter data
+   # or
+   cd worker && npm run dev      # For real Twitter integration
    ```
-8. Start the frontend:
-   ```bash
-   npm run dev
-   ```
+10. Start the Farcaster bot (optional):
+    ```bash
+    ./scripts/run-farcaster-bot.sh
+    ```
+11. Start the frontend:
+    ```bash
+    npm run dev
+    ```
 
 ### Testing
 
@@ -167,6 +196,44 @@ Run the tests for the smart contract:
 ```bash
 cd contracts/near && cargo test
 ```
+
+Run the Twitter integration tests:
+
+```bash
+# Test Twitter authentication
+./scripts/test-twitter-auth.sh
+
+# Test Twitter API endpoints
+./scripts/test-twitter-endpoints.sh
+
+# Run specific Twitter tests
+node scripts/twitter-tests/test-user-info.js
+```
+
+Run the Farcaster integration tests:
+
+```bash
+# Create a Farcaster bot
+node scripts/farcaster/create-farcaster-bot.js
+
+# Register a webhook
+node scripts/farcaster/register-webhook.js
+
+# Start the webhook server
+node scripts/farcaster/webhook-server.js
+```
+
+### Project Structure
+
+- `contracts/`: Smart contract code
+- `docs/`: Documentation
+  - `twitter/`: Twitter integration documentation
+  - `farcaster/`: Farcaster integration documentation
+- `scripts/`: Helper scripts
+  - `twitter-tests/`: Twitter test scripts
+  - `farcaster/`: Farcaster integration scripts
+- `src/`: Frontend code
+- `worker/`: Worker agent code
 
 ### Deployment
 

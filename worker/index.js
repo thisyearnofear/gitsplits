@@ -4,7 +4,7 @@
 
 const { connect, keyStores, KeyPair, Contract } = require("near-api-js");
 const { Octokit } = require("@octokit/rest");
-const TwitterCookieClient = require("./twitterClient");
+const Twitter2FAClient = require("./twitter2FAClient");
 const express = require("express");
 const bodyParser = require("body-parser");
 const dotenv = require("dotenv");
@@ -37,8 +37,17 @@ const githubConfig = {
 
 // Twitter configuration
 const twitterConfig = {
-  auth_token: process.env.TWITTER_AUTH_TOKEN,
-  ct0: process.env.TWITTER_CT0,
+  // Cookie-based auth credentials (preferred)
+  authToken: process.env.TWITTER_COOKIES_AUTH_TOKEN,
+  ct0: process.env.TWITTER_COOKIES_CT0,
+  guestId: process.env.TWITTER_COOKIES_GUEST_ID,
+
+  // 2FA auth credentials (fallback)
+  username: process.env.TWITTER_USERNAME,
+  password: process.env.TWITTER_PASSWORD,
+  twoFASecret: process.env.TWITTER_2FA_SECRET,
+
+  // General Twitter config
   screenName: process.env.TWITTER_SCREEN_NAME || "gitsplits",
 };
 
@@ -145,12 +154,16 @@ async function initializeConnections() {
   try {
     console.log("Initializing Twitter client...");
 
-    if (!process.env.TWITTER_AUTH_TOKEN || !process.env.TWITTER_CT0) {
-      console.error("Twitter Cookie Auth credentials not provided");
+    if (
+      !process.env.TWITTER_USERNAME ||
+      !process.env.TWITTER_PASSWORD ||
+      !process.env.TWITTER_2FA_SECRET
+    ) {
+      console.error("Twitter credentials not provided");
       throw new Error("Missing Twitter credentials");
     }
 
-    twitterClient = new TwitterCookieClient(twitterConfig);
+    twitterClient = new Twitter2FAClient(twitterConfig);
     twitterInitialized = true;
     console.log("Twitter client initialized successfully");
   } catch (error) {
@@ -285,10 +298,19 @@ async function analyzeContributions(owner, repo) {
         if (i === contributors.length - 1) {
           percentage = (expectedTotal - totalPercentage).toString();
         } else {
-          percentage = Math.floor(
-            (contributor.contributions / totalContributions) *
-              Number(expectedTotal)
-          ).toString();
+          // Calculate percentage as a string to avoid scientific notation issues with BigInt
+          const contributionRatio =
+            contributor.contributions / totalContributions;
+          const expectedTotalNumber = Number(expectedTotal);
+          const rawPercentage = contributionRatio * expectedTotalNumber;
+          percentage = Math.floor(rawPercentage).toString();
+
+          // Ensure the percentage is a valid integer string without scientific notation
+          if (percentage.includes("e")) {
+            // Handle scientific notation by converting to a regular number string
+            percentage = BigInt(Math.floor(rawPercentage)).toString();
+          }
+
           totalPercentage += BigInt(percentage);
         }
 
@@ -1129,6 +1151,9 @@ app.get("/api/check-mentions", async (req, res) => {
           .json({ error: "Twitter client not initialized" });
       }
 
+      // Ensure Twitter client is authenticated
+      await twitterClient.authenticate();
+
       // Get mentions since the last check
       const lastCheckTimestamp = process.env.TWITTER_LAST_TIMESTAMP || 0;
       mentions = await twitterClient.getMentions({
@@ -1233,6 +1258,9 @@ async function checkMentions() {
       console.error("Twitter client not initialized");
       return;
     }
+
+    // Ensure Twitter client is authenticated
+    await twitterClient.authenticate();
 
     // Get mentions since the last check
     const lastCheckTimestamp = process.env.TWITTER_LAST_TIMESTAMP || 0;

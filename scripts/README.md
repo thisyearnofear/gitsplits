@@ -1,43 +1,40 @@
 # GitSplits Scripts
 
-This directory contains scripts for deploying, managing, and testing the GitSplits application.
+This directory contains scripts for deploying, managing, and testing the GitSplits application. The scripts are organized into subdirectories by functionality.
 
-## Deployment Scripts
+## Directory Structure
 
-- `check_server.sh`: Script to check the status of the server
-- `deploy_to_hetzner.sh`: Script to deploy the application to the Hetzner server
-- `deploy-to-server.sh`: Script to deploy the application to the server
-- `pull-and-deploy.sh`: Script to pull the latest changes and deploy them
-- `setup-server-env.sh`: Script to set up the server environment variables
-- `test-server-worker.sh`: Script to test the worker agent on the server
-- `update-worker.sh`: Script to update the worker agent on the server
+- `deployment/`: Scripts for deploying the application to various environments
+- `server/`: Scripts for managing and interacting with the GitSplits server
+- `worker/`: Scripts for managing and running the GitSplits worker agent
+- `twitter/`: Scripts for working with Twitter API and authentication
+- `farcaster/`: Scripts for working with Farcaster integration
+- `near/`: Scripts for working with NEAR blockchain and Crosspost integration
+- `crosspost-tests/`: Scripts for testing Crosspost integration for Twitter posting
+- `twitter-tests/`: Test scripts for various Twitter functionality
 
-## Worker Scripts
+## Main Scripts
 
-- `run-local-worker.sh`: Script to run the worker agent locally
-- `run-mock-worker.sh`: Script to run the worker agent with mock Twitter data
+- `run-local.sh`: Main script to run the application locally
 
-## Twitter Scripts
+## Test Directories
 
-- `get-twitter-cookies.sh`: Helper script to extract Twitter cookies from your browser
-- `fix-twitter-auth.sh`: Comprehensive script to fix Twitter authentication issues
-- `test-twitter-auth.sh`: Script to test Twitter authentication
-- `test-twitter-endpoints.sh`: Script to test different Twitter API endpoints
+### Crosspost Tests
 
-## Twitter Test Scripts
+The `crosspost-tests` directory contains scripts for testing Crosspost integration:
 
-The `twitter-tests` directory contains JavaScript test scripts for testing various aspects of the Twitter integration:
+- `tweet-with-env.js`: Uses environment variables to post a tweet using Crosspost
+- `tweet-crosspost.js`: Interactive script for posting tweets with Crosspost
+- `tweet-direct.js`: Simple script that directly uses the Crosspost API
 
-- `test-account-info.js`: Tests getting account information
-- `test-different-screen-name.js`: Tests using a different screen name
-- `test-mentions-timeline.js`: Tests getting mentions timeline
-- `test-post-tweet.js`: Tests posting a tweet
-- `test-search-33bitsAnon.js`: Tests searching for tweets mentioning @33bitsAnon
-- `test-search-tweets.js`: Tests searching for tweets
-- `test-search-without-at.js`: Tests searching for tweets without @ symbol
-- `test-twitter-login.js`: Tests Twitter login information
-- `test-user-info.js`: Tests getting user information
-- `test-user-timeline.js`: Tests getting user timeline
+### Twitter Tests
+
+The `twitter-tests` directory contains test scripts organized into subdirectories:
+
+- `twitter-api/`: Tests for Twitter API functionality
+- `masa/`: Tests for Masa API integration
+- `crosspost/`: Tests for Crosspost integration
+- `integration/`: Tests for integrated functionality
 
 ## Usage
 

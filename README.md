@@ -156,9 +156,9 @@ GitSplits is built on the NEAR blockchain, ensuring security and transparency:
    - Create a new OAuth app at [github.com/settings/developers](https://github.com/settings/developers)
    - Set the Authorization callback URL to `http://localhost:3000/api/auth/github/callback` (make sure this matches your Next.js API route)
    - Copy the Client ID and Client Secret to your `.env.local` file
-6. Set up Twitter authentication:
-   - See [docs/twitter/TWITTER_AUTH_GUIDE.md](docs/twitter/TWITTER_AUTH_GUIDE.md) for detailed instructions
-   - Use the `scripts/get-twitter-cookies.sh` script to extract Twitter cookies from your browser
+6. Set up Twitter integration:
+   - See [docs/twitter/TWITTER_INTEGRATION.md](docs/twitter/TWITTER_INTEGRATION.md) for detailed instructions
+   - You'll need a NEAR account, Twitter account, and Masa API key
 7. Set up Farcaster integration (optional):
    - Create a Neynar account at [dev.neynar.com](https://dev.neynar.com)
    - Create a Farcaster bot using the `scripts/farcaster/create-farcaster-bot.js` script
@@ -200,14 +200,24 @@ cd contracts/near && cargo test
 Run the Twitter integration tests:
 
 ```bash
-# Test Twitter authentication
-./scripts/test-twitter-auth.sh
+# Test Masa API for Twitter search (searches for tweets mentioning GitSplits)
+npm run twitter:test-masa
 
-# Test Twitter API endpoints
-./scripts/test-twitter-endpoints.sh
+# Test Crosspost for Twitter posting (posts a test tweet from your GitSplits account)
+npm run twitter:test-crosspost
 
-# Run specific Twitter tests
-node scripts/twitter-tests/test-user-info.js
+# Test complete Twitter integration flow (search and reply)
+npm run twitter:test-integrated
+```
+
+Run the API server tests:
+
+```bash
+# Start the API server
+npm run api:server
+
+# In another terminal, test the API endpoints
+npm run api:test
 ```
 
 Run the Farcaster integration tests:
@@ -227,12 +237,22 @@ node scripts/farcaster/webhook-server.js
 
 - `contracts/`: Smart contract code
 - `docs/`: Documentation
-  - `twitter/`: Twitter integration documentation
+  - `contract/`: Smart contract documentation
   - `farcaster/`: Farcaster integration documentation
+  - `integration/`: Integration documentation
+  - `twitter/`: Twitter integration documentation
+  - `ui/`: UI/frontend documentation
+  - `worker/`: Worker agent documentation
 - `scripts/`: Helper scripts
-  - `twitter-tests/`: Twitter test scripts
+  - `api/`: API server scripts
+  - `crosspost-tests/`: Crosspost integration tests
   - `farcaster/`: Farcaster integration scripts
+  - `near/`: NEAR blockchain utilities
+  - `twitter-integration/`: Twitter integration core modules
+  - `twitter-tests/`: Twitter integration tests
 - `src/`: Frontend code
+- `utils/`: Utility functions
+  - `social/`: Social media integration utilities
 - `worker/`: Worker agent code
 
 ### Deployment

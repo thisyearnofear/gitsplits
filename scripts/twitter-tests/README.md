@@ -1,46 +1,42 @@
-# Twitter Test Scripts
+# Twitter Tests
 
-This directory contains JavaScript test scripts for testing various aspects of the Twitter integration.
+This directory contains test scripts for Twitter integration with GitSplits.
 
-## Available Tests
+## Available Scripts
 
-- `test-account-info.js`: Tests getting account information from Twitter API
-- `test-different-screen-name.js`: Tests using a different screen name with Twitter API
-- `test-mentions-timeline.js`: Tests getting mentions timeline from Twitter API
-- `test-post-tweet.js`: Tests posting a tweet using Twitter API
-- `test-search-33bitsAnon.js`: Tests searching for tweets mentioning @33bitsAnon
-- `test-search-tweets.js`: Tests searching for tweets using Twitter API
-- `test-search-without-at.js`: Tests searching for tweets without @ symbol
-- `test-twitter-login.js`: Tests Twitter login information
-- `test-user-info.js`: Tests getting user information from Twitter API
-- `test-user-timeline.js`: Tests getting user timeline from Twitter API
+- `test-masa-api.js`: Tests the Masa API integration for searching tweets
+- `test-twitter-integration.js`: Tests the complete flow of searching for tweets and replying to them
 
 ## Usage
 
-To run a test script, use Node.js from the project root directory:
+### Testing Masa API Integration
 
 ```bash
-node scripts/twitter-tests/test-user-info.js
+npm run twitter:test-masa
 ```
 
-Make sure you have the necessary environment variables set up in your `.env` file before running the tests.
+This script will search for tweets mentioning @GitSplits using the Masa API.
 
-## Required Environment Variables
+### Testing Complete Twitter Integration
 
-The test scripts require the following environment variables to be set:
-
-```
-# Twitter Configuration (Cookie Auth)
-TWITTER_COOKIES_AUTH_TOKEN=your_auth_token
-TWITTER_COOKIES_CT0=your_ct0_token
-TWITTER_COOKIES_GUEST_ID=your_guest_id
-TWITTER_SCREEN_NAME=your_twitter_screen_name
+```bash
+npm run twitter:test-integrated
 ```
 
-You can use the `get-twitter-cookies.sh` script to help extract these values from your browser.
+This script tests the complete flow:
+1. Posts a test tweet using Crosspost
+2. Searches for tweets mentioning GitSplits
+3. Processes tweets and replies to valid requests
 
-## Notes
+## Environment Variables
 
-- These tests are designed to help diagnose issues with the Twitter API integration
-- Some tests may fail due to limitations of the Twitter API when using cookie-based authentication
-- For comprehensive testing, consider using the mock mode by setting `USE_MOCK_TWITTER=true` in your `.env` file
+These scripts require the following environment variables to be set in your `.env.local` file:
+
+```
+MASA_API_KEY=your-masa-api-key
+CROSSPOST_SIGNER_ID=your-near-account-id
+CROSSPOST_KEYPAIR=your-generated-fcak-private-key
+BOT_TWITTER_USER_ID=your-bot-user-id
+```
+
+For more information on setting up the Twitter integration, see the [TWITTER_INTEGRATION.md](../../docs/twitter/TWITTER_INTEGRATION.md) file.

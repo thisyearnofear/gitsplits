@@ -25,7 +25,7 @@ test_command() {
   local mock_mention='{
     "id_str": "'$tweet_id'",
     "created_at": "'$(date -u +"%a %b %d %H:%M:%S %z %Y")'",
-    "full_text": "@bankrbot @gitsplits '$command'",
+    "full_text": "@gitsplits '$command'",
     "user": {
       "id_str": "1234567890",
       "screen_name": "test_user",

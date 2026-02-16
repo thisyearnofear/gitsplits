@@ -1,0 +1,64 @@
+/**
+ * User Context Management
+ * 
+ * Maintains conversation state and user preferences.
+ */
+
+interface UserData {
+  farcasterId: string;
+  githubUsername?: string;
+  walletAddress?: string;
+  lastAnalysis?: {
+    repoUrl: string;
+    contributors: any[];
+    timestamp: number;
+  };
+  lastSplit?: {
+    id: string;
+    repoUrl: string;
+    createdAt: number;
+  };
+  lastPayment?: {
+    splitId: string;
+    amount: number;
+    token: string;
+    txHash: string;
+    timestamp: number;
+  };
+  pendingVerification?: {
+    githubUsername: string;
+    code: string;
+    expiresAt: number;
+  };
+}
+
+// Simple in-memory storage (replace with Redis/DB in production)
+const userStore = new Map<string, UserData>();
+
+export class UserContext {
+  async get(farcasterId: string): Promise<UserData> {
+    const existing = userStore.get(farcasterId);
+    if (existing) {
+      return existing;
+    }
+    
+    // Create new user context
+    const newUser: UserData = {
+      farcasterId,
+    };
+    
+    userStore.set(farcasterId, newUser);
+    return newUser;
+  }
+  
+  async update(farcasterId: string, data: Partial<UserData>): Promise<UserData> {
+    const existing = await this.get(farcasterId);
+    const updated = { ...existing, ...data };
+    userStore.set(farcasterId, updated);
+    return updated;
+  }
+  
+  async clear(farcasterId: string): Promise<void> {
+    userStore.delete(farcasterId);
+  }
+}

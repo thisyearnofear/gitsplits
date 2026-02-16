@@ -1,115 +1,177 @@
 # GitSplits Architecture
 
-This document outlines the architecture of the GitSplits system, which enables GitHub repository contributors to receive fair compensation based on their contributions through smart contract splits.
+GitSplits is an autonomous AI agent that compensates open source contributors via natural language commands on Farcaster. Powered by our custom intent-based agent framework, running on EigenCloud's verifiable compute.
 
 ## Overview
 
-GitSplits consists of three main components:
+```
+User (Farcaster) → Intent Agent → EigenCompute (TEE) → NEAR + Sponsors
+```
 
-1. **Worker Agent**: Processes X (Twitter) commands, analyzes GitHub repositories, and interacts with the NEAR smart contract.
-2. **NEAR Smart Contract**: Manages repository splits and handles fund allocation to contributors.
-3. **Identity Verification**: Links GitHub identities to blockchain accounts through a web interface.
+## Components
 
-## Worker Agent
+### 1. Intent-Based Agent Framework (`/agent/src/core/`)
 
-The worker agent is responsible for:
+Custom lightweight framework for natural language command processing:
 
-- Processing X (Twitter) commands
-- Analyzing GitHub repositories to determine contribution percentages
-- Interacting with the NEAR smart contract
-- Responding to user commands
+- **Intent Recognition**: Pattern-based parsing (e.g., "pay {amount} {token} to {repo}")
+- **Tool Registry**: Coordinates GitHub API, NEAR contract, payment execution
+- **Context Management**: Per-user conversation state and preferences
 
-### X Command Processing
+### 2. Farcaster Integration (`/agent/src/farcaster/`)
 
-The worker agent monitors X (Twitter) for mentions of `@gitsplits` followed by a command. When a command is detected, the agent parses the command and executes the appropriate action.
+Autonomous social layer:
 
-### GitHub Repository Analysis
+- **@gitsplits bot**: Lives on Farcaster, responds to mentions and DMs
+- **Natural language**: Users type commands in plain English
+- **No setup required**: Users just mention @gitsplits
 
-When a user requests information about a repository or creates a split, the worker agent:
+### 3. Intents (`/agent/src/intents/`)
 
-1. Fetches the repository's contributors from the GitHub API
-2. Calculates the contribution percentages based on commit history
-3. Formats the percentages for the NEAR smart contract (24 decimal places)
+| Intent | Description | Example |
+|--------|-------------|---------|
+| `pay` | Distribute funds to contributors | "pay 100 USDC to near-sdk-rs" |
+| `create` | Create new split for repo | "create split for near-sdk-rs" |
+| `analyze` | Show contribution breakdown | "analyze near-sdk-rs" |
+| `verify` | Link GitHub to wallet | "verify my-github-username" |
 
-### NEAR Contract Interaction
+### 4. Tools (`/agent/src/tools/`)
 
-The worker agent interacts with the NEAR smart contract to:
+| Tool | Purpose | Status |
+|------|---------|--------|
+| `github` | Repo analysis via GitHub App | ✅ Implemented |
+| `near` | Smart contract interactions | ✅ Implemented |
+| `pingpay` | Cross-chain payments | ✅ Implemented |
 
-1. Create splits for repositories
-2. Update splits with contributor information
-3. Check split information
+**GitHub Authentication:** Uses a single GitHub App owned by GitSplits team. Users don't need their own tokens.
 
-## NEAR Smart Contract
+### 5. EigenCloud EigenCompute
 
-The NEAR smart contract is responsible for:
+Shade Agent runs in a TEE container:
 
-- Managing repository splits
-- Handling fund allocation to contributors
-- Verifying GitHub identities
-- Allowing contributors to claim their portion
+- **Verifiable Execution**: Cryptographic attestation of all operations
+- **Chain Signatures**: Cross-chain transaction signing
+- **AVS Backing**: Actively Validated Service for slashing
 
-### Split Management
+### 6. Sponsor Integrations
 
-The smart contract stores split information, including:
+| Sponsor | Purpose | Status |
+|---------|---------|--------|
+| **Ping Pay** | Cross-chain payments via NEAR Intents | 🔲 Get API key |
+| **EigenCloud** | Verifiable compute (TEE + AVS) | 🔲 Get API key |
+| **NOVA** | Private data encryption | 🔲 Future integration |
+| **HOT Pay** | Fiat onramp for sponsors | 🔲 Future integration |
 
-- Repository URL
-- Owner (creator of the split)
-- Contributors (GitHub usernames and percentages)
-- Creation timestamp
+### 7. NEAR Smart Contract
 
-### Fund Allocation
+- Split management
+- Contributor registry with percentages
+- Identity verification
+- Chain signature generation
 
-The contract:
+## User Flow
 
-1. Receives funds sent to its address
-2. Allocates funds to contributors based on split percentages
-3. Allows verified contributors to claim their portion
+### For Contributors (No Setup Required)
 
-### GitHub Identity Verification
+```
+1. User sees @gitsplits mentioned on Farcaster
+2. User casts: "@gitsplits pay 100 USDC to near-sdk-rs"
+3. Agent analyzes repo, finds contributors
+4. If user is a contributor, they verify via DM
+5. Agent distributes funds to verified wallets
+```
 
-The smart contract maintains a record of verified GitHub identities, linking GitHub usernames to blockchain accounts.
+### For Repository Owners
 
-## Identity Verification
+```
+1. Owner casts: "@gitsplits create split for my-org/my-repo"
+2. Agent analyzes repo, creates split
+3. Owner can now receive payments and distribute to contributors
+```
 
-The identity verification system links GitHub identities to blockchain accounts through a web interface using the social-verifier library.
+## File Structure
 
-### GitHub Verification Process
+```
+/
+├── agent/                      # Intent-based agent (runs on EigenCloud)
+│   ├── src/
+│   │   ├── core/              # Agent framework
+│   │   ├── intents/           # Pay, create, analyze, verify
+│   │   ├── tools/             # GitHub, NEAR, Ping Pay
+│   │   └── farcaster/         # Social layer
+│   ├── deploy/                # EigenCloud config
+│   └── Dockerfile.eigen       # TEE container
+├── contracts/near/             # NEAR smart contract
+├── src/                        # Web UI (Next.js)
+│   └── app/
+│       ├── verify/            # GitHub verification flow
+│       └── dashboard/         # Split management
+└── docs/                       # Documentation
+```
 
-1. User visits the verification web interface
-2. User signs a message with their blockchain private key
-3. User creates a GitHub gist with the signed message
-4. User submits the gist ID to the verification system
-5. System verifies the signature and links the GitHub username to the blockchain account
+## Environment Variables (For GitSplits Team Only)
 
-## Data Flow
+```bash
+# Farcaster (bot account)
+FARCASTER_PRIVATE_KEY=0x...
+FARCASTER_FID=12345
 
-1. User sends a command on X (Twitter)
-2. Worker agent processes the command
-3. Worker agent interacts with the GitHub API (if needed)
-4. Worker agent interacts with the NEAR smart contract (if needed)
-5. Worker agent responds to the user on X (Twitter)
-6. User sends funds to the contract address via Bankrbot
-7. Contributors verify their identity through the web interface
-8. Contributors claim their portion of the funds
+# GitHub App (single app for all repos)
+GITHUB_APP_ID=123456
+GITHUB_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----..."
 
-## Security Considerations
+# NEAR (team account)
+NEAR_ACCOUNT_ID=gitsplits.near
+NEAR_PRIVATE_KEY=ed25519:...
+NEAR_CONTRACT_ID=gitsplits.near
 
-- **Smart Contract Security**: The smart contract is audited and follows best practices for secure smart contract development.
-- **GitHub API Rate Limits**: The worker agent handles GitHub API rate limits to ensure reliable operation.
-- **X (Twitter) API Rate Limits**: The worker agent handles X (Twitter) API rate limits to ensure reliable operation.
-- **Private Key Management**: Private keys are stored securely and never exposed.
-- **Identity Verification**: The verification process is secure and resistant to spoofing.
+# Ping Pay (team account)
+PING_PAY_API_KEY=...
 
-## Deployment Architecture
+# EigenCloud (deployment)
+EIGENCLOUD_API_KEY=...
+```
 
-- **Worker Agent**: Deployed as a Docker container on a server or cloud provider.
-- **NEAR Smart Contract**: Deployed on the NEAR mainnet.
-- **Identity Verification**: Deployed as a web application.
+## Deployment
 
-## Future Enhancements
+### Build
 
-- **Permanent Splits**: Splits are permanent once created, with funds distributed according to the defined percentages.
-- **Multi-Chain Support**: Support for more tokens and chains.
-- **Streamlined Identity Verification**: Improve the identity verification process.
-- **Private Repository Support**: Support for private GitHub repositories.
-- **Custom Split Configurations**: Allow users to customize split configurations.
+```bash
+cd agent
+npm run build
+docker build -t gitsplits-agent -f Dockerfile.eigen .
+```
+
+### Deploy to EigenCloud
+
+```bash
+cd agent/deploy
+./deploy.sh
+```
+
+## Current Status
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Agent framework | ✅ Complete | Intent parsing, tool registry, context |
+| Farcaster client | ✅ Complete | Real integration |
+| GitHub tool | ✅ Complete | Single GitHub App for all repos |
+| NEAR tool | ✅ Complete | Real contract calls |
+| Ping Pay tool | ✅ Complete | Real API calls |
+| EigenCloud deploy | 🔲 Ready | Config and Dockerfile ready |
+| TEE attestation | 🔲 Pending | Requires EigenCloud deployment |
+| Mainnet contract | 🔲 Pending | Currently testnet |
+
+## Next Steps
+
+1. **Get API keys** (GitSplits team only):
+   - Create GitHub App at github.com/settings/apps
+   - Get Ping Pay API key
+   - Get EigenCloud API key
+   - Set up NEAR mainnet account
+
+2. **Deploy to EigenCloud**
+
+3. **Register Farcaster FID** for @gitsplits
+
+4. **Test with real APIs**

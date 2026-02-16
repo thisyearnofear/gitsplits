@@ -863,7 +863,7 @@ async function handleSplitDetailsCommand(command) {
           Number(split.created_at) / 1000000
         ).toLocaleString()}\n\n` +
         `Contributors:\n${contributorsInfo}\n\n` +
-        `To distribute funds to this split, use Bankrbot.`,
+        `To pay contributors, use: @gitsplits pay <amount> <token> to ${split.repo_url}`,
     };
   } catch (error) {
     console.error("Error handling split details command:", error);
@@ -888,7 +888,7 @@ async function handleDistributeCommand(command) {
       `💰 Distribution Request:\n\n` +
       `Amount: ${command.amount} ${command.token}\n` +
       `Repository: ${command.repo}\n\n` +
-      `Fund distribution is not yet implemented. Please use Bankrbot to send funds directly to the split contract.`,
+      `Fund distribution will be executed via NEAR Intents and Ping Pay.`,
   };
 }
 
@@ -929,7 +929,6 @@ function parseXMessage(message) {
 
     // Remove mentions
     const cleanText = text
-      .replace(/@bankrbot/g, "")
       .replace(/@gitsplits/g, "")
       .trim();
 

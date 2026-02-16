@@ -16,7 +16,6 @@ function parseXMessage(message) {
 
     // Remove mentions
     const cleanText = text
-      .replace(/@bankrbot/g, "")
       .replace(/@gitsplits/g, "")
       .trim();
 

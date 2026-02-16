@@ -3,10 +3,10 @@
 import { Suspense } from "react";
 import dynamic from "next/dynamic";
 import { useAppKitAccount, useAppKit } from "@reown/appkit/react";
+import { useRouter } from "next/navigation";
 import Header from "@/components/shared/Header";
 import { HomeProps, LandingPageProps } from "@/types";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useNearWallet } from "@/hooks/useNearWallet";
 
 const LandingPage = dynamic(() => import("@/components/landing/LandingPage"), {
   ssr: false,
@@ -15,10 +15,7 @@ const LandingPage = dynamic(() => import("@/components/landing/LandingPage"), {
 const Home: React.FC<HomeProps> = () => {
   const { isConnected: isEvmConnected } = useAppKitAccount();
   const { open } = useAppKit();
-  const { isConnected: isNearConnected } = useNearWallet();
-
-  // Combined connection status - connected to either wallet
-  const isAnyWalletConnected = isEvmConnected || isNearConnected;
+  const router = useRouter();
 
   const handleLoginPrompt = () => {
     if (!isEvmConnected) {
@@ -28,7 +25,9 @@ const Home: React.FC<HomeProps> = () => {
 
   const landingPageProps: LandingPageProps = {
     isConnected: isEvmConnected,
-    onDashboardClick: () => {}, // No-op, dashboard is now a separate route
+    onDashboardClick: () => {
+      router.push("/dashboard");
+    },
     onLoginPrompt: handleLoginPrompt,
   };
 

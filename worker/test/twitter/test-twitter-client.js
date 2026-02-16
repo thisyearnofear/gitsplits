@@ -74,13 +74,13 @@ function testParseXMessage(text) {
     console.log(`\n--- Testing Parse X Message: "${text}" ---`);
     
     // Check if the message is a GitSplits command
-    if (!text.includes("@bankrbot") || !text.includes("@gitsplits")) {
+    if (!text.includes("@gitsplits")) {
       console.log("Not a GitSplits command");
       return null;
     }
     
     // Extract the command
-    const commandRegex = /@bankrbot\s+@gitsplits\s+(\w+)(?:\s+(.+))?/i;
+    const commandRegex = /@gitsplits\s+(\w+)(?:\s+(.+))?/i;
     const match = text.match(commandRegex);
     
     if (!match) {
@@ -163,13 +163,13 @@ async function runTests() {
   }
   
   // Test parsing X messages
-  testParseXMessage("@bankrbot @gitsplits create near/near-sdk-rs");
-  testParseXMessage("@bankrbot @gitsplits distribute 5 SOL to near/near-sdk-rs");
-  testParseXMessage("@bankrbot @gitsplits verify papajams");
-  testParseXMessage("@bankrbot @gitsplits info near/near-sdk-rs");
-  testParseXMessage("@bankrbot @gitsplits help");
+  testParseXMessage("@gitsplits create near/near-sdk-rs");
+  testParseXMessage("@gitsplits pay 5 USDC to near/near-sdk-rs");
+  testParseXMessage("@gitsplits verify papajams");
+  testParseXMessage("@gitsplits info near/near-sdk-rs");
+  testParseXMessage("@gitsplits help");
   testParseXMessage("This is not a command");
-  testParseXMessage("@bankrbot @gitsplits unknown command");
+  testParseXMessage("@gitsplits unknown command");
 }
 
 // Run the tests

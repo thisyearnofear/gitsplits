@@ -251,14 +251,13 @@ const XCommandsGuide: React.FC = () => {
         <CardContent>
           <ol className="list-decimal pl-5 space-y-2">
             <li>
-              Post a tweet mentioning{" "}
-              <span className="font-mono">@bankrbot @gitsplits</span> followed
+              Post a cast mentioning{" "}
+              <span className="font-mono">@gitsplits</span> followed
               by your command
             </li>
-            <li>The agent will process your command and reply to your tweet</li>
+            <li>The agent will process your command and reply to your cast</li>
             <li>
-              For commands that require funds, Bankrbot will handle the token
-              transfers
+              For commands that require funds, the agent will execute via NEAR Intents
             </li>
             <li>You can view all activity on this dashboard</li>
           </ol>

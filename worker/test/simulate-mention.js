@@ -27,7 +27,7 @@ async function simulateMention(command, username = 'test_user') {
     const mockMention = {
       id_str: tweetId,
       created_at: new Date().toISOString(),
-      full_text: `@bankrbot @gitsplits ${command}`,
+      full_text: `@gitsplits ${command}`,
       user: {
         id_str: generateRandomTwitterId(),
         screen_name: username,

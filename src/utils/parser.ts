@@ -8,9 +8,8 @@ export function parseCommand(tweetText: string): {
   // Convert to lowercase for case-insensitive matching
   const lowerText = tweetText.toLowerCase();
 
-  // Remove mentions of @bankrbot and @gitsplits
+  // Remove mentions of @gitsplits
   const textWithoutMentions = lowerText
-    .replace(/@bankrbot/g, "")
     .replace(/@gitsplits/g, "")
     .trim();
 

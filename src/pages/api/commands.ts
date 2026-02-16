@@ -250,7 +250,7 @@ async function handleDistributeCommand(repoUrl: string, amount: string, token: s
     if (amountNum > 100 && verificationLevel < VerificationLevel.GitHub) {
       return {
         success: false,
-        message: `❌ GitHub verification required for distributions over 100 ${token}. Please verify your GitHub identity with '@bankrbot @gitsplits verify your-github-username'`,
+        message: `❌ GitHub verification required for distributions over 100 ${token}. Please verify at https://gitsplits.xyz/verify or DM @gitsplits 'verify your-github-username'`,
       };
     }
 
@@ -417,19 +417,19 @@ function getHelpMessage(): string {
   return `📚 GitSplits X Agent Commands:
 
 1️⃣ Create a split:
-   @bankrbot @gitsplits create github.com/user/repo
+   @gitsplits create github.com/user/repo
 
 2️⃣ Get split info:
-   @bankrbot @gitsplits info github.com/user/repo
+   @gitsplits info github.com/user/repo
 
 3️⃣ Distribute funds:
-   @bankrbot @gitsplits distribute 100 NEAR to github.com/user/repo
+   @gitsplits pay 100 USDC to github.com/user/repo
 
 4️⃣ Verify GitHub identity:
-   @bankrbot @gitsplits verify your-github-username
+   DM @gitsplits verify your-github-username
 
 5️⃣ Get version info:
-   @bankrbot @gitsplits version
+   @gitsplits version
 
 Learn more at https://gitsplits.example.com`;
 }

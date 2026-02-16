@@ -212,9 +212,9 @@ export default function VerificationPage() {
                 <XCircle className="h-4 w-4 text-red-500" />
                 <AlertTitle>Verification Expired</AlertTitle>
                 <AlertDescription>
-                  Please initiate a new verification by tweeting:
+                  Please initiate a new verification:
                   <div className="mt-2 bg-gray-100 p-2 rounded font-mono text-sm">
-                    @bankrbot @gitsplits verify {githubUsername}
+                    DM @gitsplits verify {githubUsername}
                   </div>
                 </AlertDescription>
               </Alert>

@@ -120,7 +120,7 @@ export async function processTwitterCommand(command: string, args: any, tweetId:
       default:
         return {
           success: false,
-          message: `Unknown command: ${command}. Try '@bankrbot @gitsplits help' for a list of commands.`,
+          message: `Unknown command: ${command}. Try '@gitsplits help' for a list of commands.`,
         };
     }
   } catch (error) {
@@ -143,7 +143,7 @@ async function handleCreateCommand(repoUrl: string, sender: string, tweetId: str
   if (!repoUrl) {
     return {
       success: false,
-      message: '❌ Missing repository URL. Usage: @bankrbot @gitsplits create github.com/user/repo',
+      message: '❌ Missing repository URL. Usage: @gitsplits create github.com/user/repo',
     };
   }
 
@@ -154,7 +154,7 @@ async function handleCreateCommand(repoUrl: string, sender: string, tweetId: str
     if (existingSplit) {
       return {
         success: false,
-        message: `❌ A split already exists for ${repoUrl}. Use '@bankrbot @gitsplits info ${repoUrl}' to view it.`,
+        message: `❌ A split already exists for ${repoUrl}. Use '@gitsplits info ${repoUrl}' to view it.`,
       };
     }
 
@@ -191,7 +191,7 @@ async function handleInfoCommand(repoUrl: string, tweetId: string): Promise<{
   if (!repoUrl) {
     return {
       success: false,
-      message: '❌ Missing repository URL. Usage: @bankrbot @gitsplits info github.com/user/repo',
+      message: '❌ Missing repository URL. Usage: @gitsplits info github.com/user/repo',
     };
   }
 
@@ -202,7 +202,7 @@ async function handleInfoCommand(repoUrl: string, tweetId: string): Promise<{
     if (!split) {
       return {
         success: false,
-        message: `❌ No split found for ${repoUrl}. Use '@bankrbot @gitsplits create ${repoUrl}' to create one.`,
+        message: `❌ No split found for ${repoUrl}. Use '@gitsplits create ${repoUrl}' to create one.`,
       };
     }
 
@@ -271,7 +271,7 @@ async function handleDistributeCommand(
   if (!repoUrl) {
     return {
       success: false,
-      message: '❌ Missing repository URL. Usage: @bankrbot @gitsplits distribute 100 NEAR to github.com/user/repo',
+      message: '❌ Missing repository URL. Usage: @gitsplits pay 100 USDC to github.com/user/repo',
     };
   }
 
@@ -289,7 +289,7 @@ async function handleDistributeCommand(
     if (!split) {
       return {
         success: false,
-        message: `❌ No split found for ${repoUrl}. Use '@bankrbot @gitsplits create ${repoUrl}' to create one.`,
+        message: `❌ No split found for ${repoUrl}. Use '@gitsplits create ${repoUrl}' to create one.`,
       };
     }
 
@@ -340,7 +340,7 @@ async function handleVerifyCommand(
   if (!githubUsername) {
     return {
       success: false,
-      message: '❌ Missing GitHub username. Usage: @bankrbot @gitsplits verify your-github-username',
+      message: '❌ Missing GitHub username. DM @gitsplits "verify your-github-username" or visit https://gitsplits.xyz/verify',
     };
   }
 

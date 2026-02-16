@@ -721,14 +721,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                 </a>
               </p>
               <p className="mt-2 text-sm">
-                A{" "}
-                <a
-                  href="https://x.com/bankrbot"
-                  className="text-blue-600 hover:underline"
-                >
-                  Bankrbot
-                </a>{" "}
-                Extension using NEAR Shade Agents
+                Built on EigenCloud, OpenClaw & NEAR
               </p>
             </div>
           </div>

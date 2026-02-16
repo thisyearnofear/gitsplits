@@ -14,8 +14,20 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+let app;
+let auth;
+let db;
+
+if (firebaseConfig.apiKey && firebaseConfig.apiKey !== 'your-api-key') {
+  app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+} else {
+  // Mock or null for build/missing config
+  console.warn("Firebase configuration is missing or invalid. Auth and Firestore will not be available.");
+  app = null;
+  auth = null;
+  db = null;
+}
 
 export { app, auth, db };

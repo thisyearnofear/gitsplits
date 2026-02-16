@@ -1,275 +1,120 @@
-# GitSplits X Agent
+# GitSplits
 
-## 🏆 Bankrbot Extension Hackathon Submission
+## 🏆 NEARCON 2026 Innovation Sandbox Submission
 
-GitSplits is an autonomous agent built on the NEAR Shade Agents stack that enables GitHub repository contributors to receive fair compensation based on their contributions. Users interact with the agent entirely through X (Twitter), making it easy to create and manage revenue splits for any GitHub repository.
+GitSplits is an autonomous AI agent that compensates open source contributors via natural language commands on Farcaster. Mention @gitsplits and pay contributors with a single message.
 
-## 🎬 Demo Scenarios
-
-### Scenario 1: Analyzing Repository Contributions
+## 🎬 Quick Demo
 
 ```
-@gitsplits github.com/torvalds/linux
+@gitsplits pay 100 USDC to github.com/near/near-sdk-rs
 ```
 
-GitSplits analyzes the repository and responds with suggested splits based on contribution history, ensuring original creators are recognized. The user can then decide to create a split with default percentages or specify custom allocations.
-
-### Scenario 2: Creating a Split
-
-```
-@gitsplits create split github.com/torvalds/linux default
-
-or
-
-@gitsplits create split github.com/torvalds/linux 80/10/10
-```
-
-GitSplits creates a smart contract split based on either the default contribution percentages or the user-specified allocation. It then provides the contract address for fund distribution.
-
-### Scenario 3: Distributing Funds
-
-```
-@bankrbot send 1ETH to [splits contract address]
-```
-
-After a split is created, users can send funds to the contract address via Bankrbot. The funds are allocated to contributors based on the split percentages. Contributors must verify their identity to claim their portion.
-
-### Scenario 4: Viewing Active Splits
-
-```
-@gitsplits splits github.com/near/near-sdk-rs
-```
-
-GitSplits shows active splits for the specified repository, including contract addresses and allocation percentages.
+The agent analyzes the repository, calculates fair splits based on contribution history, and distributes funds to verified contributors across any chain.
 
 ## 🚀 Features
 
-- **X-Native Interaction**: Interact with GitSplits directly through X using simple commands
-- **Farcaster Integration**: Interact with GitSplits through Farcaster mentions
-- **Contribution Analysis**: Analyze GitHub repositories to determine contribution splits based on commit history
-- **Smart Contract Splits**: Create permanent splits for repositories with customizable allocations
-- **Multi-Chain Integration**: Distribute funds across blockchains to contributors via Bankrbot
-- **Identity Verification**: Link GitHub identities to blockchain accounts (via web interface)
-- **Transparent Split Management**: Create, view, and update splits with full transparency
+- **Farcaster-Native**: Just mention @gitsplits with natural language
+- **No Setup**: Contributors verify once via DM, then auto-receive payments
+- **Autonomous**: Single command triggers full distribution flow
+- **Cross-Chain**: Contributors receive funds on their preferred chain
 
-## 🤖 How It Works
+## 📋 How to Use
 
-GitSplits combines the power of NEAR blockchain with GitHub integration to create a seamless experience:
+### For Contributors
 
-1. **Repository Analysis**: When requested via X, GitSplits analyzes a GitHub repository and determines the contribution percentages of each contributor.
+**1. Verify your identity (one-time):**
+```
+DM @gitsplits: verify your-github-username
+```
+Follow the instructions to link your GitHub and wallet.
 
-2. **Split Creation**: Users can create a split for a repository with default percentages or custom allocations, which stores the contributor information in a smart contract.
+**2. Receive payments automatically:**
+When someone pays your repo, funds go directly to your verified wallet.
 
-3. **Fund Distribution**: After a split is created, users can send funds to the contract address via Bankrbot. The funds are allocated to contributors based on the split percentages.
+### For Repository Owners
 
-4. **Identity Verification**: Contributors verify their GitHub identity through a secure web interface and link it to their blockchain accounts.
+**Create a split:**
+```
+@gitsplits create split for github.com/my-org/my-repo
+```
 
-5. **Fund Claiming**: Verified contributors can claim their portion of the funds from the contract.
+**Pay contributors:**
+```
+@gitsplits pay 100 USDC to my-org/my-repo
+```
 
-## 📋 Social Commands
+**Check analysis:**
+```
+@gitsplits analyze my-org/my-repo
+```
 
-### X Commands
+## 🏗️ Architecture
 
-| Command                            | Description                         | Example                                            |
-| ---------------------------------- | ----------------------------------- | -------------------------------------------------- |
-| `<repo>`                           | Analyze repository contributions    | `@gitsplits github.com/near/near-sdk-rs`           |
-| `create split <repo> [allocation]` | Create a split for a repository     | `@gitsplits create split near/near-sdk-rs default` |
-| `splits <repo>`                    | View active splits for a repository | `@gitsplits splits near/near-sdk-rs`               |
-| `help`                             | Show help message                   | `@gitsplits help`                                  |
+```
+Farcaster → Intent Agent → EigenCompute (TEE) → NEAR + Sponsors
+```
 
-### Farcaster Commands
+| Layer | Technology |
+|-------|-----------|
+| Social | Farcaster (@gitsplits bot) |
+| Agent | Custom intent-based framework |
+| Compute | EigenCloud EigenCompute (TEE + AVS) |
+| Blockchain | NEAR Protocol |
+| Payments | Ping Pay (NEAR Intents) |
 
-The same commands are available on Farcaster:
+## Web Interface
 
-| Command                            | Description                         | Example                                            |
-| ---------------------------------- | ----------------------------------- | -------------------------------------------------- |
-| `<repo>`                           | Analyze repository contributions    | `@gitsplits github.com/near/near-sdk-rs`           |
-| `create split <repo> [allocation]` | Create a split for a repository     | `@gitsplits create split near/near-sdk-rs default` |
-| `splits <repo>`                    | View active splits for a repository | `@gitsplits splits near/near-sdk-rs`               |
-| `help`                             | Show help message                   | `@gitsplits help`                                  |
+- **Verify identity**: https://gitsplits.xyz/verify
+- **View splits**: https://gitsplits.xyz/splits
+- **Dashboard**: https://gitsplits.xyz/dashboard
 
-> **Note**: You can use repository names (e.g., `near/near-sdk-rs`) or full URLs (e.g., `github.com/near/near-sdk-rs`)
+## Documentation
 
-## 🔒 Smart Contract Splits
+- [ARCHITECTURE.md](./docs/ARCHITECTURE.md) — System design
+- [COMMANDS.md](./docs/COMMANDS.md) — Full command reference
 
-The smart contract split system:
-
-1. **Stores contributor information**: Each split contains the GitHub usernames and allocation percentages of contributors.
-2. **Receives funds**: Users can send funds to the contract address via Bankrbot.
-3. **Allocates funds**: Funds are allocated to contributors based on the split percentages.
-4. **Verifies identities**: Contributors must verify their GitHub identity to claim their portion.
-5. **Permanent splits**: Once a split is created, it is permanent and funds sent to it will always be distributed according to the defined percentages.
-
-## 🛠️ Architecture
-
-GitSplits is built on the NEAR blockchain, ensuring security and transparency:
-
-### 1. Worker Agent
-
-- Processes X commands and GitHub API requests
-- Analyzes GitHub repositories to determine contribution percentages
-- Interacts with the NEAR smart contract
-
-### 2. NEAR Smart Contract
-
-- Manages repository split configurations
-- Handles fund allocation based on split percentages
-- Verifies GitHub identities
-- Allows contributors to claim their portion
-
-### 3. Identity Verification
-
-- Web interface for linking GitHub and Twitter identities to blockchain accounts
-- Multiple verification options:
-  - GitHub OAuth for one-click verification (recommended)
-  - GitHub Gist verification as an alternative
-  - Twitter verification via tweet URL
-- Uses Firebase for secure storage of verification data
-- Cryptographically verifies ownership of GitHub and Twitter accounts
-
-## 🧪 Development
+## Development (GitSplits Team Only)
 
 ### Prerequisites
 
 - Node.js 18+
-- Rust and Cargo
-- NEAR CLI
-- Docker and Docker Compose
-- Firebase account (for identity verification)
-- GitHub API token (for repository analysis and verification)
-- Twitter account (for X integration)
+- API keys: GitHub App, NEAR, Ping Pay, EigenCloud
 
 ### Setup
 
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   cd worker && npm install
-   ```
-3. Create a `.env.local` file based on `.env.example`
-4. Set up Firebase:
-   - Create a new Firebase project at [firebase.google.com](https://firebase.google.com)
-   - Enable Firestore database
-   - Create a web app and copy the configuration to your `.env.local` file
-5. Set up GitHub OAuth (for one-click verification):
-   - Create a new OAuth app at [github.com/settings/developers](https://github.com/settings/developers)
-   - Set the Authorization callback URL to `http://localhost:3000/api/auth/github/callback` (make sure this matches your Next.js API route)
-   - Copy the Client ID and Client Secret to your `.env.local` file
-6. Set up Twitter integration:
-   - See [docs/twitter/TWITTER_INTEGRATION.md](docs/twitter/TWITTER_INTEGRATION.md) for detailed instructions
-   - You'll need a NEAR account, Twitter account, and Masa API key
-7. Set up Farcaster integration (optional):
-   - Create a Neynar account at [dev.neynar.com](https://dev.neynar.com)
-   - Create a Farcaster bot using the `scripts/farcaster/create-farcaster-bot.js` script
-   - Register a webhook using the `scripts/farcaster/register-webhook.js` script
-   - See [docs/farcaster/FARCASTER_INTEGRATION.md](docs/farcaster/FARCASTER_INTEGRATION.md) for detailed instructions
-8. Build the smart contract:
-   ```bash
-   cd contracts/near && cargo build
-   ```
-9. Start the worker agent:
-   ```bash
-   ./scripts/run-mock-worker.sh  # For testing with mock Twitter data
-   # or
-   cd worker && npm run dev      # For real Twitter integration
-   ```
-10. Start the Farcaster bot (optional):
-    ```bash
-    ./scripts/run-farcaster-bot.sh
-    ```
-11. Start the frontend:
-    ```bash
-    npm run dev
-    ```
-
-### Testing
-
-Run the tests for the worker agent:
-
 ```bash
-cd worker && npm run test:local
+cd agent
+npm install
+cp .env.example .env
+# Add API keys (team only)
+npm run build
+npm start
 ```
 
-Run the tests for the smart contract:
+### Environment Variables
 
 ```bash
-cd contracts/near && cargo test
+# Farcaster bot
+FARCASTER_PRIVATE_KEY=0x...
+FARCASTER_FID=12345
+
+# GitHub App (single app for all repos)
+GITHUB_APP_ID=123456
+GITHUB_PRIVATE_KEY="..."
+
+# NEAR
+NEAR_ACCOUNT_ID=gitsplits.near
+NEAR_PRIVATE_KEY=ed25519:...
+NEAR_CONTRACT_ID=gitsplits.near
+
+# Ping Pay
+PING_PAY_API_KEY=...
+
+# EigenCloud
+EIGENCLOUD_API_KEY=...
 ```
 
-Run the Twitter integration tests:
+## License
 
-```bash
-# Test Masa API for Twitter search (searches for tweets mentioning GitSplits)
-npm run twitter:test-masa
-
-# Test Crosspost for Twitter posting (posts a test tweet from your GitSplits account)
-npm run twitter:test-crosspost
-
-# Test complete Twitter integration flow (search and reply)
-npm run twitter:test-integrated
-```
-
-Run the API server tests:
-
-```bash
-# Start the API server
-npm run api:server
-
-# In another terminal, test the API endpoints
-npm run api:test
-```
-
-Run the Farcaster integration tests:
-
-```bash
-# Create a Farcaster bot
-node scripts/farcaster/create-farcaster-bot.js
-
-# Register a webhook
-node scripts/farcaster/register-webhook.js
-
-# Start the webhook server
-node scripts/farcaster/webhook-server.js
-```
-
-### Project Structure
-
-- `contracts/`: Smart contract code
-- `docs/`: Documentation
-  - `contract/`: Smart contract documentation
-  - `farcaster/`: Farcaster integration documentation
-  - `integration/`: Integration documentation
-  - `twitter/`: Twitter integration documentation
-  - `ui/`: UI/frontend documentation
-  - `worker/`: Worker agent documentation
-- `scripts/`: Helper scripts
-  - `api/`: API server scripts
-  - `crosspost-tests/`: Crosspost integration tests
-  - `farcaster/`: Farcaster integration scripts
-  - `near/`: NEAR blockchain utilities
-  - `twitter-integration/`: Twitter integration core modules
-  - `twitter-tests/`: Twitter integration tests
-- `src/`: Frontend code
-- `utils/`: Utility functions
-  - `social/`: Social media integration utilities
-- `worker/`: Worker agent code
-
-### Deployment
-
-See [PRIVATE_DEPLOYMENT_DETAILS.md](PRIVATE_DEPLOYMENT_DETAILS.md) for deployment instructions.
-
-## ⚠️ Current Limitations
-
-- Currently only supports ETH and NEAR tokens for fund distribution
-- GitHub identity verification requires a separate web interface
-- Limited to public GitHub repositories
-- Maximum of 100 contributors per repository
-
-## 🔮 Future Enhancements
-
-- Support for more tokens and chains
-- Streamlined GitHub identity verification
-- Support for private repositories
-- Integration with more development platforms
-- Split expiration and fund management options
+MIT

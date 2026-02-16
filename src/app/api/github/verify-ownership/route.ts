@@ -31,7 +31,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { 
           error: "GitHub identity not verified", 
-          message: "Please verify your GitHub identity first using '@bankrbot @gitsplits verify your-github-username'"
+          message: "Please verify your GitHub identity at https://gitsplits.xyz/verify or DM @gitsplits 'verify your-github-username'"
         },
         { status: 400 }
       );

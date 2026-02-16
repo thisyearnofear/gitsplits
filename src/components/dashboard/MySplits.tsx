@@ -158,18 +158,18 @@ const MySplits: React.FC = () => {
               <span className="font-medium">Verify your GitHub identity (if you haven't already)</span>
             </li>
             <li className="pl-2">
-              <span className="font-medium">Tweet to create a split:</span>
+              <span className="font-medium">Cast to create a split:</span>
               <div className="bg-gray-100 p-2 rounded mt-2 font-mono text-sm">
-                @bankrbot @gitsplits create your-repo
+                @gitsplits create your-repo
               </div>
             </li>
             <li className="pl-2">
               <span className="font-medium">The agent will analyze contributions and create a fair split</span>
             </li>
             <li className="pl-2">
-              <span className="font-medium">Distribute funds to contributors:</span>
+              <span className="font-medium">Pay contributors:</span>
               <div className="bg-gray-100 p-2 rounded mt-2 font-mono text-sm">
-                @bankrbot @gitsplits distribute 100 NEAR to your-repo
+                @gitsplits pay 100 USDC to your-repo
               </div>
             </li>
           </ol>

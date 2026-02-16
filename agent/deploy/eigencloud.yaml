@@ -1,0 +1,70 @@
+# GitSplits Agent - EigenCloud Deployment Configuration
+# Deploys the agent to EigenCompute TEE
+
+name: gitsplits-agent
+version: 1.0.0
+
+# Compute configuration
+compute:
+  type: tee
+  attest: true
+  resources:
+    cpu: 2
+    memory: 4Gi
+    storage: 10Gi
+
+# Container image
+image:
+  name: gitsplits-agent
+  tag: latest
+  dockerfile: ../Dockerfile.eigen
+
+# Environment variables (set at deployment time)
+env:
+  - name: NODE_ENV
+    value: production
+  - name: AGENT_MODE
+    value: production
+  - name: FARCASTER_PRIVATE_KEY
+    secret: true
+  - name: FARCASTER_SIGNER_KEY
+    secret: true
+  - name: FARCASTER_FID
+    secret: true
+  - name: GITHUB_TOKEN
+    secret: true
+  - name: NEAR_ACCOUNT_ID
+    secret: true
+  - name: NEAR_PRIVATE_KEY
+    secret: true
+  - name: NEAR_CONTRACT_ID
+    secret: true
+  - name: PING_PAY_API_KEY
+    secret: true
+
+# Health check
+health:
+  path: /health
+  port: 3000
+  interval: 30s
+  timeout: 10s
+  retries: 3
+
+# Networking
+ports:
+  - port: 3000
+    protocol: TCP
+
+# Logging
+logging:
+  level: info
+  format: json
+
+# AVS (Actively Validated Service) configuration
+avs:
+  enabled: true
+  slashingConditions:
+    - name: invalid_execution
+      penalty: 1000
+    - name: missed_response
+      penalty: 100

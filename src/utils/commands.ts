@@ -133,24 +133,24 @@ function checkRateLimits(sender: string, tweetText: string): boolean {
  * Get the help message
  */
 function getHelpMessage(): string {
-  return `📚 GitSplits X Agent Commands:
+  return `📚 GitSplits Commands:
 
 1️⃣ Create a split:
-   @bankrbot @gitsplits create github.com/user/repo
+   @gitsplits create github.com/user/repo
 
 2️⃣ Get split info:
-   @bankrbot @gitsplits info github.com/user/repo
+   @gitsplits info github.com/user/repo
 
-3️⃣ Distribute funds:
-   @bankrbot @gitsplits distribute 100 NEAR to github.com/user/repo
+3️⃣ Pay contributors:
+   @gitsplits pay 100 USDC to github.com/user/repo
 
 4️⃣ Verify GitHub identity:
-   @bankrbot @gitsplits verify your-github-username
+   DM @gitsplits verify your-github-username
 
 5️⃣ Get version info:
-   @bankrbot @gitsplits version
+   @gitsplits version
 
-Learn more at https://gitsplits.example.com`;
+Learn more at https://gitsplits.xyz`;
 }
 
 /**

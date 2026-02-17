@@ -2,13 +2,14 @@
 
 ## Current Status (February 17, 2026)
 
-- EigenCompute deployment is live on Sepolia infra (release commit: `b6bd50b03f3e9917b30a000de00576ff1c84acd8`).
+- EigenCompute deployment is live on Sepolia infra (release commit: `54683ccfc76593b25ab557247b58374d82950746`).
 - Public HTTPS URL: `https://agent.gitsplits.thisyearnofear.com`
 - `GET /ready` and `GET /health` are both passing.
 - Live intent checks:
   - `analyze` passes (GitHub + EigenAI signature path working).
-  - `pay` and `pending` pass with current split data and verification gating.
-  - `create` is currently blocked by on-chain schema mismatch in deployed NEAR contract (`update_split` deserialization for contributor `percentage`).
+  - `create` passes (existing split path + repair path).
+  - `verify` passes (web-linked GitHub -> NEAR wallet mapping).
+  - `pay` and `pending` pass with verification gating + pending claims.
 
 ## Quick Start
 

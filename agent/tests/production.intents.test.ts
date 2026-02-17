@@ -50,7 +50,7 @@ describeProduction('production intents (live integrations)', () => {
     });
 
     assertNoMockFallback(response);
-    assertContainsAny(response, ['Split created', 'already exists']);
+    assertContainsAny(response, ['Split created', 'Split repaired', 'already exists']);
     expect(response).not.toContain('Failed to create split');
   });
 

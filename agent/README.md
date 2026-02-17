@@ -102,8 +102,8 @@ AGENT_MODE=production npm run test:production:intents
 
 ## Current Production Note
 
-- `analyze`, `pay`, and `pending` have been verified against live services.
-- `create` currently depends on the deployed NEAR contract contributor percentage schema; if `create` fails with contract JSON deserialization, the contract needs the `percentage` field normalized to a JSON-safe type (for example `U128` wrapper semantics) before full create-path production parity.
+- `analyze`, `create`, `verify`, `pay`, and `pending` have been verified against live services.
+- Payment distribution is verification-gated: verified contributors are paid immediately, unverified contributors receive pending claims until they verify.
 
 ## Deployment
 

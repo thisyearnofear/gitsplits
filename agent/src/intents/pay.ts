@@ -66,13 +66,55 @@ export const payIntent: Intent = {
         }))
       );
       
-      // Check if all contributors have verified wallets
+      const strictMode = isStrictAllVerifiedMode(context?.message?.text || '');
+
+      // Split verified/unverified contributors
       const unverified = contributors.filter((c: any) => !c.wallet);
-      if (unverified.length > 0) {
+      const verified = contributors.filter((c: any) => !!c.wallet);
+
+      if (strictMode && unverified.length > 0) {
         return {
-          response: `Some contributors haven't verified their wallets yet: ${unverified.map((c: any) => c.github_username).join(', ')}. They can verify at https://gitsplits.xyz/verify`,
+          response:
+            `❌ Strict mode enabled: payment blocked because ${unverified.length} contributors are unverified.\n\n` +
+            `Unverified: ${unverified.map((c: any) => c.github_username).join(', ')}\n` +
+            `Ask them to verify at https://gitsplits.xyz/verify`,
           context,
         };
+      }
+
+      if (verified.length === 0) {
+        return {
+          response:
+            `❌ No verified contributors found for ${repoUrl}. Nothing can be paid yet.\n\n` +
+            `Ask contributors to verify at https://gitsplits.xyz/verify`,
+          context,
+        };
+      }
+
+      // In default mode, pay verified contributors now and store pending claims for unverified.
+      const verifiedPercentage = verified.reduce((sum: number, c: any) => sum + Number(c.percentage), 0);
+      const distributableAmount = (amount * verifiedPercentage) / 100;
+      const normalizedRecipients = verified.map((c: any) => ({
+        wallet: c.wallet,
+        percentage: verifiedPercentage > 0 ? (Number(c.percentage) / verifiedPercentage) * 100 : 0,
+      }));
+
+      const pendingClaims: Array<{ github_username: string; amount: number; token: string; id: string }> = [];
+      if (unverified.length > 0) {
+        for (const contributor of unverified) {
+          const pendingAmount = (amount * Number(contributor.percentage)) / 100;
+          const pendingId = await tools.near.storePendingDistribution({
+            githubUsername: contributor.github_username,
+            amount: pendingAmount,
+            token,
+          });
+          pendingClaims.push({
+            github_username: contributor.github_username,
+            amount: pendingAmount,
+            token,
+            id: pendingId,
+          });
+        }
       }
       
       // Execute distribution
@@ -84,12 +126,9 @@ export const payIntent: Intent = {
         console.log('[Agent] Using HOT Pay for distribution');
         distribution = await tools.hotpay.distribute({
           splitId: split.id,
-          amount,
+          amount: distributableAmount,
           token,
-          recipients: contributors.map((c: any) => ({
-            wallet: c.wallet,
-            percentage: c.percentage,
-          })),
+          recipients: normalizedRecipients,
         });
         providerName = 'HOT Pay';
       } else {
@@ -97,24 +136,18 @@ export const payIntent: Intent = {
         try {
           distribution = await tools.pingpay.distribute({
             splitId: split.id,
-            amount,
+            amount: distributableAmount,
             token,
-            recipients: contributors.map((c: any) => ({
-              wallet: c.wallet,
-              percentage: c.percentage,
-            })),
+            recipients: normalizedRecipients,
           });
         } catch (pingErr: any) {
           if (process.env.HOT_PAY_JWT) {
             console.log(`[Agent] Ping Pay failed (${pingErr?.message || 'unknown error'}), falling back to HOT Pay`);
             distribution = await tools.hotpay.distribute({
               splitId: split.id,
-              amount,
+              amount: distributableAmount,
               token,
-              recipients: contributors.map((c: any) => ({
-                wallet: c.wallet,
-                percentage: c.percentage,
-              })),
+              recipients: normalizedRecipients,
             });
             providerName = 'HOT Pay (Ping Pay fallback)';
           } else {
@@ -128,14 +161,25 @@ export const payIntent: Intent = {
           ? 'HOT Partner API'
           : 'NEAR Intents & Chain Signatures';
       const teeSignature = tools.teeWallet.isRunningInTEE() ? `\n🔒 TEE Signature: ${tools.teeWallet.getAddress()}` : '';
+      const pendingSummary =
+        pendingClaims.length > 0
+          ? `\n\n⏳ Pending claims for unverified contributors (${pendingClaims.length}):\n` +
+            pendingClaims
+              .map((c) => `- ${c.github_username}: ${c.amount.toFixed(4)} ${c.token} (claim id: ${c.id})`)
+              .join('\n') +
+            `\n\nInvite them to verify: https://gitsplits.xyz/verify`
+          : '';
       
       return {
-        response: `✅ Distributed ${amount} ${token} to ${contributors.length} contributors via ${providerName}!\n\n🌐 Protocol: ${protocolInfo}\n🔗 Transaction: ${distribution.txHash}\n📜 Split: ${split.id}${teeSignature}\n\nRecipients will be notified on Farcaster 👤`,
+        response:
+          `✅ Distributed ${distributableAmount.toFixed(4)} ${token} to ${verified.length} verified contributors via ${providerName}!\n\n` +
+          `Coverage: ${verified.length}/${contributors.length} contributors verified\n` +
+          `🌐 Protocol: ${protocolInfo}\n🔗 Transaction: ${distribution.txHash}\n📜 Split: ${split.id}${teeSignature}${pendingSummary}`,
         context: {
           ...context,
           lastPayment: {
             splitId: split.id,
-            amount,
+            amount: distributableAmount,
             token,
             txHash: distribution.txHash,
             timestamp: Date.now(),
@@ -151,6 +195,15 @@ export const payIntent: Intent = {
     }
   },
 };
+
+function isStrictAllVerifiedMode(text: string): boolean {
+  const normalized = text.toLowerCase();
+  return (
+    normalized.includes('strict') ||
+    normalized.includes('all-verified') ||
+    normalized.includes('all verified')
+  );
+}
 
 /**
  * Normalize repository URL from various formats

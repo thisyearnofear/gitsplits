@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useAppKitAccount } from "@reown/appkit/react";
 import { useNearWallet } from "@/hooks/useNearWallet";
 import WalletStatusBar from "@/components/shared/WalletStatusBar";
@@ -55,6 +56,7 @@ export default function SplitsPage() {
   const [message, setMessage] = useState("");
   const [analyzeResponse, setAnalyzeResponse] = useState("");
   const [createResponse, setCreateResponse] = useState("");
+  const [verificationHint, setVerificationHint] = useState("");
 
   const walletIdentity = useMemo(() => {
     if (nearAccountId && nearAccountId !== "Unknown NEAR Account") return nearAccountId;
@@ -99,12 +101,19 @@ export default function SplitsPage() {
     setAnalyzeResponse("");
     setCreateResponse("");
     setContributors([]);
+    setVerificationHint("");
 
     try {
       const response = await callAgent(`analyze ${normalizedRepo}`);
       const parsed = parseContributorsFromAnalyzeResponse(response);
+      const coverageLine = response
+        .split("\n")
+        .find((line) => line.toLowerCase().includes("verification coverage"));
       setAnalyzeResponse(response);
       setContributors(parsed);
+      if (coverageLine) {
+        setVerificationHint(coverageLine.trim());
+      }
       setStatus("success");
       setMessage(
         parsed.length > 0
@@ -185,7 +194,18 @@ export default function SplitsPage() {
               <Button variant="outline" onClick={createSplit} disabled={status === "loading"}>
                 Create Split
               </Button>
+              {repoInput.trim() && (
+                <Link
+                  href={`/agent?command=${encodeURIComponent(`pay 10 USDC to ${normalizeRepoUrl(repoInput)}`)}`}
+                >
+                  <Button variant="secondary" type="button">Pay Now</Button>
+                </Link>
+              )}
             </div>
+
+            {verificationHint && (
+              <p className="text-sm text-blue-700">{verificationHint}. Invite contributors at /verify.</p>
+            )}
 
             {!isNearConnected && !isEvmConnected && (
               <p className="text-sm text-amber-700">

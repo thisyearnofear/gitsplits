@@ -36,6 +36,7 @@ const TypingIndicator = () => (
 export default function AgentPage() {
   const searchParams = useSearchParams();
   const repoParam = searchParams.get('repo');
+  const commandParam = searchParams.get('command');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
@@ -61,6 +62,10 @@ export default function AgentPage() {
 
   // Handle repo parameter from landing page
   useEffect(() => {
+    if (commandParam && !hasInteracted) {
+      setInput(commandParam);
+      return;
+    }
     if (repoParam && !hasInteracted) {
       const command = `analyze ${repoParam}`;
       setInput(command);
@@ -70,7 +75,7 @@ export default function AgentPage() {
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [repoParam]);
+  }, [repoParam, commandParam, hasInteracted]);
 
   // Focus input on mount
   useEffect(() => {

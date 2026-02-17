@@ -163,7 +163,16 @@ export const nearTool = {
       };
     }
     
-    return await contract.get_split_by_repo({ repo_url: repoUrl });
+    const split = await contract.get_split_by_repo({ repo_url: repoUrl });
+    if (!split) return split;
+
+    return {
+      ...split,
+      contributors: (split.contributors || []).map((c: any) => ({
+        ...c,
+        percentage: normalizeStoredPercentage(c.percentage),
+      })),
+    };
   },
   
   async createSplit(params: {
@@ -295,3 +304,10 @@ export const nearTool = {
     };
   },
 };
+
+function normalizeStoredPercentage(value: string | number): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  if (numeric <= 100) return numeric;
+  return numeric / 1e22;
+}

@@ -60,6 +60,22 @@ export const analyzeIntent: Intent = {
       const totalCommits = analysis.contributors.reduce(
         (sum: number, c: any) => sum + c.commits, 0
       );
+
+      // Proactive verification coverage so maintainers can invite contributors early.
+      let verificationCoverage = '';
+      try {
+        const sample = analysis.contributors.slice(0, 10);
+        const walletChecks = await Promise.all(
+          sample.map((c: any) => tools.near.getVerifiedWallet(c.username))
+        );
+        const verifiedInSample = walletChecks.filter(Boolean).length;
+        verificationCoverage =
+          `\n\n✅ Verification coverage (top ${sample.length}): ` +
+          `${verifiedInSample}/${sample.length} verified` +
+          `\nInvite unverified contributors: https://gitsplits.xyz/verify`;
+      } catch (err: any) {
+        console.log('[Analyze] Verification coverage skipped:', err.message);
+      }
       
       // Run verifiable AI analysis via EigenAI
       let aiInsight = '';
@@ -83,7 +99,7 @@ export const analyzeIntent: Intent = {
       const teeInfo = tools.teeWallet.isRunningInTEE() ? `\n\n🔒 Signed by TEE: ${tools.teeWallet.getAddress()}` : '';
       
       return {
-        response: `📊 Analysis for ${repoUrl}\n\nTotal commits: ${totalCommits}\nContributors: ${analysis.contributors.length}\n\nTop contributors:\n${topContributors}${analysis.contributors.length > 5 ? `\n...and ${analysis.contributors.length - 5} more` : ''}${aiInsight}${teeInfo}\n\nCreate a split: "@gitsplits create ${repoUrl}"`,
+        response: `📊 Analysis for ${repoUrl}\n\nTotal commits: ${totalCommits}\nContributors: ${analysis.contributors.length}\n\nTop contributors:\n${topContributors}${analysis.contributors.length > 5 ? `\n...and ${analysis.contributors.length - 5} more` : ''}${verificationCoverage}${aiInsight}${teeInfo}\n\nCreate a split: "@gitsplits create ${repoUrl}"`,
         context: {
           ...context,
           lastAnalysis: {

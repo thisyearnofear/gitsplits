@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, CheckCircle2, Circle, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Circle, HelpCircle, Loader2 } from "lucide-react";
 import { trackUxEvent } from "@/lib/services/ux-events";
 
 type AgentStatus = "idle" | "ok" | "degraded" | "error";
@@ -21,6 +21,14 @@ type FlowStep = {
 };
 
 const RECENT_REPOS_KEY = "gitsplits_recent_repos";
+const TIMELINE_KEY = "gitsplits_activity_timeline";
+
+type TimelineItem = {
+  action: string;
+  status: "pending" | "success" | "failed";
+  repo?: string;
+  at: string;
+};
 
 function normalizeRepoPath(input: string): string {
   return input
@@ -39,6 +47,7 @@ export default function DashboardPage() {
   const [insightLoading, setInsightLoading] = useState(false);
   const [lastCheckedAt, setLastCheckedAt] = useState<string>("");
   const [recentRepos, setRecentRepos] = useState<string[]>([]);
+  const [timeline, setTimeline] = useState<TimelineItem[]>([]);
 
   const normalizedRepoPath = useMemo(
     () => (repoInput.trim() ? normalizeRepoPath(repoInput) : ""),
@@ -46,6 +55,7 @@ export default function DashboardPage() {
   );
 
   const flowSteps = useMemo<FlowStep[]>(() => {
+    const hasRepo = normalizedRepoPath.length > 0;
     const hasCoverage = !!coverageStats;
     const hasVerified = !!coverageStats && coverageStats.verified > 0;
     const hasPendingData = pendingOutput.length > 0;
@@ -84,10 +94,25 @@ export default function DashboardPage() {
     try {
       const raw = localStorage.getItem(RECENT_REPOS_KEY);
       if (raw) setRecentRepos(JSON.parse(raw));
+      const timelineRaw = localStorage.getItem(TIMELINE_KEY);
+      if (timelineRaw) setTimeline(JSON.parse(timelineRaw));
     } catch {
       setRecentRepos([]);
+      setTimeline([]);
     }
   }, []);
+
+  const pushTimeline = (item: Omit<TimelineItem, "at">) => {
+    setTimeline((prev) => {
+      const next = [{ ...item, at: new Date().toISOString() }, ...prev].slice(0, 10);
+      try {
+        localStorage.setItem(TIMELINE_KEY, JSON.stringify(next));
+      } catch {
+        // Ignore storage failures.
+      }
+      return next;
+    });
+  };
 
   const persistRecentRepo = (repo: string) => {
     const path = normalizeRepoPath(repo);
@@ -114,15 +139,18 @@ export default function DashboardPage() {
         setStatus("ok");
         setMessage("Live agent connected and ready.");
         trackUxEvent("dashboard_agent_ready");
+        pushTimeline({ action: "agent_readiness", status: "success" });
         return;
       }
       setStatus("degraded");
       setMessage(data?.reason || data?.readiness?.reasons?.join(", ") || "Agent readiness degraded.");
       trackUxEvent("dashboard_agent_degraded");
+      pushTimeline({ action: "agent_readiness", status: "failed" });
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Failed to check agent readiness.");
       trackUxEvent("dashboard_agent_error");
+      pushTimeline({ action: "agent_readiness", status: "failed" });
     }
   };
 
@@ -138,6 +166,7 @@ export default function DashboardPage() {
     setCoverageStats(null);
     persistRecentRepo(normalizedRepoPath);
     trackUxEvent("dashboard_analyze_start", { repo: normalizedRepoPath });
+    pushTimeline({ action: "analyze", status: "pending", repo: normalizedRepoPath });
 
     try {
       const repo = `github.com/${normalizedRepoPath}`;
@@ -176,9 +205,11 @@ export default function DashboardPage() {
       }
       setPendingOutput(String(pendingData.response || ""));
       trackUxEvent("dashboard_analyze_success", { repo: normalizedRepoPath });
+      pushTimeline({ action: "analyze", status: "success", repo: normalizedRepoPath });
     } catch (error) {
       setPendingOutput(error instanceof Error ? error.message : "Failed to load repo verification insights.");
       trackUxEvent("dashboard_analyze_failed", { repo: normalizedRepoPath });
+      pushTimeline({ action: "analyze", status: "failed", repo: normalizedRepoPath });
     } finally {
       setInsightLoading(false);
     }
@@ -338,6 +369,67 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Activity Timeline</CardTitle>
+              <CardDescription>Recent workflow actions across this browser session.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {timeline.length === 0 ? (
+                <p className="text-sm text-gray-600">No activity yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {timeline.map((item, index) => (
+                    <div key={`${item.at}-${index}`} className="rounded border bg-white p-2 text-sm">
+                      <p className="font-medium">{item.action.replaceAll("_", " ")}</p>
+                      <p className="text-gray-600">
+                        status: {item.status}
+                        {item.repo ? ` • repo: ${item.repo}` : ""}
+                      </p>
+                      <p className="text-xs text-gray-500">{new Date(item.at).toLocaleString()}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <HelpCircle className="h-4 w-4" />
+                Need Help?
+              </CardTitle>
+              <CardDescription>Fast recovery actions for common issues.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <p>
+                GitHub install issues:
+                {" "}
+                <Link href="/agent" className="underline text-blue-700">Open agent chat</Link>
+                {" "}
+                and run <code>analyze owner/repo</code>.
+              </p>
+              <p>
+                Unverified contributors:
+                {" "}
+                <Link href={`/verify${normalizedRepoPath ? `?repo=${encodeURIComponent(normalizedRepoPath)}` : ""}`} className="underline text-blue-700">
+                  Open verification flow
+                </Link>
+                .
+              </p>
+              <p>
+                Timeouts/network issues:
+                {" "}
+                <Button type="button" variant="outline" size="sm" onClick={() => void checkReadiness()}>
+                  Retry connectivity
+                </Button>
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

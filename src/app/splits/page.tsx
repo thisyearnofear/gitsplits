@@ -42,6 +42,21 @@ type CoverageStats = {
 
 const RECENT_REPOS_KEY = "gitsplits_recent_repos";
 
+type ContributorStatus = {
+  verified: boolean;
+  walletAddress: string | null;
+};
+
+type PayReceipt = {
+  distributedAmount?: string;
+  verifiedCount?: number;
+  totalCount?: number;
+  protocol?: string;
+  transactionRef?: string;
+  splitId?: string;
+  pendingCount?: number;
+};
+
 function normalizeRepoUrl(input: string): string {
   const cleaned = input
     .trim()
@@ -82,6 +97,25 @@ function parsePendingUsernames(response: string): Set<string> {
   return new Set(usernames);
 }
 
+function parsePayReceipt(response: string): PayReceipt {
+  const distributed = response.match(/Distributed\s+([0-9.]+\s+[A-Z0-9]+)/i);
+  const coverage = response.match(/Coverage:\s+(\d+)\s*\/\s*(\d+)/i);
+  const protocol = response.match(/Protocol:\s+(.+)/i);
+  const tx = response.match(/Transaction:\s+(.+)/i);
+  const split = response.match(/Split:\s+(.+)/i);
+  const pending = response.match(/Pending claims .*?\((\d+)\)/i);
+
+  return {
+    distributedAmount: distributed?.[1]?.trim(),
+    verifiedCount: coverage ? Number(coverage[1]) : undefined,
+    totalCount: coverage ? Number(coverage[2]) : undefined,
+    protocol: protocol?.[1]?.trim(),
+    transactionRef: tx?.[1]?.trim(),
+    splitId: split?.[1]?.trim(),
+    pendingCount: pending ? Number(pending[1]) : undefined,
+  };
+}
+
 export default function SplitsPage() {
   const { isConnected: isNearConnected, accountId: nearAccountId } = useNearWallet();
   const { isConnected: isEvmConnected, address: evmAddress } = useAppKitAccount();
@@ -93,7 +127,11 @@ export default function SplitsPage() {
   const [createResponse, setCreateResponse] = useState("");
   const [verificationHint, setVerificationHint] = useState("");
   const [coverageStats, setCoverageStats] = useState<CoverageStats | null>(null);
+  const [contributorStatuses, setContributorStatuses] = useState<Record<string, ContributorStatus>>({});
   const [pendingClaimsOutput, setPendingClaimsOutput] = useState("");
+  const [payResponse, setPayResponse] = useState("");
+  const [payAmount, setPayAmount] = useState("1");
+  const [payToken, setPayToken] = useState("USDC");
   const [recentRepos, setRecentRepos] = useState<string[]>([]);
   const [selectedContributor, setSelectedContributor] = useState("");
   const [copiedState, setCopiedState] = useState("");
@@ -123,6 +161,7 @@ export default function SplitsPage() {
     () => parsePendingUsernames(pendingClaimsOutput),
     [pendingClaimsOutput]
   );
+  const payReceipt = useMemo(() => parsePayReceipt(payResponse), [payResponse]);
 
   useEffect(() => {
     try {
@@ -220,6 +259,34 @@ export default function SplitsPage() {
     return data.response;
   }
 
+  async function loadContributorStatuses(usernames: string[]) {
+    if (!usernames.length) {
+      setContributorStatuses({});
+      return;
+    }
+    try {
+      const response = await fetch("/api/contributor-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contributors: usernames }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data?.success || !Array.isArray(data.statuses)) {
+        return;
+      }
+      const next: Record<string, ContributorStatus> = {};
+      for (const status of data.statuses) {
+        next[String(status.githubUsername)] = {
+          verified: Boolean(status.verified),
+          walletAddress: status.walletAddress ? String(status.walletAddress) : null,
+        };
+      }
+      setContributorStatuses(next);
+    } catch {
+      // Keep UI functional even if status endpoint fails.
+    }
+  }
+
   const analyzeRepo = async () => {
     if (!repoInput.trim()) {
       setStatus("error");
@@ -234,7 +301,9 @@ export default function SplitsPage() {
     setAnalyzeResponse("");
     setCreateResponse("");
     setPendingClaimsOutput("");
+    setPayResponse("");
     setContributors([]);
+    setContributorStatuses({});
     setVerificationHint("");
     trackUxEvent("splits_analyze_start", { repo: normalizedRepo });
 
@@ -246,6 +315,7 @@ export default function SplitsPage() {
         .find((line) => line.toLowerCase().includes("verification coverage"));
       setAnalyzeResponse(response);
       setContributors(parsed);
+      await loadContributorStatuses(parsed.map((c) => c.githubUsername));
       setSelectedContributor(parsed[0]?.githubUsername || "");
       if (coverageLine) {
         setVerificationHint(coverageLine.trim());
@@ -270,6 +340,7 @@ export default function SplitsPage() {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Failed to analyze repository.");
       setCoverageStats(null);
+      setContributorStatuses({});
       trackUxEvent("splits_analyze_failed", { repo: normalizedRepo });
     }
   };
@@ -355,6 +426,40 @@ export default function SplitsPage() {
     }
   };
 
+  const payNow = async () => {
+    if (!repoInput.trim()) {
+      setStatus("error");
+      setMessage("Repository URL is required.");
+      return;
+    }
+
+    const normalized = normalizeRepoUrl(repoInput);
+    const amount = Number(payAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setStatus("error");
+      setMessage("Pay amount must be a positive number.");
+      return;
+    }
+
+    setStatus("loading");
+    setMessage("Submitting payout...");
+    setPayResponse("");
+    trackUxEvent("splits_pay_start", { repo: normalized, amount, token: payToken });
+
+    try {
+      const response = await callAgent(`pay ${amount} ${payToken} to ${normalized}`);
+      setPayResponse(response);
+      setStatus("success");
+      setMessage("Payout request completed.");
+      trackUxEvent("splits_pay_success", { repo: normalized, amount, token: payToken });
+      await checkPendingClaims();
+    } catch (error) {
+      setStatus("error");
+      setMessage(error instanceof Error ? error.message : "Failed to submit payout.");
+      trackUxEvent("splits_pay_failed", { repo: normalized, amount, token: payToken });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gentle-blue via-gentle-purple to-gentle-orange py-10">
       <div className="container mx-auto max-w-4xl px-4">
@@ -413,11 +518,28 @@ export default function SplitsPage() {
               <Button variant="outline" onClick={checkPendingClaims} disabled={status === "loading"}>
                 Check Pending
               </Button>
+              <div className="flex items-center gap-2 rounded border bg-white px-2 py-1">
+                <Input
+                  value={payAmount}
+                  onChange={(e) => setPayAmount(e.target.value)}
+                  className="h-8 w-16 text-xs"
+                  placeholder="1"
+                />
+                <Input
+                  value={payToken}
+                  onChange={(e) => setPayToken(e.target.value.toUpperCase())}
+                  className="h-8 w-20 text-xs"
+                  placeholder="USDC"
+                />
+                <Button variant="secondary" type="button" onClick={payNow} disabled={status === "loading"}>
+                  Pay Now
+                </Button>
+              </div>
               {repoInput.trim() && (
                 <Link
-                  href={`/agent?command=${encodeURIComponent(`pay 1 USDC to ${normalizeRepoUrl(repoInput)}`)}`}
+                  href={`/agent?command=${encodeURIComponent(`pay ${payAmount || "1"} ${payToken || "USDC"} to ${normalizeRepoUrl(repoInput)}`)}`}
                 >
-                  <Button variant="secondary" type="button">Pay Now</Button>
+                  <Button variant="outline" type="button">Open in Agent Chat</Button>
                 </Link>
               )}
             </div>
@@ -540,7 +662,12 @@ export default function SplitsPage() {
                       </TableHeader>
                       <TableBody>
                         {contributors.map((contributor) => {
-                          const statusLabel = pendingUnverified.has(contributor.githubUsername)
+                          const liveStatus = contributorStatuses[contributor.githubUsername];
+                          const statusLabel = liveStatus
+                            ? liveStatus.verified
+                              ? "Verified"
+                              : "Unverified"
+                            : pendingUnverified.has(contributor.githubUsername)
                             ? "Unverified"
                             : "Unknown";
                           const verifyHref = `/verify?repo=${encodeURIComponent(repoPath || "")}&user=${encodeURIComponent(contributor.githubUsername)}`;
@@ -548,7 +675,7 @@ export default function SplitsPage() {
                             <TableRow key={contributor.githubUsername}>
                               <TableCell>{contributor.githubUsername}</TableCell>
                               <TableCell>{contributor.percentage.toFixed(2)}</TableCell>
-                              <TableCell>{statusLabel}</TableCell>
+                              <TableCell>{statusLabel}{liveStatus?.walletAddress ? ` (${liveStatus.walletAddress})` : ""}</TableCell>
                               <TableCell>
                                 <Link href={verifyHref} className="underline text-blue-700">
                                   Verify
@@ -562,7 +689,12 @@ export default function SplitsPage() {
                   </div>
                   <div className="space-y-2 p-3 md:hidden">
                     {contributors.map((contributor) => {
-                      const statusLabel = pendingUnverified.has(contributor.githubUsername)
+                      const liveStatus = contributorStatuses[contributor.githubUsername];
+                      const statusLabel = liveStatus
+                        ? liveStatus.verified
+                          ? "Verified"
+                          : "Unverified"
+                        : pendingUnverified.has(contributor.githubUsername)
                         ? "Unverified"
                         : "Unknown";
                       const verifyHref = `/verify?repo=${encodeURIComponent(repoPath || "")}&user=${encodeURIComponent(contributor.githubUsername)}`;
@@ -570,7 +702,9 @@ export default function SplitsPage() {
                         <div key={contributor.githubUsername} className="rounded border bg-gray-50 p-3">
                           <p className="font-medium">{contributor.githubUsername}</p>
                           <p className="text-sm text-gray-600">{contributor.percentage.toFixed(2)}% share</p>
-                          <p className="text-sm text-gray-600">Status: {statusLabel}</p>
+                          <p className="text-sm text-gray-600">
+                            Status: {statusLabel}{liveStatus?.walletAddress ? ` (${liveStatus.walletAddress})` : ""}
+                          </p>
                           <Link href={verifyHref} className="text-sm text-blue-700 underline">
                             Verify contributor
                           </Link>
@@ -671,12 +805,58 @@ export default function SplitsPage() {
                 {createResponse}
               </div>
             )}
+            {payResponse && (
+              <div className="rounded-md border bg-white p-4 text-sm space-y-2">
+                <p className="font-medium">Payout Receipt</p>
+                <p>Distributed: {payReceipt.distributedAmount || "n/a"}</p>
+                <p>
+                  Coverage:{" "}
+                  {payReceipt.verifiedCount !== undefined && payReceipt.totalCount !== undefined
+                    ? `${payReceipt.verifiedCount}/${payReceipt.totalCount}`
+                    : "n/a"}
+                </p>
+                <p>Protocol: {payReceipt.protocol || "n/a"}</p>
+                <p>Transaction: {payReceipt.transactionRef || "n/a"}</p>
+                <p>Split: {payReceipt.splitId || "n/a"}</p>
+                <p>Pending claims created: {payReceipt.pendingCount ?? 0}</p>
+                <div className="rounded border bg-gray-50 p-2 whitespace-pre-wrap">{payResponse}</div>
+              </div>
+            )}
             {pendingClaimsOutput && (
               <div className="rounded-md border bg-gray-50 p-3 text-sm whitespace-pre-wrap">
                 <p className="mb-2 font-medium">Pending Claims</p>
                 {pendingClaimsOutput}
               </div>
             )}
+
+            <div className="rounded-md border bg-white p-4 space-y-2 text-sm">
+              <p className="font-medium">Need Help?</p>
+              <p>
+                GitHub app/analysis issues:
+                {" "}
+                <Link href="/agent" className="underline text-blue-700">open agent chat</Link>
+                {" "}
+                and run <code>analyze owner/repo</code>.
+              </p>
+              <p>
+                Contributor not receiving payout:
+                {" "}
+                <Link
+                  href={`/verify${repoPath ? `?repo=${encodeURIComponent(repoPath)}${selectedContributor ? `&user=${encodeURIComponent(selectedContributor)}` : ""}` : ""}`}
+                  className="underline text-blue-700"
+                >
+                  open verification link
+                </Link>
+                .
+              </p>
+              <p>
+                Timeout/retry:
+                {" "}
+                <Button type="button" variant="outline" size="sm" onClick={analyzeRepo}>
+                  Retry analyze
+                </Button>
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>

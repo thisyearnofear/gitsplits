@@ -91,6 +91,10 @@ Farcaster/Web → Intent Agent → EigenCompute (TEE) → NEAR + Payments
 - `/verify` now performs GitHub gist + NEAR signature verification and syncs successful links to the agent/contract path used by payouts.
 - `/splits` now uses the live agent proxy (`/api/agent`) for analyze/create flows (instead of the old placeholder NEAR demo service).
 - `pay` now supports partial payouts by default: verified contributors are paid immediately and unverified contributors get pending claims until they verify.
+- `/api/contributor-status` now resolves per-contributor verification + wallet status from the live NEAR contract for real UI badges.
+- `/splits` now includes payout controls, structured payout receipts, outreach artifacts, and a help panel for failed paths.
+- `/dashboard` now includes a local activity timeline and recovery actions for common operator issues.
+- Playwright desktop/mobile E2E scaffolding is added (`playwright.config.ts`, `tests/e2e/full-flow.spec.ts`); local pass/fail in this environment is currently limited by slow dev-runtime navigation behavior.
 
 ## Documentation
 

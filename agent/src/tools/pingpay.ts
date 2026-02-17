@@ -18,8 +18,11 @@ export const pingpayTool = {
   name: 'pingpay',
   
   async distribute(params: DistributionParams) {
-    // Mock mode if Ping Pay not configured
+    // Mock mode if Ping Pay not configured (only allowed outside production)
     if (!process.env.PING_PAY_API_KEY || process.env.PING_PAY_API_KEY === 'placeholder') {
+      if (process.env.AGENT_MODE === 'production') {
+        throw new Error('[PingPay] Missing PING_PAY_API_KEY in production mode');
+      }
       console.log('[PingPay] Mock mode - no API call made');
       return {
         txHash: `0x${Math.random().toString(36).substring(2, 34)}`,
@@ -78,6 +81,9 @@ export const pingpayTool = {
   
   async getStatus(intentId: string) {
     if (!process.env.PING_PAY_API_KEY || process.env.PING_PAY_API_KEY === 'placeholder') {
+      if (process.env.AGENT_MODE === 'production') {
+        throw new Error('[PingPay] Missing PING_PAY_API_KEY in production mode');
+      }
       return { status: 'completed', intentId, mock: true };
     }
     
@@ -92,5 +98,33 @@ export const pingpayTool = {
     }
     
     return await response.json();
+  },
+
+  async probeAuth() {
+    if (!process.env.PING_PAY_API_KEY || process.env.PING_PAY_API_KEY === 'placeholder') {
+      if (process.env.AGENT_MODE === 'production') {
+        throw new Error('[PingPay] Missing PING_PAY_API_KEY in production mode');
+      }
+      return { ok: true, mock: true };
+    }
+
+    const response = await fetch('https://api.pingpay.io/v1/intents/probe', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${process.env.PING_PAY_API_KEY}`,
+      },
+    });
+
+    if (response.status === 401 || response.status === 403) {
+      throw new Error(`[PingPay] Authentication failed with status ${response.status}`);
+    }
+    if (response.status >= 500) {
+      throw new Error(`[PingPay] Probe failed with status ${response.status}`);
+    }
+
+    return {
+      ok: true,
+      status: response.status,
+    };
   },
 };

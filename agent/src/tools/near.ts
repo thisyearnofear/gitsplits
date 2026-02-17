@@ -9,6 +9,7 @@ import { connect, keyStores, KeyPair, Contract } from 'near-api-js';
 
 let contract: any = null;
 let useMockMode = false;
+const isProductionMode = process.env.AGENT_MODE === 'production';
 
 async function initNear() {
   if (contract || useMockMode) return;
@@ -18,6 +19,9 @@ async function initNear() {
   const contractId = process.env.NEAR_CONTRACT_ID;
   
   if (!accountId || !privateKey || !contractId) {
+    if (isProductionMode) {
+      throw new Error('[NEAR] Missing required NEAR credentials in production mode');
+    }
     console.log('[NEAR] Credentials not configured, using mock mode');
     useMockMode = true;
     return;
@@ -36,9 +40,13 @@ async function initNear() {
     
     const account = await near.account(accountId);
     
-    // Check if contract exists
-    const state = await account.state();
+    // Check if contract account exists and has deployed code
+    const contractAccount = await near.account(contractId);
+    const state = await contractAccount.state();
     if (state.code_hash === '11111111111111111111111111111111') {
+      if (isProductionMode) {
+        throw new Error(`[NEAR] Contract account ${contractId} has no deployed code`);
+      }
       console.log('[NEAR] No contract deployed, using mock mode');
       useMockMode = true;
       return;
@@ -62,6 +70,9 @@ async function initNear() {
     
     console.log('[NEAR] Connected to contract:', contractId);
   } catch (error: any) {
+    if (isProductionMode) {
+      throw new Error(`[NEAR] Connection failed in production mode: ${error.message}`);
+    }
     console.log('[NEAR] Connection failed, using mock mode:', error.message);
     useMockMode = true;
   }
@@ -156,5 +167,23 @@ export const nearTool = {
       code: params.code,
       expires_at: params.expiresAt,
     });
+  },
+
+  async probeConnection(repoUrl: string) {
+    await initNear();
+
+    if (useMockMode) {
+      if (isProductionMode) {
+        throw new Error('[NEAR] Probe failed: tool is still in mock mode.');
+      }
+      return { ok: true, mock: true };
+    }
+
+    return {
+      ok: true,
+      contractId: process.env.NEAR_CONTRACT_ID,
+      network: 'mainnet',
+      checkedRepo: repoUrl,
+    };
   },
 };

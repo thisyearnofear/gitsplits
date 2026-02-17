@@ -265,8 +265,12 @@ export async function verifyTwitter(
 export async function getVerificationStatus(walletAddress: string): Promise<{
   githubVerified: boolean;
   twitterVerified: boolean;
+  evmVerified: boolean;
+  nearVerified: boolean;
   githubUsername?: string;
   twitterHandle?: string;
+  evmAddress?: string;
+  nearAccountId?: string;
 }> {
   try {
     const verificationDoc = await getDoc(
@@ -277,6 +281,8 @@ export async function getVerificationStatus(walletAddress: string): Promise<{
       return {
         githubVerified: false,
         twitterVerified: false,
+        evmVerified: false,
+        nearVerified: false,
       };
     }
 
@@ -285,14 +291,20 @@ export async function getVerificationStatus(walletAddress: string): Promise<{
     return {
       githubVerified: data.githubVerified || false,
       twitterVerified: data.twitterVerified || false,
+      evmVerified: data.evmVerified || false,
+      nearVerified: data.nearVerified || false,
       githubUsername: data.githubUsername,
       twitterHandle: data.twitterHandle,
+      evmAddress: data.evmAddress,
+      nearAccountId: data.nearAccountId,
     };
   } catch (error) {
     console.error("Error getting verification status:", error);
     return {
       githubVerified: false,
       twitterVerified: false,
+      evmVerified: false,
+      nearVerified: false,
     };
   }
 }

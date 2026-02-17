@@ -1,179 +1,267 @@
 "use client";
 
-import { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useMemo, useState } from "react";
+import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
+import { Github, Wallet, CheckCircle2, AlertCircle, ExternalLink } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, CheckCircle2, Github, Twitter } from "lucide-react";
-import Link from "next/link";
-import axios from "axios";
+import { useNearWallet } from "@/hooks/useNearWallet";
+import WalletStatusBar from "@/components/shared/WalletStatusBar";
+
+function toHex(value: unknown): string {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (value instanceof Uint8Array) {
+    return Array.from(value)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+  if (Array.isArray(value)) {
+    return value.map((b) => Number(b).toString(16).padStart(2, "0")).join("");
+  }
+  if (typeof value === "object" && value !== null) {
+    const maybeSignature = (value as { signature?: unknown }).signature;
+    return toHex(maybeSignature);
+  }
+  return "";
+}
 
 export default function VerifyPage() {
-  const searchParams = useSearchParams();
-  const twitterUsername = searchParams.get("twitter");
-  const githubUsername = searchParams.get("github");
-  
-  const [verificationCode, setVerificationCode] = useState<string>("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [message, setMessage] = useState<string>("");
-  const [verificationId, setVerificationId] = useState<string>("");
+  const { open } = useAppKit();
+  const { isConnected: isEvmConnected, address: evmAddress } = useAppKitAccount();
+  const { isConnected: isNearConnected, accountId: nearAccountId, connect: connectNear, selector } =
+    useNearWallet();
 
-  const handleInitiateVerification = async () => {
-    if (!twitterUsername || !githubUsername) {
-      setStatus("error");
-      setMessage("Twitter username and GitHub username are required");
+  const [githubUsername, setGithubUsername] = useState("");
+  const [githubGistId, setGithubGistId] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
+  const [message, setMessage] = useState("");
+  const [mode, setMode] = useState<"idle" | "success" | "error">("idle");
+
+  const walletAddress = useMemo(() => {
+    const candidates = [nearAccountId, evmAddress];
+    const value = candidates.find((candidate) => candidate && candidate !== "Unknown NEAR Account");
+    return value || "";
+  }, [nearAccountId, evmAddress]);
+
+  const generateCode = async () => {
+    if (!walletAddress) {
+      setMode("error");
+      setMessage("Connect a wallet first.");
+      return;
+    }
+    if (!githubUsername.trim()) {
+      setMode("error");
+      setMessage("GitHub username is required.");
       return;
     }
 
+    setIsLoading(true);
+    setMode("idle");
     try {
-      setStatus("loading");
-      
-      // Call the API to initiate verification
-      const response = await axios.post("/api/github/verify", {
-        twitterUsername,
-        githubUsername
+      const response = await fetch("/api/generate-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          walletAddress,
+          githubUsername: githubUsername.trim(),
+        }),
       });
-      
-      if (response.data.success) {
-        setVerificationCode(response.data.verificationCode);
-        setVerificationId(response.data.verificationId);
-        setStatus("success");
-        setMessage("Verification initiated successfully. Please add the verification code to your GitHub profile or create a repository with this name.");
-      } else {
-        setStatus("error");
-        setMessage(response.data.error || "Failed to initiate verification");
+      const data = await response.json();
+      if (!response.ok || !data.githubVerificationCode) {
+        throw new Error(data.error || "Failed to generate verification code.");
       }
-    } catch (error: any) {
-      setStatus("error");
-      setMessage(error.response?.data?.error || "An error occurred while initiating verification");
-      console.error("Error initiating verification:", error);
+      setVerificationCode(data.githubVerificationCode);
+      setMode("success");
+      setMessage("Verification code generated. Create a public gist with this exact code.");
+    } catch (error) {
+      setMode("error");
+      setMessage(error instanceof Error ? error.message : "Failed to generate code.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleCheckVerification = async () => {
-    if (!verificationId) {
-      setStatus("error");
-      setMessage("No active verification to check");
+  const verifyContributor = async () => {
+    if (!walletAddress || !githubUsername.trim() || !githubGistId.trim()) {
+      setMode("error");
+      setMessage("Wallet, GitHub username, and GitHub Gist ID are required.");
       return;
     }
 
+    setIsLoading(true);
+    setMode("idle");
+
     try {
-      setStatus("loading");
-      
-      // Call the API to check verification status
-      const response = await axios.get(`/api/github/verify?id=${verificationId}`);
-      
-      if (response.data.status === "completed") {
-        setStatus("success");
-        setMessage("Verification completed successfully! Your GitHub identity is now linked to your Twitter account.");
-      } else {
-        setStatus("error");
-        setMessage(response.data.message || "Verification is still pending. Please make sure you've added the verification code to your GitHub profile.");
+      let nearPayload: {
+        nearSignature?: string;
+        nearMessage?: string;
+        nearAccountId?: string;
+      } = {};
+
+      if (isNearConnected && nearAccountId && selector) {
+        const nearMessage = `Sign this message to verify your NEAR address for GitSplits: ${nearAccountId}`;
+        const wallet = await selector.wallet();
+        const signed = await wallet.signMessage({
+          message: nearMessage,
+          recipient: nearAccountId,
+          nonce: `${Date.now()}`,
+        });
+        const nearSignature = toHex(signed);
+        if (nearSignature) {
+          nearPayload = {
+            nearSignature,
+            nearMessage,
+            nearAccountId,
+          };
+        }
       }
-    } catch (error: any) {
-      setStatus("error");
-      setMessage(error.response?.data?.error || "An error occurred while checking verification");
-      console.error("Error checking verification:", error);
+
+      const response = await fetch("/api/verify-identities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          walletAddress,
+          githubUsername: githubUsername.trim(),
+          githubGistId: githubGistId.trim(),
+          ...nearPayload,
+        }),
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.success || !data.githubVerified) {
+        throw new Error(data.error || "Verification failed. Check your gist and try again.");
+      }
+
+      setIsVerified(true);
+      setMode("success");
+      setMessage(
+        data.nearVerified
+          ? "Contributor verification complete. GitHub and NEAR are linked."
+          : "GitHub verified. Connect NEAR and retry to fully link GitHub + NEAR."
+      );
+    } catch (error) {
+      setMode("error");
+      setMessage(error instanceof Error ? error.message : "Verification failed.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="container max-w-md py-12">
-      <Card>
-        <CardHeader>
-          <CardTitle>GitHub Identity Verification</CardTitle>
-          <CardDescription>
-            Link your GitHub identity to your Twitter account
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent className="space-y-4">
-          {status === "success" && (
-            <Alert variant="default" className="bg-green-50 border-green-200">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <AlertTitle>Success</AlertTitle>
-              <AlertDescription>{message}</AlertDescription>
-            </Alert>
-          )}
-          
-          {status === "error" && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{message}</AlertDescription>
-            </Alert>
-          )}
-          
-          <div className="space-y-2">
-            <Label htmlFor="twitter">Twitter Username</Label>
-            <div className="flex items-center space-x-2">
-              <Twitter className="h-4 w-4 text-blue-500" />
-              <Input 
-                id="twitter" 
-                value={twitterUsername || ""} 
-                readOnly 
-                disabled={!!twitterUsername}
-                placeholder="Your Twitter username"
-              />
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="github">GitHub Username</Label>
-            <div className="flex items-center space-x-2">
-              <Github className="h-4 w-4 text-gray-700" />
-              <Input 
-                id="github" 
-                value={githubUsername || ""} 
-                readOnly 
-                disabled={!!githubUsername}
-                placeholder="Your GitHub username"
-              />
-            </div>
-          </div>
-          
-          {verificationCode && (
-            <div className="space-y-2 p-4 bg-gray-50 rounded-md">
-              <Label>Verification Code</Label>
-              <div className="font-mono text-sm bg-gray-100 p-2 rounded border">
-                {verificationCode}
+    <div className="min-h-screen bg-gradient-to-br from-gentle-blue via-gentle-purple to-gentle-orange py-10">
+      <div className="container mx-auto max-w-3xl px-4">
+        <WalletStatusBar />
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Contributor Verification</CardTitle>
+            <CardDescription>
+              Link your GitHub identity and NEAR account to receive contributor payouts.
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className="space-y-6">
+            {mode === "success" && (
+              <Alert className="bg-green-50 border-green-200">
+                <CheckCircle2 className="h-4 w-4 text-green-700" />
+                <AlertTitle>Success</AlertTitle>
+                <AlertDescription>{message}</AlertDescription>
+              </Alert>
+            )}
+            {mode === "error" && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{message}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-md border p-4 space-y-2">
+                <div className="flex items-center gap-2 font-medium">
+                  <Wallet className="h-4 w-4" /> Wallet
+                </div>
+                <p className="text-sm text-gray-700">
+                  {walletAddress ? `Connected: ${walletAddress}` : "No wallet connected"}
+                </p>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={() => open()}>
+                    Connect EVM
+                  </Button>
+                  <Button type="button" variant="outline" onClick={connectNear}>
+                    Connect NEAR
+                  </Button>
+                </div>
               </div>
-              <p className="text-xs text-gray-500 mt-2">
-                Add this code to your GitHub profile bio or create a repository with this name to verify your identity.
-              </p>
+
+              <div className="rounded-md border p-4 space-y-2">
+                <div className="flex items-center gap-2 font-medium">
+                  <Github className="h-4 w-4" /> GitHub
+                </div>
+                <Label htmlFor="githubUsername">GitHub Username</Label>
+                <Input
+                  id="githubUsername"
+                  value={githubUsername}
+                  onChange={(e) => setGithubUsername(e.target.value)}
+                  placeholder="your-github-username"
+                />
+              </div>
             </div>
-          )}
-        </CardContent>
-        
-        <CardFooter className="flex flex-col space-y-2">
-          {!verificationCode ? (
-            <Button 
-              className="w-full" 
-              onClick={handleInitiateVerification}
-              disabled={status === "loading" || !twitterUsername || !githubUsername}
+
+            <div className="space-y-3">
+              <Button onClick={generateCode} disabled={isLoading || !walletAddress || !githubUsername.trim()}>
+                {isLoading ? "Generating..." : "Generate GitHub Verification Code"}
+              </Button>
+
+              {verificationCode && (
+                <div className="rounded-md border bg-gray-50 p-4 space-y-3">
+                  <p className="text-sm font-medium">Verification code</p>
+                  <pre className="overflow-x-auto rounded bg-white p-3 text-xs">{verificationCode}</pre>
+                  <p className="text-xs text-gray-600">
+                    Create a public gist containing this exact code, then paste the gist ID below.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => window.open("https://gist.github.com/new", "_blank")}
+                  >
+                    Create GitHub Gist <ExternalLink className="ml-2 h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="githubGistId">GitHub Gist ID</Label>
+              <Input
+                id="githubGistId"
+                value={githubGistId}
+                onChange={(e) => setGithubGistId(e.target.value)}
+                placeholder="e.g. a1b2c3d4e5f6"
+              />
+            </div>
+
+            <Button
+              onClick={verifyContributor}
+              disabled={isLoading || !walletAddress || !githubUsername.trim() || !githubGistId.trim()}
             >
-              {status === "loading" ? "Initiating..." : "Initiate Verification"}
+              {isLoading ? "Verifying..." : "Verify Contributor (GitHub + NEAR)"}
             </Button>
-          ) : (
-            <Button 
-              className="w-full" 
-              onClick={handleCheckVerification}
-              disabled={status === "loading"}
-            >
-              {status === "loading" ? "Checking..." : "Check Verification Status"}
-            </Button>
-          )}
-          
-          <Button variant="outline" asChild className="w-full">
-            <Link href="/">
-              Back to Home
-            </Link>
-          </Button>
-        </CardFooter>
-      </Card>
+
+            {isVerified && (
+              <p className="text-sm text-green-700">
+                Verification complete. You can now manage splits and claim distributions in the dashboard.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

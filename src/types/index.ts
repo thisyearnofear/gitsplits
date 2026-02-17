@@ -31,12 +31,6 @@ export interface StepCardProps {
   description: string;
 }
 
-export interface EnhancedAttributionWidgetProps {
-  repoInfo: RepoInfo;
-  contractAddress: string;
-  displayStyle: "minimal" | "expanded";
-}
-
 export interface LandingPageProps {
   isConnected: boolean;
   onDashboardClick: () => void;
@@ -48,11 +42,6 @@ export interface AttributionWidgetProps {
   contractAddress?: string; // Make contractAddress optional
   displayStyle: "minimal" | "expanded";
   onSupportClick: () => void;
-}
-
-export interface SimplifiedSplitsSetupProps {
-  onLoginRequired: () => void;
-  isConnected: boolean;
 }
 
 export type HomeProps = Record<string, unknown>;

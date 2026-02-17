@@ -91,9 +91,10 @@ export const createIntent: Intent = {
       }
       
       // Create split on NEAR contract
+      const ownerId = context?.farcasterId || context?.message?.author || 'unknown';
       const split = await tools.near.createSplit({
         repoUrl,
-        owner: context.userId,
+        owner: ownerId,
         contributors,
       });
       

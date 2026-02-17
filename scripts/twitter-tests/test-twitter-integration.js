@@ -11,8 +11,8 @@
 require('dotenv').config({ path: '.env.local' });
 
 // Import the necessary functions
-const { searchMasaTweets } = require("../../utils/social/masa");
-const { crosspostReply, crosspostTweet } = require("../../utils/social/crosspost");
+const { searchMasaTweets } = require("../../src/utils/social/masa");
+const { crosspostReply, crosspostTweet } = require("../../src/utils/social/crosspost");
 
 // Check if required environment variables are set
 console.log("\n🔍 Checking environment variables...");

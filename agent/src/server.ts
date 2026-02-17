@@ -11,6 +11,14 @@ dotenv.config();
 import http from 'http';
 import { processMessage } from './index';
 import { createFarcasterClient, FarcasterClient } from './services/farcaster';
+import { eigenaiTool } from './tools/eigenai';
+import { teeWalletTool } from './tools/tee-wallet';
+import {
+  getGitHubAuthMode,
+  isProductionMode,
+  validateProductionReadiness,
+  validateRuntimeConfig,
+} from './config';
 
 const PORT = process.env.PORT || 3000;
 
@@ -32,6 +40,13 @@ interface HealthStatus {
     farcaster: 'connected' | 'disconnected' | 'disabled';
     github: 'available' | 'unavailable';
     near: 'available' | 'unavailable';
+    pingpay: 'available' | 'unavailable';
+    eigenai: 'available' | 'unavailable';
+    teeWallet: 'tee' | 'mock';
+  };
+  readiness: {
+    ready: boolean;
+    reasons: string[];
   };
   metrics: {
     requests: number;
@@ -43,11 +58,28 @@ interface HealthStatus {
  * Get current health status
  */
 async function getHealthStatus(): Promise<HealthStatus> {
-  const githubAvailable = !!process.env.GITHUB_TOKEN || process.env.AGENT_MODE === 'mock';
-  const nearAvailable = !!process.env.NEAR_PRIVATE_KEY || process.env.AGENT_MODE === 'mock';
+  const runtime = validateRuntimeConfig();
+  const productionReadiness = validateProductionReadiness();
+  const isProduction = isProductionMode();
+  const githubAvailable = isProduction
+    ? productionReadiness.checks.githubApp
+    : getGitHubAuthMode() !== 'none';
+  const nearAvailable = isProduction
+    ? productionReadiness.checks.near
+    : !!process.env.NEAR_PRIVATE_KEY;
+  const pingpayAvailable = isProduction
+    ? productionReadiness.checks.pingpay
+    : !!process.env.PING_PAY_API_KEY;
+  const eigenaiAvailable = isProduction
+    ? productionReadiness.checks.eigenai
+    : !!process.env.EIGENAI_WALLET_PRIVATE_KEY;
   
   return {
-    status: 'healthy',
+    status:
+      runtime.errors.length === 0 &&
+      (!isProduction || productionReadiness.ready)
+        ? 'healthy'
+        : 'unhealthy',
     timestamp: new Date().toISOString(),
     uptime: Date.now() - startTime,
     version: process.env.npm_package_version || '1.0.0',
@@ -55,6 +87,16 @@ async function getHealthStatus(): Promise<HealthStatus> {
       farcaster: farcasterClient ? 'connected' : process.env.NEYNAR_API_KEY ? 'disconnected' : 'disabled',
       github: githubAvailable ? 'available' : 'unavailable',
       near: nearAvailable ? 'available' : 'unavailable',
+      pingpay: pingpayAvailable ? 'available' : 'unavailable',
+      eigenai: eigenaiAvailable ? 'available' : 'unavailable',
+      teeWallet: teeWalletTool.isRunningInTEE() ? 'tee' : 'mock',
+    },
+    readiness: {
+      ready: !isProduction || productionReadiness.ready,
+      reasons: [
+        ...runtime.errors,
+        ...(isProduction ? productionReadiness.reasons : []),
+      ],
     },
     metrics: {
       requests: requestCount,
@@ -94,11 +136,20 @@ const server = http.createServer(async (req, res) => {
     // Ready check endpoint (for Kubernetes/liveness probes)
     if (url.pathname === '/ready') {
       const health = await getHealthStatus();
-      const isReady = health.services.github === 'available' && 
-                      health.services.near === 'available';
+      const isReady = health.readiness.ready;
       
       res.writeHead(isReady ? 200 : 503, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ready: isReady }, null, 2));
+      res.end(
+        JSON.stringify(
+          {
+            ready: isReady,
+            reasons: health.readiness.reasons,
+            services: health.services,
+          },
+          null,
+          2
+        )
+      );
       return;
     }
     
@@ -177,6 +228,27 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     
+    // EigenAI grant balance endpoint
+    if (url.pathname === '/eigenai/grant' && req.method === 'GET') {
+      try {
+        const grant = await eigenaiTool.checkGrant();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(grant, null, 2));
+      } catch (error: any) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: error.message }));
+      }
+      return;
+    }
+    
+    // TEE wallet info endpoint
+    if (url.pathname === '/tee/wallet' && req.method === 'GET') {
+      const walletInfo = teeWalletTool.getWalletInfo();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(walletInfo, null, 2));
+      return;
+    }
+    
     // Root endpoint - show info
     if (url.pathname === '/') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -189,8 +261,10 @@ const server = http.createServer(async (req, res) => {
           ready: '/ready',
           process: 'POST /process',
           webhook: 'POST /webhook/farcaster',
+          eigenaiGrant: '/eigenai/grant',
+          teeWallet: '/tee/wallet',
         },
-        documentation: 'https://github.com/yourusername/gitsplits',
+        documentation: 'https://github.com/thisyearnofear/gitsplits',
       }, null, 2));
       return;
     }
@@ -247,7 +321,7 @@ server.listen(PORT, async () => {
   console.log('');
   
   // Check environment
-  const isMockMode = process.env.AGENT_MODE === 'mock';
+  const isMockMode = !isProductionMode();
   
   if (isMockMode) {
     console.log('🧪 MOCK MODE: Using simulated data');
@@ -256,17 +330,17 @@ server.listen(PORT, async () => {
     console.log('   - Ping Pay: Mocked');
   } else {
     console.log('🔌 PRODUCTION MODE');
-    
-    // Check required environment variables
-    const required = ['GITHUB_TOKEN', 'NEAR_ACCOUNT_ID', 'NEAR_PRIVATE_KEY'];
-    const missing = required.filter(key => !process.env[key]);
-    
-    if (missing.length > 0) {
-      console.warn('⚠️ Missing environment variables:', missing.join(', '));
-      console.warn('   Set AGENT_MODE=mock to run without API keys');
-    } else {
-      console.log('✅ All required environment variables set');
+
+    const runtime = validateRuntimeConfig();
+    const readiness = validateProductionReadiness();
+    if (runtime.errors.length > 0 || !readiness.ready) {
+      console.error('❌ Production configuration is not ready:');
+      [...runtime.errors, ...readiness.reasons].forEach((reason) =>
+        console.error(`   - ${reason}`)
+      );
+      process.exit(1);
     }
+    console.log('✅ Production configuration checks passed');
   }
   
   console.log('');

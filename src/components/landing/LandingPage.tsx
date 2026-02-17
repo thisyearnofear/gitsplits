@@ -437,12 +437,21 @@ const LandingPage: React.FC<LandingPageProps> = ({
           </p>
 
           {isAnyWalletConnected && (
-            <Button
-              onClick={() => router.push("/dashboard")}
-              className="mt-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-2 px-4 rounded-full transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-110"
-            >
-              Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            <div className="mt-4 flex items-center justify-center gap-3">
+              <Button
+                onClick={() => router.push("/dashboard")}
+                className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-2 px-4 rounded-full transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-110"
+              >
+                Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+              <Button
+                onClick={() => router.push("/splits")}
+                variant="outline"
+                className="font-semibold"
+              >
+                Open Splits <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
           )}
 
           {!isAnyWalletConnected && (
@@ -580,47 +589,54 @@ const LandingPage: React.FC<LandingPageProps> = ({
             </div>
           </div>
           <div className="mt-8 text-center">
-            <Button
-              onClick={handleDashboardNavigation}
-              size="lg"
-              className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-2 px-4 rounded-full transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-110"
-              disabled={isDashboardLoading}
-            >
-              {isDashboardLoading ? (
-                <span className="flex items-center">
-                  <svg
-                    className="animate-spin h-5 w-5 mr-2 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8v8z"
-                    ></path>
-                  </svg>
-                  Loading...
-                </span>
-              ) : isAnyWalletConnected ? (
-                <>
-                  Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
-                </>
-              ) : (
-                <>
-                  Connect Wallet to Access Dashboard{" "}
-                  <Wallet className="ml-2 h-4 w-4" />
-                </>
+            <div className="flex items-center justify-center gap-3">
+              <Button
+                onClick={handleDashboardNavigation}
+                size="lg"
+                className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-2 px-4 rounded-full transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-110"
+                disabled={isDashboardLoading}
+              >
+                {isDashboardLoading ? (
+                  <span className="flex items-center">
+                    <svg
+                      className="animate-spin h-5 w-5 mr-2 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v8z"
+                      ></path>
+                    </svg>
+                    Loading...
+                  </span>
+                ) : isAnyWalletConnected ? (
+                  <>
+                    Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
+                  </>
+                ) : (
+                  <>
+                    Connect Wallet to Access Dashboard{" "}
+                    <Wallet className="ml-2 h-4 w-4" />
+                  </>
+                )}
+              </Button>
+              {isAnyWalletConnected && (
+                <Button size="lg" variant="outline" onClick={() => router.push("/splits")}>
+                  Open Splits <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
               )}
-            </Button>
+            </div>
           </div>
         </div>
 

@@ -28,6 +28,13 @@ let startTime = Date.now();
 let requestCount = 0;
 let errorCount = 0;
 
+function isAuthorizedProcessRequest(req: http.IncomingMessage): boolean {
+  const expected = process.env.AGENT_SERVER_API_KEY;
+  if (!expected) return true;
+  const provided = req.headers['x-agent-api-key'];
+  return typeof provided === 'string' && provided === expected;
+}
+
 /**
  * Health check response
  */
@@ -224,6 +231,11 @@ const server = http.createServer(async (req, res) => {
     
     // Process message endpoint (for testing)
     if (url.pathname === '/process' && req.method === 'POST') {
+      if (!isAuthorizedProcessRequest(req)) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Unauthorized' }));
+        return;
+      }
       let body = '';
       req.on('data', chunk => body += chunk);
       req.on('end', async () => {

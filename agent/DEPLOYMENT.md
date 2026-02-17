@@ -8,6 +8,7 @@ This guide covers deploying the GitSplits agent to various environments.
 - Live canary intents suite is passing (`analyze/create/pay`).
 - GitHub App auth is the primary production mode.
 - Pay routing currently uses Ping Pay first, then HOT partner API fallback when Ping endpoints are unavailable.
+- Ping endpoint can be overridden with `PING_PAY_API_BASE` and `PING_PAY_PROBE_PATH`.
 
 ## Quick Start
 
@@ -56,6 +57,7 @@ npm start
 | `PING_PAY_INTENTS_PATH` | Optional Ping intents path override | Ping Pay docs |
 | `PING_PAY_PROBE_PATH` | Optional Ping probe path override | Ping Pay docs |
 | `HOT_PAY_NEAR_ACCOUNT` | HOT merchant account | HOT dashboard |
+| `AGENT_SERVER_API_KEY` | Optional shared key for `/process` endpoint | Internal secret |
 
 ## Local Development
 

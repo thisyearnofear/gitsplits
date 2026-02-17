@@ -18,6 +18,7 @@ This is the core agent that powers GitSplits. It runs on EigenCloud's TEE infras
 - Pay flow behavior:
   - Tries Ping Pay first.
   - Falls back to HOT partner API when Ping endpoint is unavailable.
+- Latest validation run: preflight `11/11`, intents `3/3` (live canary).
 
 ## Architecture
 

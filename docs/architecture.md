@@ -75,15 +75,15 @@ Shade Agent runs in a TEE container:
 The Next.js frontend provides a visual interface for the agent:
 
 - **Agent Chat UI** (`/src/app/agent/`): A clean, interactive interface for sending natural language commands.
-- **Agent API Route** (`/src/app/api/agent/`): Bridges the web interface to the agent's core processing engine.
+- **Agent API Route** (`/src/app/api/agent/`): Proxies the web interface to the standalone agent service over HTTP (`AGENT_BASE_URL`).
 - **Verification Flow** (`/src/app/verify/`): Secure identity linking for contributors.
 - **Dashboard** (`/src/app/dashboard/`): Visual management of splits and repository analytics.
 
 ## System Workflow
 
 ```
-[Web UI Chat] --(JSON)--> [Next.js API] --(Import)--> [Agent Engine]
-[Farcaster] --(Mention)--> [Neynar API] --(Webhook)--> [Agent Engine]
+[Web UI Chat] --(JSON)--> [Next.js API] --(HTTP /process)--> [Standalone Agent Service]
+[Farcaster] --(Mention)--> [Neynar API] --(Webhook)--> [Standalone Agent Service]
 ```
 
 ## User Flow

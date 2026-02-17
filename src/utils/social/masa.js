@@ -1,4 +1,4 @@
-const MasaAPI = require('../../scripts/twitter-integration/masa-api');
+const MasaAPI = require('../../../scripts/twitter-integration/masa-api');
 
 /**
  * Helper function to search for tweets mentioning a query using Masa API

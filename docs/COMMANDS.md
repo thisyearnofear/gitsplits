@@ -164,6 +164,7 @@ GitSplits understands varied phrasing. You don't need exact syntax.
 
 Some actions are easier on the web:
 
+- **Web Agent**: https://gitsplits.xyz/agent (Interactive chat interface)
 - **Verify identity**: https://gitsplits.xyz/verify
 - **View splits**: https://gitsplits.xyz/splits
 - **Manage settings**: https://gitsplits.xyz/dashboard

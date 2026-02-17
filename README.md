@@ -65,6 +65,7 @@ Farcaster → Intent Agent → EigenCompute (TEE) → NEAR + Sponsors
 
 ## Web Interface
 
+- **Agent Chat**: https://gitsplits.xyz/agent (Interactive natural language interface)
 - **Verify identity**: https://gitsplits.xyz/verify
 - **View splits**: https://gitsplits.xyz/splits
 - **Dashboard**: https://gitsplits.xyz/dashboard

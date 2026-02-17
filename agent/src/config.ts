@@ -12,6 +12,7 @@ export interface ProductionReadiness {
     githubApp: boolean;
     near: boolean;
     pingpay: boolean;
+    hotpay: boolean;
     eigenai: boolean;
   };
 }
@@ -76,6 +77,9 @@ export function validateRuntimeConfig(
   if (isProduction && !hasValue(env.PING_PAY_API_KEY)) {
     errors.push('PING_PAY_API_KEY is required in production.');
   }
+  if (isProduction && !hasValue(env.HOT_PAY_JWT)) {
+    errors.push('HOT_PAY_JWT is required in production.');
+  }
   if (isProduction && !hasValue(env.EIGENAI_WALLET_PRIVATE_KEY)) {
     errors.push('EIGENAI_WALLET_PRIVATE_KEY is required in production.');
   }
@@ -105,6 +109,7 @@ export function validateProductionReadiness(
       hasValue(env.NEAR_PRIVATE_KEY) &&
       hasValue(env.NEAR_CONTRACT_ID),
     pingpay: hasValue(env.PING_PAY_API_KEY),
+    hotpay: hasValue(env.HOT_PAY_JWT),
     eigenai:
       hasValue(env.EIGENAI_WALLET_PRIVATE_KEY) &&
       hasValue(env.EIGENAI_WALLET_ADDRESS),
@@ -124,6 +129,9 @@ export function validateProductionReadiness(
   if (!checks.pingpay) {
     reasons.push('PING_PAY_API_KEY missing.');
   }
+  if (!checks.hotpay) {
+    reasons.push('HOT_PAY_JWT missing.');
+  }
   if (!checks.eigenai) {
     reasons.push(
       'EigenAI grant credentials incomplete (require EIGENAI_WALLET_PRIVATE_KEY + EIGENAI_WALLET_ADDRESS).'
@@ -131,7 +139,7 @@ export function validateProductionReadiness(
   }
 
   return {
-    ready: checks.githubApp && checks.near && checks.pingpay && checks.eigenai,
+    ready: checks.githubApp && checks.near && checks.pingpay && checks.hotpay && checks.eigenai,
     reasons,
     checks,
   };

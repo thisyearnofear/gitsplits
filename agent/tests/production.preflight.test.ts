@@ -3,6 +3,7 @@ import { eigenaiTool } from '../src/tools/eigenai';
 import { githubTool } from '../src/tools/github';
 import { nearTool } from '../src/tools/near';
 import { pingpayTool } from '../src/tools/pingpay';
+import { hotpayTool } from '../src/tools/hotpay';
 import {
   asGithubUrl,
   getCanary,
@@ -54,6 +55,15 @@ describeProduction('production preflight (live service probes)', () => {
     expect(readiness.reasons.join(' ')).toContain('PING_PAY_API_KEY');
   });
 
+  test('missing HOT Pay JWT fails readiness', () => {
+    const readiness = validateProductionReadiness({
+      ...process.env,
+      HOT_PAY_JWT: '',
+    });
+    expect(readiness.ready).toBe(false);
+    expect(readiness.reasons.join(' ')).toContain('HOT_PAY_JWT');
+  });
+
   test('missing EigenAI creds fails readiness', () => {
     const readiness = validateProductionReadiness({
       ...process.env,
@@ -83,6 +93,13 @@ describeProduction('production preflight (live service probes)', () => {
     requireProductionMode();
     requireProductionRuntimeConfig();
     const probe = await pingpayTool.probeAuth();
+    expect(probe.ok).toBe(true);
+  });
+
+  test('HOT Pay auth probe passes', async () => {
+    requireProductionMode();
+    requireProductionRuntimeConfig();
+    const probe = await hotpayTool.probeAuth();
     expect(probe.ok).toBe(true);
   });
 

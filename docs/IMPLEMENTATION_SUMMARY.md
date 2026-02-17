@@ -53,6 +53,12 @@ We successfully built a fully-functional autonomous agent for compensating open 
 - Intent creation and execution
 - Mock implementation (production API ready)
 
+**HOT Pay Tool** (`agent/src/tools/hotpay.ts`)
+
+- **Live Integration**: Fully integrated for NEAR-native and fiat-backed payments.
+- **Dynamic Provider Selection**: The agent now intelligently chooses between HOT Pay (preferred for $NEAR) and Ping Pay (preferred for cross-chain USDC/other) based on the token type and context.
+- **Verified**: Passed all production preflight authentication and connectivity probes.
+
 ### ✅ Web UI & API
 
 - **Web UI API** (`src/app/api/agent/route.ts`): Functional endpoint for the agent, integrated with the root Next.js app.
@@ -198,9 +204,10 @@ gitsplits/
 | GitHub Analysis   | ✅ Complete    | Built-in         | Ready  |
 | NEAR Contract     | ✅ Complete    | Mainnet Deployed | Live   |
 | Ping Pay          | ✅ Complete    | API integration  | Ready  |
+| HOT Pay           | ✅ Complete    | API integration  | Live   |
 | EigenCloud        | ✅ Complete    | Dockerfile ready | Ready  |
 | Health Monitoring | ✅ Complete    | Built-in         | Ready  |
-| Testing           | ✅ Complete    | Mainnet Verified | Passed |
+| Testing           | ✅ Complete    | 11/11 Probes     | Passed |
 
 ## Next Steps to Go Live
 
@@ -215,7 +222,8 @@ gitsplits/
    ```bash
    cp agent/.env.example agent/.env
    # Edit with real API keys
-   # NEAR mainnet account (lhkor_marty.near) is already configured
+   # NEAR mainnet (lhkor_marty.near) is configured
+   # HOT Pay (papajams.near) is configured
    ```
 
 3. **Deploy to EigenCloud**:

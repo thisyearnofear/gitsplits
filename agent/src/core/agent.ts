@@ -42,6 +42,7 @@ export class ToolRegistry {
   get github() { return this.get('github'); }
   get near() { return this.get('near'); }
   get pingpay() { return this.get('pingpay'); }
+  get hotpay() { return this.get('hotpay'); }
   get eigenai() { return this.get('eigenai'); }
   get teeWallet() { return this.get('tee-wallet'); }
 }

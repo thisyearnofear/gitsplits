@@ -50,8 +50,7 @@ const DashboardOverview: React.FC = () => {
             </div>
             <h3 className="text-lg font-medium mb-2">Simple Interaction</h3>
             <p className="text-gray-600">
-              Manage everything through simple X commands - no complex
-              interfaces needed
+              Manage splits with agent commands or the web dashboard
             </p>
           </CardContent>
         </Card>
@@ -70,8 +69,7 @@ const DashboardOverview: React.FC = () => {
               </div>
               <div>
                 <p className="font-medium">
-                  // sourcery skip: binary-operator-identity Split created for
-                  near/near-sdk-rs
+                  Split created for near/near-sdk-rs
                 </p>
                 <p className="text-sm text-gray-500">2 hours ago</p>
               </div>

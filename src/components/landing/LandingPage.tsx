@@ -162,7 +162,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
   } | null>(null);
   const [contractAddress, setContractAddress] = useState("");
   const [displayStyle, setDisplayStyle] = useState<"minimal" | "expanded">(
-    "minimal"
+    "minimal",
   );
 
   // NEAR wallet integration
@@ -292,40 +292,39 @@ const LandingPage: React.FC<LandingPageProps> = ({
   const features = [
     {
       icon: <Twitter className="w-6 h-6" />,
-      title: "X Commands",
+      title: "Agentic Commands",
       description:
-        "Tweet '@gitsplitscreate splits https://github.com/thisyearnofear/gitsplits.",
+        "Analyze, create splits, pay, and verify with a single message or API call.",
     },
     {
       icon: <Share2 className="w-6 h-6" />,
-      title: "Embed Attribution",
-      description: "Widget showcasing contributors & enabling direct tips.",
+      title: "Attribution Widgets",
+      description:
+        "Publish embeddable contributor attribution for any repository.",
     },
     {
       icon: <DollarSign className="w-6 h-6" />,
-      title: "Secure Distribution",
+      title: "Cross-Chain Payouts",
       description:
-        "Non-custodial fund distribution in Trusted Execution Environment.",
+        "Route payouts via NEAR + EVM wallets with intent-based settlement.",
     },
   ];
 
   const steps = [
     {
       number: 1,
-      title: "Choose Your Method",
-      description:
-        "Use X commands or our web dashboard - whatever works for you.",
+      title: "Connect and Verify",
+      description: "Link your wallet and verify GitHub ownership once.",
     },
     {
       number: 2,
-      title: "Set Up Splits",
-      description:
-        "Create onchain splits easily, optionally embed our widget to showcase them.",
+      title: "Analyze and Split",
+      description: "Pull real repo data to generate fair splits automatically.",
     },
     {
       number: 3,
-      title: "Start Distributing",
-      description: "Securely distribute funds to all verified contributors.",
+      title: "Pay Contributors",
+      description: "Send payouts with one command or through the dashboard.",
     },
   ];
 
@@ -434,7 +433,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
             GitSplits
           </h1>
           <p className="text-2xl text-gray-700 max-w-2xl mx-auto">
-            Attribution. Open Source Splits. Onchain.
+            Agentic payouts for open source contributors.
           </p>
 
           {isAnyWalletConnected && (
@@ -497,8 +496,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
               How It Works
             </h2>
             <p className="text-gray-600 text-center mb-12 max-w-2xl mx-auto">
-              Get started in minutes. Fork code with honour. Cultivate
-              collaborators.
+              Connect a wallet, analyze a repo, and route payouts in minutes.
             </p>
             <div className="grid md:grid-cols-3 gap-8">
               {steps.map((step, index) => (
@@ -566,7 +564,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                         size="lg"
                         className="bg-blue-600 text-white hover:bg-blue-700"
                       >
-                        Try X Commands <Twitter className="ml-2 h-4 w-4" />
+                        Try Agent Commands <Twitter className="ml-2 h-4 w-4" />
                       </Button>
                       <Button
                         onClick={handleDashboardNavigation}

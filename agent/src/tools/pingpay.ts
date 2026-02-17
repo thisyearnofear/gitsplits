@@ -76,6 +76,7 @@ export const pingpayTool = {
       recipients: distributions.length,
       totalAmount: amount,
       token,
+      protocol: 'NEAR Intents',
     };
   },
   

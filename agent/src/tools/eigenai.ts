@@ -183,6 +183,7 @@ export const eigenaiTool = {
       repoUrl,
       contributors,
       mock: result.mock ?? false,
+      explorerUrl: result.signature ? `https://determinal.eigenarcade.com/verify/${result.signature}` : null,
     };
   },
 

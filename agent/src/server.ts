@@ -48,6 +48,15 @@ interface HealthStatus {
     ready: boolean;
     reasons: string[];
   };
+  compute?: string;
+  technologyStack?: {
+    social: string;
+    automation: string;
+    blockchain: string;
+    settlement: string;
+    interoperability: string;
+    verifiability: string;
+  };
   metrics: {
     requests: number;
     errors: number;
@@ -90,6 +99,15 @@ async function getHealthStatus(): Promise<HealthStatus> {
       pingpay: pingpayAvailable ? 'available' : 'unavailable',
       eigenai: eigenaiAvailable ? 'available' : 'unavailable',
       teeWallet: teeWalletTool.isRunningInTEE() ? 'tee' : 'mock',
+    },
+    compute: teeWalletTool.isRunningInTEE() ? 'Secure TEE (EigenCompute)' : 'Standard (Local)',
+    technologyStack: {
+      social: 'Farcaster (Neynar API)',
+      automation: 'GitHub App (v3 REST)',
+      blockchain: 'NEAR Mainnet (lhkor_marty.near)',
+      settlement: 'NEAR Intents (Ping Pay)',
+      interoperability: 'Chain Signatures',
+      verifiability: 'EigenCompute (TEE)',
     },
     readiness: {
       ready: !isProduction || productionReadiness.ready,

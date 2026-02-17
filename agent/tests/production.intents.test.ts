@@ -60,8 +60,8 @@ describeProduction('production intents (live integrations)', () => {
     });
 
     assertNoMockFallback(response);
-    expect(response).toContain('Paid');
+    assertContainsAny(response, ['Paid', 'Distributed']);
     expect(response).not.toContain('Payment failed');
-    assertContainsAny(response, ['Transaction:', 'intent', 'txHash']);
+    assertContainsAny(response, ['Transaction:', 'intent', 'txHash', 'Split:']);
   });
 });

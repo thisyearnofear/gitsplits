@@ -77,6 +77,7 @@ export const payIntent: Intent = {
       
       // Execute distribution
       let distribution;
+      let providerName = 'Ping Pay';
       const isHotPayPreferred = token === 'NEAR' || context.message?.text?.toLowerCase().includes('hotpay');
       
       if (isHotPayPreferred) {
@@ -90,22 +91,46 @@ export const payIntent: Intent = {
             percentage: c.percentage,
           })),
         });
+        providerName = 'HOT Pay';
       } else {
         console.log('[Agent] Using Ping Pay for distribution');
-        distribution = await tools.pingpay.distribute({
-          splitId: split.id,
-          amount,
-          token,
-          recipients: contributors.map((c: any) => ({
-            wallet: c.wallet,
-            percentage: c.percentage,
-          })),
-        });
+        try {
+          distribution = await tools.pingpay.distribute({
+            splitId: split.id,
+            amount,
+            token,
+            recipients: contributors.map((c: any) => ({
+              wallet: c.wallet,
+              percentage: c.percentage,
+            })),
+          });
+        } catch (pingErr: any) {
+          if (process.env.HOT_PAY_JWT) {
+            console.log(`[Agent] Ping Pay failed (${pingErr?.message || 'unknown error'}), falling back to HOT Pay`);
+            distribution = await tools.hotpay.distribute({
+              splitId: split.id,
+              amount,
+              token,
+              recipients: contributors.map((c: any) => ({
+                wallet: c.wallet,
+                percentage: c.percentage,
+              })),
+            });
+            providerName = 'HOT Pay (Ping Pay fallback)';
+          } else {
+            throw pingErr;
+          }
+        }
       }
       
-      const providerName = isHotPayPreferred ? 'HOT Pay' : 'Ping Pay';
+      const protocolInfo =
+        providerName.startsWith('HOT Pay') || isHotPayPreferred
+          ? 'HOT Partner API'
+          : 'NEAR Intents & Chain Signatures';
+      const teeSignature = tools.teeWallet.isRunningInTEE() ? `\n🔒 TEE Signature: ${tools.teeWallet.getAddress()}` : '';
+      
       return {
-        response: `✅ Paid ${amount} ${token} to ${contributors.length} contributors via ${providerName}!\n\nTransaction: ${distribution.txHash}\nSplit: ${split.id}`,
+        response: `✅ Distributed ${amount} ${token} to ${contributors.length} contributors via ${providerName}!\n\n🌐 Protocol: ${protocolInfo}\n🔗 Transaction: ${distribution.txHash}\n📜 Split: ${split.id}${teeSignature}\n\nRecipients will be notified on Farcaster 👤`,
         context: {
           ...context,
           lastPayment: {

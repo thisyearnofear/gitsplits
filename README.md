@@ -52,6 +52,11 @@ DM @gitsplits: verify your-github-username
 @gitsplits pay 100 USDC to my-org/my-repo
 ```
 
+**Check pending claims:**
+```
+@gitsplits pending my-org/my-repo
+```
+
 **Check analysis:**
 ```
 @gitsplits analyze my-org/my-repo

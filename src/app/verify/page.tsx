@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import { Github, Wallet, CheckCircle2, AlertCircle, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +31,7 @@ function toHex(value: unknown): string {
 }
 
 export default function VerifyPage() {
+  const searchParams = useSearchParams();
   const { open } = useAppKit();
   const { isConnected: isEvmConnected, address: evmAddress } = useAppKitAccount();
   const { isConnected: isNearConnected, accountId: nearAccountId, connect: connectNear, selector } =
@@ -42,6 +44,15 @@ export default function VerifyPage() {
   const [isVerified, setIsVerified] = useState(false);
   const [message, setMessage] = useState("");
   const [mode, setMode] = useState<"idle" | "success" | "error">("idle");
+
+  const prefillUser = searchParams.get("user") || "";
+  const prefillRepo = searchParams.get("repo") || "";
+
+  useEffect(() => {
+    if (prefillUser && !githubUsername) {
+      setGithubUsername(prefillUser.replace(/^@/, ""));
+    }
+  }, [prefillUser, githubUsername]);
 
   const walletAddress = useMemo(() => {
     const candidates = [nearAccountId, evmAddress];
@@ -166,6 +177,11 @@ export default function VerifyPage() {
             <CardDescription>
               Link your GitHub identity and NEAR account to receive contributor payouts.
             </CardDescription>
+            {prefillRepo && (
+              <p className="text-xs text-gray-600 mt-2">
+                Verification request for repository: <span className="font-mono">{prefillRepo}</span>
+              </p>
+            )}
           </CardHeader>
 
           <CardContent className="space-y-6">

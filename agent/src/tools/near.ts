@@ -60,6 +60,7 @@ async function initNear() {
         'is_worker_registered',
         'is_github_verified',
         'get_wallet_address',
+        'get_pending_distributions',
       ],
       changeMethods: [
         'register_worker',
@@ -228,6 +229,16 @@ export const nearTool = {
     }
     
     return await contract.get_wallet_address({ github_username: githubUsername });
+  },
+
+  async getPendingDistributions(githubUsername: string) {
+    await initNear();
+
+    if (useMockMode) {
+      return [];
+    }
+
+    return await contract.get_pending_distributions({ github_username: githubUsername });
   },
   
   async storePendingVerification(params: any) {

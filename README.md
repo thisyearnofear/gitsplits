@@ -80,6 +80,12 @@ Farcaster/Web → Intent Agent → EigenCompute (TEE) → NEAR + Payments
 - **Splits**: https://gitsplits.xyz/splits
 - **Dashboard**: https://gitsplits.xyz/dashboard
 
+### Web-First Status (February 17, 2026)
+
+- `/dashboard` now acts as a web control hub and checks live agent readiness via `/api/agent`.
+- `/verify` now performs GitHub gist + NEAR signature verification and syncs successful links to the agent/contract path used by payouts.
+- `/splits` now uses the live agent proxy (`/api/agent`) for analyze/create flows (instead of the old placeholder NEAR demo service).
+
 ## Documentation
 
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) — System design
@@ -116,11 +122,19 @@ npm install
 npm run dev
 ```
 
-Web app expects `AGENT_BASE_URL` in `.env.local`:
+Web app expects these in `.env.local`:
 ```
 AGENT_BASE_URL=http://localhost:3000
+# Optional if agent /process is protected:
+AGENT_API_KEY=...
 # Or deployed endpoint:
 # AGENT_BASE_URL=https://agent.gitsplits.thisyearnofear.com
+```
+
+Agent server expects:
+```
+# Optional process endpoint protection key:
+AGENT_SERVER_API_KEY=...
 ```
 
 ## Environment Variables

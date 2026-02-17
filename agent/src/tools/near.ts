@@ -66,7 +66,7 @@ async function initNear() {
         'create_split',
         'update_split',
         'store_verification',
-        'store_pending_verification',
+        'store_pending_distribution',
       ],
       useLocalViewExecution: false,
     });
@@ -228,12 +228,32 @@ export const nearTool = {
     if (useMockMode) {
       return { success: true };
     }
-    
-    return await contract.store_pending_verification({
+
+    return {
+      success: true,
+      note: 'Pending verification is managed off-chain in this version.',
+      githubUsername: params.githubUsername,
+      farcasterId: params.farcasterId,
+      expiresAt: params.expiresAt,
+    };
+  },
+
+  async storeVerification(params: {
+    githubUsername: string;
+    walletAddress: string;
+    xUsername?: string;
+  }) {
+    await initNear();
+    await ensureWorkerRegistered();
+
+    if (useMockMode) {
+      return { success: true, mock: true };
+    }
+
+    return await contract.store_verification({
       github_username: params.githubUsername,
-      farcaster_id: params.farcasterId,
-      code: params.code,
-      expires_at: params.expiresAt,
+      x_username: params.xUsername || 'web',
+      wallet_address: params.walletAddress,
     });
   },
 

@@ -45,15 +45,37 @@ export const verifyIntent: Intent = {
         };
       }
       
-      // Generate verification code
+      // If web context includes a NEAR account, store verification on-chain immediately.
+      const nearWallet =
+        message?.nearAccountId ||
+        (isLikelyNearAccount(message?.walletAddress) ? message?.walletAddress : null);
+
+      if (message?.type === 'web' && nearWallet) {
+        await tools.near.storeVerification({
+          githubUsername,
+          walletAddress: nearWallet,
+          xUsername: message?.author || 'web',
+        });
+        return {
+          response: `✅ @${githubUsername} verified and linked to ${nearWallet}.`,
+          context: {
+            ...context,
+            lastVerification: {
+              githubUsername,
+              wallet: nearWallet,
+              verifiedAt: Date.now(),
+            },
+          },
+        };
+      }
+
+      // Generate verification code for social channels.
       const code = `gitsplits-verify-${Math.random().toString(36).substring(2, 10)}`;
-      
-      // Store pending verification
       await tools.near.storePendingVerification({
         githubUsername,
         farcasterId: message.author,
         code,
-        expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+        expiresAt: Date.now() + 24 * 60 * 60 * 1000,
       });
       
       return {
@@ -76,3 +98,8 @@ export const verifyIntent: Intent = {
     }
   },
 };
+
+function isLikelyNearAccount(value: string | undefined): boolean {
+  if (!value) return false;
+  return /\.near$|\.testnet$/i.test(value);
+}

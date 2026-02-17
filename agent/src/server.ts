@@ -245,6 +245,9 @@ const server = http.createServer(async (req, res) => {
             text: data.text || '',
             author: data.author || 'test',
             type: data.type || 'cast',
+            walletAddress: data.walletAddress,
+            nearAccountId: data.nearAccountId,
+            evmAddress: data.evmAddress,
           });
           
           res.writeHead(200, { 'Content-Type': 'application/json' });

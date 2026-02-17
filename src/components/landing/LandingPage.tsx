@@ -12,6 +12,9 @@ import {
   GitCommit,
   Code2,
   ExternalLink,
+  Shield,
+  Lock,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -178,8 +181,8 @@ const LandingPage: React.FC<LandingPageProps> = ({
             transition={{ duration: 0.4, delay: 0.1 }}
             className="inline-flex items-center gap-2 bg-white/60 backdrop-blur-sm border border-blue-200 rounded-full px-4 py-1.5 text-sm text-blue-700 mb-6"
           >
-            <Sparkles className="w-4 h-4" />
-            <span>Now with AI-powered splits</span>
+            <Shield className="w-4 h-4" />
+            <span>Running on EigenCompute for cryptographic transparency</span>
           </motion.div>
 
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
@@ -189,9 +192,15 @@ const LandingPage: React.FC<LandingPageProps> = ({
             </span>
           </h1>
           
-          <p className="text-lg text-gray-600 mb-8 max-w-xl mx-auto">
+          <p className="text-lg text-gray-600 mb-4 max-w-xl mx-auto">
             Analyze any GitHub repository, get fair split suggestions based on actual contributions, 
             and distribute payments to contributors automatically.
+          </p>
+          
+          <p className="text-sm text-gray-500 mb-8 max-w-lg mx-auto">
+            <Shield className="w-4 h-4 inline mr-1 text-blue-600" />
+            Every calculation runs in a secure TEE with optional attestations — 
+            <span className="text-blue-600">verify the agent behaved correctly</span>
           </p>
 
           {/* Primary CTAs */}
@@ -402,27 +411,33 @@ const LandingPage: React.FC<LandingPageProps> = ({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.5 }}
-          className="max-w-4xl mx-auto mt-20"
+          className="max-w-5xl mx-auto mt-20"
         >
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-4 gap-6">
             {[
               { 
                 step: "1", 
                 title: "Analyze", 
-                desc: "Paste any repo URL. Our AI analyzes commits, PRs, and reviews.",
+                desc: "AI analyzes commits, PRs, and reviews in a secure TEE.",
                 icon: <Github className="w-5 h-5" />,
               },
               { 
                 step: "2", 
                 title: "Split", 
-                desc: "Get fair contributor split suggestions based on actual work.",
+                desc: "Get fair contributor splits with cryptographic transparency.",
                 icon: <Users className="w-5 h-5" />,
               },
               { 
                 step: "3", 
                 title: "Pay", 
-                desc: "Distribute payments in one command. Contributors get paid instantly.",
+                desc: "Distribute payments in one command via NEAR.",
                 icon: <Sparkles className="w-5 h-5" />,
+              },
+              { 
+                step: "4", 
+                title: "Verify", 
+                desc: "Optional attestations prove fair execution on EigenCompute.",
+                icon: <Shield className="w-5 h-5" />,
               },
             ].map((item) => (
               <div key={item.step} className="text-center p-5 bg-white/40 backdrop-blur-sm rounded-xl">
@@ -436,11 +451,66 @@ const LandingPage: React.FC<LandingPageProps> = ({
           </div>
         </motion.div>
 
+        {/* EigenCompute Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.6 }}
+          className="max-w-4xl mx-auto mt-20"
+        >
+          <div className="bg-gradient-to-br from-blue-900 to-purple-900 rounded-2xl p-8 text-white">
+            <div className="text-center mb-8">
+              <Shield className="w-12 h-12 mx-auto mb-4 text-blue-300" />
+              <h2 className="text-2xl font-bold mb-2">Cryptographic Transparency</h2>
+              <p className="text-blue-200">
+                GitSplits runs on EigenCompute — every calculation happens in a secure, 
+                hardware-isolated environment with optional attestations.
+              </p>
+            </div>
+            
+            <div className="grid md:grid-cols-3 gap-6">
+              <div className="bg-white/10 rounded-lg p-4">
+                <Lock className="w-6 h-6 mb-3 text-blue-300" />
+                <h3 className="font-semibold mb-2">Secure Execution</h3>
+                <p className="text-sm text-blue-200">
+                  Code runs in a TEE (Trusted Execution Environment) — encrypted even from us.
+                </p>
+              </div>
+              <div className="bg-white/10 rounded-lg p-4">
+                <Eye className="w-6 h-6 mb-3 text-blue-300" />
+                <h3 className="font-semibold mb-2">Verifiable Results</h3>
+                <p className="text-sm text-blue-200">
+                  Optional attestations prove the agent calculated splits fairly.
+                </p>
+              </div>
+              <div className="bg-white/10 rounded-lg p-4">
+                <Sparkles className="w-6 h-6 mb-3 text-blue-300" />
+                <h3 className="font-semibold mb-2">Private Analysis</h3>
+                <p className="text-sm text-blue-200">
+                  Analyze private repos without exposing sensitive contributor data.
+                </p>
+              </div>
+            </div>
+            
+            <div className="mt-8 text-center">
+              <a 
+                href="https://eigencloud.xyz" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-blue-300 hover:text-white transition-colors"
+              >
+                Learn more about EigenCompute
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </div>
+          </div>
+        </motion.div>
+
         {/* Footer */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.6 }}
+          transition={{ duration: 0.6, delay: 0.7 }}
           className="mt-20 text-center text-sm text-gray-500"
         >
           <p>

@@ -24,6 +24,8 @@ The agent analyzes the repository, calculates fair splits based on contribution 
 - Live production preflight checks are passing for GitHub App, NEAR, Ping/HOT Pay, and EigenAI.
 - Live canary intent tests are passing for `analyze`, `create`, and `pay`.
 - Payment routing uses Ping Pay first and falls back to HOT partner API if Ping endpoints are unavailable.
+- Latest validation run: `AGENT_MODE=production` preflight `11/11` and intents `3/3` passed.
+- Web app is now decoupled from agent build: `/api/agent` proxies to `AGENT_BASE_URL` over HTTP.
 
 ## 📋 How to Use
 
@@ -98,6 +100,16 @@ cp .env.example .env
 npm run build
 npm start
 ```
+
+Web app expects a separately running agent service:
+
+```bash
+# in root .env.local for Next.js
+AGENT_BASE_URL=http://localhost:3001
+AGENT_API_KEY=
+```
+
+If you set `AGENT_API_KEY` in web, set matching `AGENT_SERVER_API_KEY` in `agent/.env`.
 
 ### Environment Variables
 

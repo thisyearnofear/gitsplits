@@ -61,7 +61,7 @@ We successfully built a fully-functional autonomous agent for compensating open 
 
 ### ✅ Web UI & API
 
-- **Web UI API** (`src/app/api/agent/route.ts`): Functional endpoint for the agent, integrated with the root Next.js app.
+- **Web UI API** (`src/app/api/agent/route.ts`): Functional proxy endpoint from Next.js to standalone agent HTTP backend (`AGENT_BASE_URL`).
 - **Agent UI** (`src/app/agent/page.tsx`): Dedicated interface for interacting with the GitSplits agent via natural language.
 - **Fixed Build Issues**: Resolved hydration and build-time errors related to Firebase initialization and missing environment variables.
 - **Masa Integration Fix**: Restored missing `masa.js` utility and updated `pages/api/search.js` to correctly use the `MasaAPI` class.
@@ -126,7 +126,7 @@ We successfully built a fully-functional autonomous agent for compensating open 
 
 ### Web UI & API
 
-- ✅ **API Endpoint**: `http://localhost:3000/api/agent` (POST) works for processing agent commands.
+- ✅ **API Endpoint**: `http://localhost:3000/api/agent` (POST) proxies to agent `/process` and works for processing commands.
 - ✅ **Agent Interface**: `/agent` route provides a clean, functional chat interface.
 - ✅ **Landing Page**: Main landing page with wallet connectivity and repository analysis.
 

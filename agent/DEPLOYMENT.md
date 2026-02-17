@@ -2,9 +2,13 @@
 
 ## Current Status (February 17, 2026)
 
-- EigenCompute deployment is live on Sepolia infra.
+- EigenCompute deployment is live on Sepolia infra (release commit: `b6bd50b03f3e9917b30a000de00576ff1c84acd8`).
 - Public HTTPS URL: `https://agent.gitsplits.thisyearnofear.com`
 - `GET /ready` and `GET /health` are both passing.
+- Live intent checks:
+  - `analyze` passes (GitHub + EigenAI signature path working).
+  - `pay` and `pending` pass with current split data and verification gating.
+  - `create` is currently blocked by on-chain schema mismatch in deployed NEAR contract (`update_split` deserialization for contributor `percentage`).
 
 ## Quick Start
 
@@ -62,6 +66,23 @@ cd agent/deploy
 ```
 
 See [EIGENCOMPUTE.md](./deploy/EIGENCOMPUTE.md) for details.
+
+### Verifiable Upgrade (non-interactive)
+
+```bash
+ecloud compute app upgrade <APP_ID> \
+  --environment sepolia \
+  --verifiable \
+  --repo https://github.com/thisyearnofear/gitsplits \
+  --commit <FULL_40_CHAR_SHA> \
+  --build-context agent \
+  --build-dockerfile Dockerfile.eigen \
+  --build-caddyfile agent/Caddyfile \
+  --env-file /opt/gitsplits/repo/agent/.env \
+  --instance-type g1-standard-4t \
+  --log-visibility private \
+  --resource-usage-monitoring enable
+```
 
 For web clients, set:
 

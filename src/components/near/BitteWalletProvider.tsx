@@ -11,7 +11,7 @@ interface BitteWalletProviderProps {
 const BitteWalletProvider: React.FC<BitteWalletProviderProps> = ({ children }) => {
   return (
     <BitteWalletContextProvider
-      network="testnet" // Use "mainnet" for production
+      network="mainnet" // Production network
     >
       {children}
     </BitteWalletContextProvider>

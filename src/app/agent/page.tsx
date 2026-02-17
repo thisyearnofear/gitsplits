@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import Badge from '@/components/ui/badge';
 import Header from '@/components/shared/Header';
 import { Search, Plus, DollarSign, Shield, Send, Loader2, Bot, Sparkles } from 'lucide-react';
+import { trackUxEvent } from '@/lib/services/ux-events';
 
 interface Message {
   role: 'user' | 'agent';
@@ -50,6 +51,7 @@ export default function AgentPage() {
   ]);
   const [loading, setLoading] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [lastCommand, setLastCommand] = useState('');
 
   // Auto-scroll to bottom
   const scrollToBottom = () => {
@@ -125,6 +127,7 @@ export default function AgentPage() {
 
     setHasInteracted(true);
     const userMessage = textToSend.trim();
+    setLastCommand(userMessage);
     
     if (!messageText) {
       setInput('');
@@ -137,6 +140,7 @@ export default function AgentPage() {
     }]);
     
     setLoading(true);
+    trackUxEvent('agent_command_start', { command: userMessage.slice(0, 120) });
 
     // Add typing indicator
     setMessages((prev) => [...prev, { 
@@ -158,13 +162,15 @@ export default function AgentPage() {
       // Remove typing indicator and add response
       setMessages((prev) => {
         const withoutTyping = prev.filter(m => !m.isTyping);
-        if (data.success) {
+      if (data.success) {
+          trackUxEvent('agent_command_success');
           return [...withoutTyping, { 
             role: 'agent', 
             text: data.response, 
             timestamp: new Date() 
           }];
         } else {
+          trackUxEvent('agent_command_failed', { reason: 'upstream_error' });
           return [...withoutTyping, { 
             role: 'agent', 
             text: `❌ ${data.error}`, 
@@ -173,11 +179,16 @@ export default function AgentPage() {
         }
       });
     } catch (error: any) {
+      trackUxEvent('agent_command_failed', { reason: 'network_error' });
       setMessages((prev) => {
         const withoutTyping = prev.filter(m => !m.isTyping);
+        const human =
+          error?.message?.toLowerCase()?.includes('timed out')
+            ? 'The agent took too long to respond. Please retry.'
+            : error.message;
         return [...withoutTyping, { 
           role: 'agent', 
-          text: `❌ Error: ${error.message}`, 
+          text: `❌ Error: ${human}`, 
           timestamp: new Date() 
         }];
       });
@@ -277,6 +288,18 @@ export default function AgentPage() {
                 <p className="text-xs text-gray-500 mt-2 text-center">
                   Press Enter to send • Commands: analyze, create, pay, verify
                 </p>
+                {lastCommand && !loading && (
+                  <div className="mt-2 text-center">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => sendMessage(lastCommand)}
+                    >
+                      Retry Last Command
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

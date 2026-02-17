@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAppKitAccount } from "@reown/appkit/react";
 import { useNearWallet } from "@/hooks/useNearWallet";
@@ -11,7 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertCircle, CheckCircle2, GitBranch } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AlertCircle, CheckCircle2, GitBranch, Loader2 } from "lucide-react";
+import { trackUxEvent } from "@/lib/services/ux-events";
 
 type ParsedContributor = {
   githubUsername: string;
@@ -37,6 +39,8 @@ type CoverageStats = {
   verified: number;
   total: number;
 };
+
+const RECENT_REPOS_KEY = "gitsplits_recent_repos";
 
 function normalizeRepoUrl(input: string): string {
   const cleaned = input
@@ -66,6 +70,18 @@ function parseRepoPath(normalizedRepoUrl: string): string | null {
   return match ? match[1] : null;
 }
 
+function parsePendingUsernames(response: string): Set<string> {
+  const usernames = response
+    .split("\n")
+    .map((line) => line.trim())
+    .map((line) => {
+      const match = line.match(/^-\s+([a-zA-Z0-9_.-]+):/);
+      return match ? match[1] : null;
+    })
+    .filter((item): item is string => !!item);
+  return new Set(usernames);
+}
+
 export default function SplitsPage() {
   const { isConnected: isNearConnected, accountId: nearAccountId } = useNearWallet();
   const { isConnected: isEvmConnected, address: evmAddress } = useAppKitAccount();
@@ -78,6 +94,7 @@ export default function SplitsPage() {
   const [verificationHint, setVerificationHint] = useState("");
   const [coverageStats, setCoverageStats] = useState<CoverageStats | null>(null);
   const [pendingClaimsOutput, setPendingClaimsOutput] = useState("");
+  const [recentRepos, setRecentRepos] = useState<string[]>([]);
   const [selectedContributor, setSelectedContributor] = useState("");
   const [copiedState, setCopiedState] = useState("");
 
@@ -101,6 +118,20 @@ export default function SplitsPage() {
     () => (normalizedRepo ? parseRepoPath(normalizedRepo) : null),
     [normalizedRepo]
   );
+
+  const pendingUnverified = useMemo(
+    () => parsePendingUsernames(pendingClaimsOutput),
+    [pendingClaimsOutput]
+  );
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(RECENT_REPOS_KEY);
+      if (raw) setRecentRepos(JSON.parse(raw));
+    } catch {
+      setRecentRepos([]);
+    }
+  }, []);
 
   const outreach = useMemo<OutreachBundle | null>(() => {
     if (!selectedContributor || !repoPath) return null;
@@ -143,10 +174,27 @@ export default function SplitsPage() {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedState(`${label} copied`);
+      trackUxEvent("splits_copy_outreach", { label });
       setTimeout(() => setCopiedState(""), 1800);
     } catch {
       setCopiedState("Copy failed");
     }
+  };
+
+  const rememberRepo = (repo: string) => {
+    const normalized = repo
+      .replace(/^github\.com\//i, "")
+      .replace(/\/+$/, "");
+    if (!normalized) return;
+    setRecentRepos((prev) => {
+      const next = [normalized, ...prev.filter((item) => item !== normalized)].slice(0, 5);
+      try {
+        localStorage.setItem(RECENT_REPOS_KEY, JSON.stringify(next));
+      } catch {
+        // Ignore storage failures.
+      }
+      return next;
+    });
   };
 
   async function callAgent(text: string) {
@@ -163,7 +211,11 @@ export default function SplitsPage() {
     });
     const data: AgentApiResponse = await response.json();
     if (!response.ok || !data.success || !data.response) {
-      throw new Error(data.error || "Agent request failed.");
+      const msg = data.error || "Agent request failed.";
+      if (msg.toLowerCase().includes("timed out")) {
+        throw new Error("Agent timed out. Please retry in a few seconds.");
+      }
+      throw new Error(msg);
     }
     return data.response;
   }
@@ -176,12 +228,15 @@ export default function SplitsPage() {
     }
 
     const normalizedRepo = normalizeRepoUrl(repoInput);
+    rememberRepo(normalizedRepo);
     setStatus("loading");
     setMessage("");
     setAnalyzeResponse("");
     setCreateResponse("");
+    setPendingClaimsOutput("");
     setContributors([]);
     setVerificationHint("");
+    trackUxEvent("splits_analyze_start", { repo: normalizedRepo });
 
     try {
       const response = await callAgent(`analyze ${normalizedRepo}`);
@@ -207,10 +262,15 @@ export default function SplitsPage() {
           ? "Repository analyzed successfully. You can create a split now."
           : "Analysis completed. Contributor table could not be fully parsed, but you can still create a split."
       );
+      trackUxEvent("splits_analyze_success", {
+        repo: normalizedRepo,
+        contributors: parsed.length,
+      });
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Failed to analyze repository.");
       setCoverageStats(null);
+      trackUxEvent("splits_analyze_failed", { repo: normalizedRepo });
     }
   };
 
@@ -222,18 +282,22 @@ export default function SplitsPage() {
     }
 
     const normalizedRepo = normalizeRepoUrl(repoInput);
+    rememberRepo(normalizedRepo);
     setStatus("loading");
     setMessage("Creating split via agent...");
     setCreateResponse("");
+    trackUxEvent("splits_create_start", { repo: normalizedRepo });
 
     try {
       const response = await callAgent(`create ${normalizedRepo}`);
       setCreateResponse(response);
       setStatus("success");
       setMessage("Split creation flow completed.");
+      trackUxEvent("splits_create_success", { repo: normalizedRepo });
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Failed to create split.");
+      trackUxEvent("splits_create_failed", { repo: normalizedRepo });
     }
   };
 
@@ -245,18 +309,22 @@ export default function SplitsPage() {
     }
 
     const normalizedRepo = normalizeRepoUrl(repoInput);
+    rememberRepo(normalizedRepo);
     setStatus("loading");
     setMessage("Repairing split via agent...");
     setCreateResponse("");
+    trackUxEvent("splits_repair_start", { repo: normalizedRepo });
 
     try {
       const response = await callAgent(`create ${normalizedRepo}`);
       setCreateResponse(response);
       setStatus("success");
       setMessage("Split repair flow completed.");
+      trackUxEvent("splits_repair_success", { repo: normalizedRepo });
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Failed to repair split.");
+      trackUxEvent("splits_repair_failed", { repo: normalizedRepo });
     }
   };
 
@@ -268,18 +336,22 @@ export default function SplitsPage() {
     }
 
     const normalized = normalizeRepoUrl(repoInput);
+    rememberRepo(normalized);
     setStatus("loading");
     setMessage("Checking pending claims...");
     setPendingClaimsOutput("");
+    trackUxEvent("splits_pending_start", { repo: normalized });
 
     try {
       const response = await callAgent(`pending ${normalized}`);
       setPendingClaimsOutput(response);
       setStatus("success");
       setMessage("Pending claims loaded.");
+      trackUxEvent("splits_pending_success", { repo: normalized });
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Failed to fetch pending claims.");
+      trackUxEvent("splits_pending_failed", { repo: normalized });
     }
   };
 
@@ -321,9 +393,16 @@ export default function SplitsPage() {
               />
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button onClick={analyzeRepo} disabled={status === "loading"}>
-                {status === "loading" ? "Processing..." : "Analyze Contributions"}
+                {status === "loading" ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing
+                  </>
+                ) : (
+                  "Analyze Contributions"
+                )}
               </Button>
               <Button variant="outline" onClick={createSplit} disabled={status === "loading"}>
                 Create Split
@@ -342,6 +421,21 @@ export default function SplitsPage() {
                 </Link>
               )}
             </div>
+            {recentRepos.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {recentRepos.map((repo) => (
+                  <Button
+                    key={repo}
+                    type="button"
+                    variant="outline"
+                    className="h-8 text-xs"
+                    onClick={() => setRepoInput(repo)}
+                  >
+                    {repo}
+                  </Button>
+                ))}
+              </div>
+            )}
 
             {verificationHint && (
               <p className="text-sm text-blue-700">{verificationHint}. Invite contributors at /verify.</p>
@@ -371,6 +465,45 @@ export default function SplitsPage() {
                 </AlertDescription>
               </Alert>
             )}
+            {repoPath && (
+              <div className="rounded-md border bg-white p-3">
+                <p className="text-sm font-medium">Next Best Action</p>
+                {coverageStats && coverageStats.verified === 0 ? (
+                  <p className="text-sm text-gray-600">
+                    Start verification outreach before paying.
+                    {" "}
+                    <Link
+                      href={`/verify?repo=${encodeURIComponent(repoPath)}${selectedContributor ? `&user=${encodeURIComponent(selectedContributor)}` : ""}`}
+                      className="underline text-blue-700"
+                    >
+                      Open verification
+                    </Link>
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-600">
+                    Contributors are payout-eligible.
+                    {" "}
+                    <Link
+                      href={`/agent?command=${encodeURIComponent(`pay 1 USDC to github.com/${repoPath}`)}`}
+                      className="underline text-blue-700"
+                    >
+                      Open pay command
+                    </Link>
+                  </p>
+                )}
+              </div>
+            )}
+            {coverageStats && (
+              <div className="rounded-md border bg-white p-3 text-sm">
+                <p className="font-medium">Payout Preview (1 USDC)</p>
+                <p className="text-gray-600">
+                  Immediate payout: {(coverageStats.verified / Math.max(coverageStats.total, 1)).toFixed(2)} USDC
+                </p>
+                <p className="text-gray-600">
+                  Pending claims: {((coverageStats.total - coverageStats.verified) / Math.max(coverageStats.total, 1)).toFixed(2)} USDC
+                </p>
+              </div>
+            )}
 
             {!isNearConnected && !isEvmConnected && (
               <p className="text-sm text-amber-700">
@@ -384,24 +517,68 @@ export default function SplitsPage() {
                 Contributor Allocation
               </div>
               {contributors.length === 0 ? (
-                <p className="p-4 text-sm text-gray-600">No contributors parsed yet.</p>
+                status === "loading" ? (
+                  <div className="space-y-2 p-4">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                ) : (
+                  <p className="p-4 text-sm text-gray-600">No contributors parsed yet.</p>
+                )
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>GitHub User</TableHead>
-                      <TableHead>Share (%)</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {contributors.map((contributor) => (
-                      <TableRow key={contributor.githubUsername}>
-                        <TableCell>{contributor.githubUsername}</TableCell>
-                        <TableCell>{contributor.percentage.toFixed(2)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <>
+                  <div className="hidden md:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>GitHub User</TableHead>
+                          <TableHead>Share (%)</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {contributors.map((contributor) => {
+                          const statusLabel = pendingUnverified.has(contributor.githubUsername)
+                            ? "Unverified"
+                            : "Unknown";
+                          const verifyHref = `/verify?repo=${encodeURIComponent(repoPath || "")}&user=${encodeURIComponent(contributor.githubUsername)}`;
+                          return (
+                            <TableRow key={contributor.githubUsername}>
+                              <TableCell>{contributor.githubUsername}</TableCell>
+                              <TableCell>{contributor.percentage.toFixed(2)}</TableCell>
+                              <TableCell>{statusLabel}</TableCell>
+                              <TableCell>
+                                <Link href={verifyHref} className="underline text-blue-700">
+                                  Verify
+                                </Link>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="space-y-2 p-3 md:hidden">
+                    {contributors.map((contributor) => {
+                      const statusLabel = pendingUnverified.has(contributor.githubUsername)
+                        ? "Unverified"
+                        : "Unknown";
+                      const verifyHref = `/verify?repo=${encodeURIComponent(repoPath || "")}&user=${encodeURIComponent(contributor.githubUsername)}`;
+                      return (
+                        <div key={contributor.githubUsername} className="rounded border bg-gray-50 p-3">
+                          <p className="font-medium">{contributor.githubUsername}</p>
+                          <p className="text-sm text-gray-600">{contributor.percentage.toFixed(2)}% share</p>
+                          <p className="text-sm text-gray-600">Status: {statusLabel}</p>
+                          <Link href={verifyHref} className="text-sm text-blue-700 underline">
+                            Verify contributor
+                          </Link>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
               )}
             </div>
 

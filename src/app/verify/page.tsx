@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
-import { Github, Wallet, CheckCircle2, AlertCircle, ExternalLink } from "lucide-react";
+import { Github, Wallet, CheckCircle2, AlertCircle, ExternalLink, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useNearWallet } from "@/hooks/useNearWallet";
 import WalletStatusBar from "@/components/shared/WalletStatusBar";
+import { trackUxEvent } from "@/lib/services/ux-events";
 
 function toHex(value: unknown): string {
   if (!value) return "";
@@ -30,6 +31,14 @@ function toHex(value: unknown): string {
   return "";
 }
 
+function extractGistId(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const urlMatch = trimmed.match(/gist\.github\.com\/[^/]+\/([a-f0-9]+)/i);
+  if (urlMatch?.[1]) return urlMatch[1];
+  return trimmed.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+}
+
 export default function VerifyPage() {
   const searchParams = useSearchParams();
   const { open } = useAppKit();
@@ -42,6 +51,8 @@ export default function VerifyPage() {
   const [verificationCode, setVerificationCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
+  const [autoVerifying, setAutoVerifying] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [message, setMessage] = useState("");
   const [mode, setMode] = useState<"idle" | "success" | "error">("idle");
 
@@ -54,11 +65,24 @@ export default function VerifyPage() {
     }
   }, [prefillUser, githubUsername]);
 
+  useEffect(() => {
+    const dismissed = localStorage.getItem("gitsplits_verify_onboarding_dismissed");
+    setShowOnboarding(!dismissed);
+  }, []);
+
   const walletAddress = useMemo(() => {
     const candidates = [nearAccountId, evmAddress];
     const value = candidates.find((candidate) => candidate && candidate !== "Unknown NEAR Account");
     return value || "";
   }, [nearAccountId, evmAddress]);
+
+  const verificationStage = useMemo(() => {
+    if (isVerified) return "Ready for payouts";
+    if (!walletAddress || !githubUsername.trim()) return "Not verified";
+    if (verificationCode && githubGistId.trim()) return "Ready to submit verification";
+    if (verificationCode) return "Partially verified - gist required";
+    return "Not verified";
+  }, [githubGistId, githubUsername, isVerified, verificationCode, walletAddress]);
 
   const generateCode = async () => {
     if (!walletAddress) {
@@ -74,6 +98,7 @@ export default function VerifyPage() {
 
     setIsLoading(true);
     setMode("idle");
+    trackUxEvent("verify_generate_code_start");
     try {
       const response = await fetch("/api/generate-verification", {
         method: "POST",
@@ -90,9 +115,11 @@ export default function VerifyPage() {
       setVerificationCode(data.githubVerificationCode);
       setMode("success");
       setMessage("Verification code generated. Create a public gist with this exact code.");
+      trackUxEvent("verify_generate_code_success");
     } catch (error) {
       setMode("error");
       setMessage(error instanceof Error ? error.message : "Failed to generate code.");
+      trackUxEvent("verify_generate_code_failed");
     } finally {
       setIsLoading(false);
     }
@@ -107,6 +134,7 @@ export default function VerifyPage() {
 
     setIsLoading(true);
     setMode("idle");
+    trackUxEvent("verify_submit_start");
 
     try {
       let nearPayload: {
@@ -158,13 +186,25 @@ export default function VerifyPage() {
           ? "GitHub and NEAR verified, but contract sync is pending. Retry in a moment."
           : "GitHub verified. Connect NEAR and retry to fully link GitHub + NEAR."
       );
+      trackUxEvent("verify_submit_success", { contractSynced: data.contractSynced });
     } catch (error) {
       setMode("error");
       setMessage(error instanceof Error ? error.message : "Verification failed.");
+      trackUxEvent("verify_submit_failed");
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!autoVerifying || isVerified || isLoading) return;
+    const id = setInterval(() => {
+      if (!isLoading && githubGistId.trim() && githubUsername.trim() && walletAddress) {
+        void verifyContributor();
+      }
+    }, 8000);
+    return () => clearInterval(id);
+  }, [autoVerifying, githubGistId, githubUsername, isLoading, isVerified, walletAddress]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gentle-blue via-gentle-purple to-gentle-orange py-10">
@@ -177,6 +217,7 @@ export default function VerifyPage() {
             <CardDescription>
               Link your GitHub identity and NEAR account to receive contributor payouts.
             </CardDescription>
+            <p className="text-xs font-medium text-blue-700">Status: {verificationStage}</p>
             {prefillRepo && (
               <p className="text-xs text-gray-600 mt-2">
                 Verification request for repository: <span className="font-mono">{prefillRepo}</span>
@@ -185,6 +226,27 @@ export default function VerifyPage() {
           </CardHeader>
 
           <CardContent className="space-y-6">
+            {showOnboarding && (
+              <Alert>
+                <AlertTitle>Quick start</AlertTitle>
+                <AlertDescription>
+                  1. Connect wallet. 2. Generate code and publish gist. 3. Submit verification.
+                </AlertDescription>
+                <div className="mt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      localStorage.setItem("gitsplits_verify_onboarding_dismissed", "1");
+                      setShowOnboarding(false);
+                    }}
+                  >
+                    Dismiss
+                  </Button>
+                </div>
+              </Alert>
+            )}
             {mode === "success" && (
               <Alert className="bg-green-50 border-green-200">
                 <CheckCircle2 className="h-4 w-4 text-green-700" />
@@ -260,17 +322,34 @@ export default function VerifyPage() {
               <Input
                 id="githubGistId"
                 value={githubGistId}
-                onChange={(e) => setGithubGistId(e.target.value)}
-                placeholder="e.g. a1b2c3d4e5f6"
+                onChange={(e) => setGithubGistId(extractGistId(e.target.value))}
+                placeholder="Gist ID or full gist URL"
               />
             </div>
 
-            <Button
-              onClick={verifyContributor}
-              disabled={isLoading || !walletAddress || !githubUsername.trim() || !githubGistId.trim()}
-            >
-              {isLoading ? "Verifying..." : "Verify Contributor (GitHub + NEAR)"}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={verifyContributor}
+                disabled={isLoading || !walletAddress || !githubUsername.trim() || !githubGistId.trim()}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Verifying
+                  </>
+                ) : (
+                  "Verify Contributor (GitHub + NEAR)"
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!walletAddress || !githubUsername.trim() || !githubGistId.trim() || isVerified}
+                onClick={() => setAutoVerifying((prev) => !prev)}
+              >
+                {autoVerifying ? "Stop Auto-Verify" : "Auto-Verify Every 8s"}
+              </Button>
+            </div>
 
             {isVerified && (
               <p className="text-sm text-green-700">

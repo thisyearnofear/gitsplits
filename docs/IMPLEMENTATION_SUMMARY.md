@@ -4,6 +4,26 @@
 
 We successfully built a fully-functional autonomous agent for compensating open source contributors via natural language commands on Farcaster. Here's what was implemented:
 
+### ✅ Latest Web UI Refinement (February 18, 2026)
+
+- Added live contributor verification status API: `src/app/api/contributor-status/route.ts` (reads `is_github_verified` + wallet mapping from the NEAR contract).
+- Upgraded `/splits` UX:
+  - structured payout controls + receipt parsing,
+  - explicit verified/unverified badges from contract data,
+  - pending claims refresh after payout,
+  - outreach + support panel patterns for unverified contributors.
+- Upgraded `/dashboard` UX:
+  - session activity timeline,
+  - clearer "next best action" and support copy,
+  - explicit readiness recovery actions.
+- Added desktop/mobile E2E harness using Playwright:
+  - `playwright.config.ts`
+  - `tests/e2e/full-flow.spec.ts`
+- Validation status:
+  - `npm run lint` ✅
+  - `npm run build` ✅
+  - `npm run test:e2e` is present but still flaky in this runtime due slow Next dev navigation and Web3 SDK background calls; requires final pass in CI or a stable local runner.
+
 ### ✅ Core Agent Framework
 
 **Intent-Based System** (`agent/src/core/agent.ts`)

@@ -13,6 +13,7 @@ import { payIntent } from './intents/pay';
 import { createIntent } from './intents/create';
 import { analyzeIntent } from './intents/analyze';
 import { verifyIntent } from './intents/verify';
+import { pendingIntent } from './intents/pending';
 import { UserContext } from './context/user';
 import { githubTool } from './tools/github';
 import { nearTool } from './tools/near';
@@ -43,6 +44,7 @@ agent.registerIntent(payIntent);
 agent.registerIntent(createIntent);
 agent.registerIntent(analyzeIntent);
 agent.registerIntent(verifyIntent);
+agent.registerIntent(pendingIntent);
 
 // Register tools
 agent.registerTool(githubTool);
@@ -75,7 +77,7 @@ export async function processMessage(
   const parsed = await agent.parseIntent(message.text, context);
   
   if (!parsed) {
-    return "I didn't understand that. Try: 'analyze near/near-sdk-rs' or 'pay 100 USDC to near/near-sdk-rs'";
+    return "I didn't understand that. Try: 'analyze near/near-sdk-rs', 'pay 100 USDC to near/near-sdk-rs', or 'pending near/near-sdk-rs'";
   }
   
   console.log(`[Agent] Parsed intent: ${parsed.intent.name}`, parsed.params);

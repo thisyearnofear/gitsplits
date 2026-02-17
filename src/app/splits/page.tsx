@@ -24,6 +24,15 @@ type AgentApiResponse = {
   error?: string;
 };
 
+type OutreachBundle = {
+  verifyUrl: string;
+  dmText: string;
+  tweetText: string;
+  castText: string;
+  githubIssueUrl: string | null;
+  prCommentTemplate: string;
+};
+
 function normalizeRepoUrl(input: string): string {
   const cleaned = input
     .trim()
@@ -47,6 +56,11 @@ function parseContributorsFromAnalyzeResponse(response: string): ParsedContribut
     .filter((item): item is ParsedContributor => !!item);
 }
 
+function parseRepoPath(normalizedRepoUrl: string): string | null {
+  const match = normalizedRepoUrl.match(/^github\.com\/([^/]+\/[^/]+)$/i);
+  return match ? match[1] : null;
+}
+
 export default function SplitsPage() {
   const { isConnected: isNearConnected, accountId: nearAccountId } = useNearWallet();
   const { isConnected: isEvmConnected, address: evmAddress } = useAppKitAccount();
@@ -57,6 +71,8 @@ export default function SplitsPage() {
   const [analyzeResponse, setAnalyzeResponse] = useState("");
   const [createResponse, setCreateResponse] = useState("");
   const [verificationHint, setVerificationHint] = useState("");
+  const [selectedContributor, setSelectedContributor] = useState("");
+  const [copiedState, setCopiedState] = useState("");
 
   const walletIdentity = useMemo(() => {
     if (nearAccountId && nearAccountId !== "Unknown NEAR Account") return nearAccountId;
@@ -68,6 +84,63 @@ export default function SplitsPage() {
     if (nearAccountId && nearAccountId !== "Unknown NEAR Account") return nearAccountId;
     return evmAddress || "";
   }, [nearAccountId, evmAddress]);
+
+  const normalizedRepo = useMemo(
+    () => (repoInput.trim() ? normalizeRepoUrl(repoInput) : ""),
+    [repoInput]
+  );
+
+  const repoPath = useMemo(
+    () => (normalizedRepo ? parseRepoPath(normalizedRepo) : null),
+    [normalizedRepo]
+  );
+
+  const outreach = useMemo<OutreachBundle | null>(() => {
+    if (!selectedContributor || !repoPath) return null;
+    const verifyUrl = `/verify?repo=${encodeURIComponent(repoPath)}&user=${encodeURIComponent(selectedContributor)}`;
+    const absoluteVerifyUrl =
+      typeof window !== "undefined" ? `${window.location.origin}${verifyUrl}` : verifyUrl;
+
+    const dmText =
+      `Hi @${selectedContributor}, we are distributing contributor rewards for ${repoPath}. ` +
+      `Please verify your GitHub + NEAR wallet so you can claim payouts: ${absoluteVerifyUrl}`;
+    const tweetText =
+      `@${selectedContributor} please verify your GitHub + NEAR wallet for ${repoPath} payouts: ${absoluteVerifyUrl}`;
+    const castText =
+      `@${selectedContributor} verifying wallet for ${repoPath} lets you claim GitSplits payouts: ${absoluteVerifyUrl}`;
+
+    const issueBody =
+      `We are preparing contributor payouts for \`${repoPath}\`.\n\n` +
+      `If you contributed and have not linked your payout wallet yet, please verify here:\n` +
+      `${absoluteVerifyUrl}\n\n` +
+      `Selected contributor reminder: @${selectedContributor}`;
+    const githubIssueUrl = `https://github.com/${repoPath}/issues/new?title=${encodeURIComponent(
+      `Contributor payout verification for ${repoPath}`
+    )}&body=${encodeURIComponent(issueBody)}`;
+
+    const prCommentTemplate =
+      `@${selectedContributor} quick heads-up: we are distributing contributor payouts for ${repoPath}. ` +
+      `Please verify your GitHub + NEAR wallet at ${absoluteVerifyUrl} so your share can be claimed.`;
+
+    return {
+      verifyUrl: absoluteVerifyUrl,
+      dmText,
+      tweetText,
+      castText,
+      githubIssueUrl,
+      prCommentTemplate,
+    };
+  }, [repoPath, selectedContributor]);
+
+  const copyText = async (label: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedState(`${label} copied`);
+      setTimeout(() => setCopiedState(""), 1800);
+    } catch {
+      setCopiedState("Copy failed");
+    }
+  };
 
   async function callAgent(text: string) {
     const response = await fetch("/api/agent", {
@@ -111,6 +184,7 @@ export default function SplitsPage() {
         .find((line) => line.toLowerCase().includes("verification coverage"));
       setAnalyzeResponse(response);
       setContributors(parsed);
+      setSelectedContributor(parsed[0]?.githubUsername || "");
       if (coverageLine) {
         setVerificationHint(coverageLine.trim());
       }
@@ -239,6 +313,82 @@ export default function SplitsPage() {
                 </Table>
               )}
             </div>
+
+            {contributors.length > 0 && (
+              <div className="rounded-md border bg-white p-4 space-y-3">
+                <p className="text-sm font-medium">Proactive Outreach Toolkit</p>
+                <p className="text-xs text-gray-600">
+                  Generate one-click outreach artifacts for verification and payouts.
+                </p>
+
+                <div className="space-y-2">
+                  <Label htmlFor="outreachUser">Contributor</Label>
+                  <select
+                    id="outreachUser"
+                    className="w-full rounded-md border bg-white px-3 py-2 text-sm"
+                    value={selectedContributor}
+                    onChange={(e) => setSelectedContributor(e.target.value)}
+                  >
+                    {contributors.map((c) => (
+                      <option key={c.githubUsername} value={c.githubUsername}>
+                        {c.githubUsername}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {outreach && (
+                  <div className="space-y-3">
+                    <div className="rounded border bg-gray-50 p-3 text-xs break-all">
+                      Verification URL: {outreach.verifyUrl}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Link href={outreach.verifyUrl}>
+                        <Button type="button" size="sm">Open Verify Link</Button>
+                      </Link>
+                      {outreach.githubIssueUrl && (
+                        <a href={outreach.githubIssueUrl} target="_blank" rel="noreferrer">
+                          <Button type="button" variant="outline" size="sm">GitHub Issue Draft</Button>
+                        </a>
+                      )}
+                      <a
+                        href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(outreach.tweetText)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <Button type="button" variant="outline" size="sm">Tweet Draft</Button>
+                      </a>
+                      <a
+                        href={`https://warpcast.com/~/compose?text=${encodeURIComponent(outreach.castText)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <Button type="button" variant="outline" size="sm">Farcaster Draft</Button>
+                      </a>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => copyText("DM text", outreach.dmText)}
+                      >
+                        Copy DM Text
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => copyText("PR comment", outreach.prCommentTemplate)}
+                      >
+                        Copy PR Comment Template
+                      </Button>
+                    </div>
+                    {copiedState && <p className="text-xs text-green-700">{copiedState}</p>}
+                  </div>
+                )}
+              </div>
+            )}
 
             {analyzeResponse && (
               <div className="rounded-md border bg-gray-50 p-3 text-sm whitespace-pre-wrap">

@@ -72,6 +72,15 @@ Farcaster/Web → Intent Agent → EigenCompute (TEE) → NEAR + Payments
 - [agent/README.md](./agent/README.md) — Agent setup
 - [agent/DEPLOYMENT.md](./agent/DEPLOYMENT.md) — Deployment guide
 
+## Current Status (February 17, 2026)
+
+- Agent is deployed on EigenCompute (Sepolia infra) and reachable at:
+  - `https://agent.gitsplits.thisyearnofear.com`
+- Readiness and health are passing:
+  - `https://agent.gitsplits.thisyearnofear.com/ready`
+  - `https://agent.gitsplits.thisyearnofear.com/health`
+- Farcaster is currently disabled in runtime until Neynar vars are set.
+
 ## Development
 
 ### Prerequisites
@@ -97,7 +106,9 @@ npm run dev
 
 Web app expects `AGENT_BASE_URL` in `.env.local`:
 ```
-AGENT_BASE_URL=http://localhost:3001
+AGENT_BASE_URL=http://localhost:3000
+# deployed endpoint:
+# AGENT_BASE_URL=https://agent.gitsplits.thisyearnofear.com
 ```
 
 ## Environment Variables

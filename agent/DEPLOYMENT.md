@@ -1,5 +1,11 @@
 # GitSplits Agent - Deployment
 
+## Current Status (February 17, 2026)
+
+- EigenCompute deployment is live on Sepolia infra.
+- Public HTTPS URL: `https://agent.gitsplits.thisyearnofear.com`
+- `GET /ready` and `GET /health` are both passing.
+
 ## Quick Start
 
 ```bash
@@ -56,6 +62,12 @@ cd agent/deploy
 ```
 
 See [EIGENCOMPUTE.md](./deploy/EIGENCOMPUTE.md) for details.
+
+For web clients, set:
+
+```bash
+AGENT_BASE_URL=https://agent.gitsplits.thisyearnofear.com
+```
 
 ## Health Checks
 

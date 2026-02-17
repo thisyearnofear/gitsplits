@@ -6,6 +6,13 @@
 - ecloud CLI: `npm install -g @layr-labs/ecloud-cli`
 - Active billing: `ecloud billing subscribe`
 
+## Current Deployment Status (February 17, 2026)
+
+- Environment: `sepolia`
+- App URL: `https://agent.gitsplits.thisyearnofear.com`
+- Readiness: `GET /ready` returns `200` with `ready: true`
+- Health: `GET /health` returns `200`
+
 ## Deploy
 
 ```bash
@@ -25,7 +32,9 @@ Set via `ecloud compute env set-var` or dashboard:
 |----------|-------------|
 | `EIGENAI_WALLET_PRIVATE_KEY` | Wallet private key |
 | `EIGENAI_WALLET_ADDRESS` | Wallet address |
-| `GITHUB_TOKEN` | GitHub API token |
+| `GITHUB_APP_ID` | GitHub App ID (recommended) |
+| `GITHUB_PRIVATE_KEY` | GitHub App private key PEM |
+| `GITHUB_TOKEN` | GitHub PAT (fallback, optional) |
 | `NEAR_ACCOUNT_ID` | NEAR account |
 | `NEAR_PRIVATE_KEY` | NEAR private key |
 | `NEAR_CONTRACT_ID` | NEAR contract |
@@ -34,6 +43,9 @@ Set via `ecloud compute env set-var` or dashboard:
 | `FARCASTER_BOT_FID` | Farcaster bot FID |
 
 > **Note:** `MNEMONIC` is auto-injected by EigenCompute KMS.
+>
+> **TLS note:** If `DOMAIN` is set, deployment also needs a Caddyfile in the build.
+> In this repo, pass `--build-caddyfile agent/Caddyfile` for verifiable builds.
 
 ## Monitoring
 

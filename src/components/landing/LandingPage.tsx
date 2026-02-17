@@ -376,7 +376,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
               </>
             ) : (
               <Button
-                onClick={showWalletSelectionModal}
+                onClick={() => setShowWalletModal(true)}
                 size="lg"
                 className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold px-8 py-6 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-lg"
               >

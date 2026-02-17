@@ -107,11 +107,11 @@ const Header: React.FC = () => {
           </h1>
         </div>
         <div className="flex items-center space-x-4">
+          <Button variant="ghost" onClick={() => router.push("/agent")}>
+            Agent
+          </Button>
           <Button variant="ghost" onClick={() => router.push("/dashboard")}>
             Dashboard
-          </Button>
-          <Button variant="ghost" onClick={() => router.push("/verify")}>
-            Verify
           </Button>
           <Button variant="ghost" onClick={() => router.push("/splits")}>
             Splits

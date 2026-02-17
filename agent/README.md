@@ -1,37 +1,23 @@
 # GitSplits Agent
 
-OpenClaw-powered autonomous agent for compensating open source contributors.
+Autonomous agent for compensating open source contributors via natural language commands.
 
 ## Overview
 
-This is the core agent that powers GitSplits. It runs on EigenCloud's TEE infrastructure and handles:
-
-- Natural language command parsing from Farcaster
-- GitHub repository analysis
-- NEAR smart contract interactions
-- Cross-chain payment execution (Ping Pay primary, HOT Pay fallback)
-
-## Production Status (Feb 17, 2026)
-
-- `AGENT_MODE=production` preflight tests passing against live GitHub App, NEAR, Ping/HOT Pay, and EigenAI.
-- Live `analyze`, `create`, and `pay` canary intent tests are passing.
-- Pay flow behavior:
-  - Tries Ping Pay first.
-  - Falls back to HOT partner API when Ping endpoint is unavailable.
-- Latest validation run: preflight `11/11`, intents `3/3` (live canary).
+The GitSplits agent processes commands from Farcaster and the web UI, analyzes GitHub repositories, and executes payments through NEAR.
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────┐
-│           OpenClaw Agent                │
+│           Intent Agent                  │
 │  ┌─────────────────────────────────┐    │
 │  │  Intent Parser                  │    │
 │  │  (Natural → Structured)         │    │
 │  └─────────────────────────────────┘    │
 │  ┌─────────────────────────────────┐    │
 │  │  Tool Orchestrator              │    │
-│  │  (GitHub, NEAR, Ping Pay)       │    │
+│  │  (GitHub, NEAR, Payments)       │    │
 │  └─────────────────────────────────┘    │
 │  ┌─────────────────────────────────┐    │
 │  │  Context Manager                │    │
@@ -41,7 +27,7 @@ This is the core agent that powers GitSplits. It runs on EigenCloud's TEE infras
                    │
                    ▼
 ┌─────────────────────────────────────────┐
-│         EigenCloud TEE                  │
+│         EigenCompute (TEE)              │
 │    (Verifiable execution)               │
 └─────────────────────────────────────────┘
 ```
@@ -52,125 +38,72 @@ This is the core agent that powers GitSplits. It runs on EigenCloud's TEE infras
 agent/
 ├── src/
 │   ├── index.ts           # Agent entry point
-│   ├── intents/           # Intent handlers
-│   │   ├── pay.ts
-│   │   ├── create.ts
-│   │   ├── analyze.ts
-│   │   └── verify.ts
-│   ├── tools/             # Tool implementations
-│   │   ├── github.ts
-│   │   ├── near.ts
-│   │   └── pingpay.ts
-│   └── context/           # Context management
-│       └── user.ts
-├── skills/                # OpenClaw skills (internal)
-│   └── gitsplits.ts
-└── tests/
-    └── intents.test.ts
+│   ├── intents/           # Intent handlers (pay, create, analyze, verify)
+│   ├── tools/             # GitHub, NEAR, Ping Pay, HOT Pay
+│   └── context/           # User context management
+├── deploy/                # EigenCompute deployment
+└── Dockerfile.eigen       # TEE container
 ```
 
 ## Intents
 
-The agent recognizes these intents from natural language:
-
-| Intent | Example Triggers |
-|--------|-----------------|
-| `pay` | "pay 100 USDC to repo", "send money to contributors" |
-| `create` | "create split for repo", "set up payments" |
-| `analyze` | "analyze repo", "who contributes to repo" |
-| `verify` | "verify my github", "link my identity" |
-| `help` | "help", "what can you do" |
-
-## Tools
-
-| Tool | Purpose |
-|------|---------|
-| `github.analyze` | Fetch contributor data from GitHub |
-| `near.createSplit` | Create split on NEAR contract |
-| `near.getSplit` | Query existing split |
-| `pingpay.distribute` | Execute cross-chain distribution |
-| `hotpay.distribute` | HOT partner API fallback distribution |
-| `eigenai.analyzeContributions` | Verifiable AI analysis + signature |
+| Intent | Example |
+|--------|---------|
+| `pay` | "pay 100 USDC to near-sdk-rs" |
+| `create` | "create split for facebook/react" |
+| `analyze` | "analyze near-sdk-rs" |
+| `verify` | "verify my-github-username" |
 
 ## Environment Variables
 
 ```bash
-# OpenClaw
-OPENCLAW_API_KEY=...
-
-# Farcaster
-FARCASTER_PRIVATE_KEY=...
-FARCASTER_SIGNER_KEY=...
-
-# EigenCloud
-EIGENCLOUD_API_KEY=...
-EIGENCLOUD_ENDPOINT=...
-
-# NEAR
-NEAR_ACCOUNT_ID=...
-NEAR_PRIVATE_KEY=...
-NEAR_CONTRACT_ID=...
-
-# Ping Pay
+# Required
+AGENT_MODE=production                    # or 'mock' for testing
+GITHUB_APP_ID=123456
+GITHUB_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----..."
+NEAR_ACCOUNT_ID=gitsplits.near
+NEAR_PRIVATE_KEY=ed25519:...
+NEAR_CONTRACT_ID=gitsplits.near
 PING_PAY_API_KEY=...
-
-# GitHub App (recommended for production)
-GITHUB_APP_ID=...
-GITHUB_PRIVATE_KEY="..."
-
-# Optional local/dev fallback
-GITHUB_TOKEN=...
-
-# Ping Pay
-PING_PAY_API_KEY=...
-# Optional endpoint overrides
-# PING_PAY_API_BASE=https://api.pingpay.io
-# PING_PAY_INTENTS_PATH=/v1/intents
-# PING_PAY_PROBE_PATH=/v1/intents/probe
-
-# HOT Pay fallback
 HOT_PAY_JWT=...
-HOT_PAY_NEAR_ACCOUNT=...
-
-# EigenAI grant auth
 EIGENAI_WALLET_PRIVATE_KEY=0x...
 EIGENAI_WALLET_ADDRESS=0x...
 
-# Canary production tests
-TEST_ANALYZE_REPO=owner/repo
-TEST_CREATE_REPO=owner/repo
-TEST_PAY_REPO=owner/repo
-TEST_PAY_TOKEN=USDC
-TEST_PAY_AMOUNT=1
-TEST_PAY_MAX_AMOUNT=1
-# TEST_CANARY_REPOS=github.com/owner/repo
+# Farcaster (optional)
+NEYNAR_API_KEY=...
+NEYNAR_SIGNER_UUID=...
+FARCASTER_BOT_FID=...
 ```
 
 ## Running Locally
 
 ```bash
 npm install
-npm run dev
-```
 
-## Deployment to EigenCloud
+# Mock mode (no API keys)
+AGENT_MODE=mock npm run dev
 
-```bash
-# Build container
-docker build -t gitsplits-agent -f Dockerfile.eigen .
-
-# Deploy to EigenCompute
-eigencloud deploy --image gitsplits-agent --tee
+# Production mode
+AGENT_MODE=production npm run dev
 ```
 
 ## Testing
 
 ```bash
+# Unit tests
 npm test
 
 # Production preflight (live probes)
 AGENT_MODE=production npm run test:production:preflight
 
-# Production live intents (canary-safe)
-AGENT_MODE=production npm run test:production:intents -- --runInBand
+# Production intents (canary-safe)
+AGENT_MODE=production npm run test:production:intents
 ```
+
+## Deployment
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) and [deploy/EIGENCOMPUTE.md](./deploy/EIGENCOMPUTE.md).
+
+## License
+
+MIT

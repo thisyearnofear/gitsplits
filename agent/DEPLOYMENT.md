@@ -1,344 +1,86 @@
-# GitSplits Agent - Deployment Guide
-
-This guide covers deploying the GitSplits agent to various environments.
-
-## Current Production Progress (Feb 17, 2026)
-
-- Production preflight suite is passing (`11/11`).
-- Live canary intents suite is passing (`analyze/create/pay`).
-- GitHub App auth is the primary production mode.
-- Pay routing currently uses Ping Pay first, then HOT partner API fallback when Ping endpoints are unavailable.
-- Ping endpoint can be overridden with `PING_PAY_API_BASE` and `PING_PAY_PROBE_PATH`.
+# GitSplits Agent - Deployment
 
 ## Quick Start
 
 ```bash
-# 1. Install dependencies
 cd agent
 npm install
-
-# 2. Set up environment
 cp .env.example .env
 # Edit .env with your API keys
-
-# 3. Run in mock mode (no API keys needed)
-npm run dev
-
-# 4. Or build and run in production mode
 npm run build
 npm start
 ```
 
-## Environment Setup
+## Environment Variables
 
-### Required Variables
-
-| Variable | Description | Get From |
-|----------|-------------|----------|
-| `AGENT_MODE` | `mock` or `production` | - |
-| `GITHUB_APP_ID` | GitHub App ID | https://github.com/settings/apps |
-| `GITHUB_PRIVATE_KEY` | GitHub App private key | GitHub App settings |
-| `NEAR_ACCOUNT_ID` | Your NEAR account | NEAR Wallet |
-| `NEAR_PRIVATE_KEY` | NEAR private key | NEAR CLI or Wallet |
-| `NEAR_CONTRACT_ID` | Contract account ID | NEAR |
-| `PING_PAY_API_KEY` | Ping Pay API key | Ping Pay dashboard |
-| `HOT_PAY_JWT` | HOT partner JWT | HOT dashboard |
-| `EIGENAI_WALLET_PRIVATE_KEY` | deTERMinal grant wallet key | deTERMinal |
-| `EIGENAI_WALLET_ADDRESS` | deTERMinal grant wallet address | deTERMinal |
-
-### Optional Variables
-
-| Variable | Description | Get From |
-|----------|-------------|----------|
-| `NEYNAR_API_KEY` | Farcaster API access | https://neynar.com/ |
-| `NEYNAR_SIGNER_UUID` | Farcaster signer | Neynar Dashboard |
-| `FARCASTER_BOT_FID` | Your bot's FID | Warpcast Profile |
-| `PING_PAY_API_BASE` | Optional Ping API base override | Ping Pay docs |
-| `PING_PAY_INTENTS_PATH` | Optional Ping intents path override | Ping Pay docs |
-| `PING_PAY_PROBE_PATH` | Optional Ping probe path override | Ping Pay docs |
-| `HOT_PAY_NEAR_ACCOUNT` | HOT merchant account | HOT dashboard |
-| `AGENT_SERVER_API_KEY` | Optional shared key for `/process` endpoint | Internal secret |
+| Variable | Description |
+|----------|-------------|
+| `AGENT_MODE` | `mock` or `production` |
+| `GITHUB_APP_ID` | GitHub App ID |
+| `GITHUB_PRIVATE_KEY` | GitHub App private key |
+| `NEAR_ACCOUNT_ID` | NEAR account |
+| `NEAR_PRIVATE_KEY` | NEAR private key |
+| `NEAR_CONTRACT_ID` | Contract account ID |
+| `PING_PAY_API_KEY` | Ping Pay API key |
+| `HOT_PAY_JWT` | HOT partner JWT |
+| `EIGENAI_WALLET_PRIVATE_KEY` | deTERMinal grant wallet key |
+| `EIGENAI_WALLET_ADDRESS` | deTERMinal grant wallet address |
+| `NEYNAR_API_KEY` | Farcaster API (optional) |
+| `NEYNAR_SIGNER_UUID` | Farcaster signer (optional) |
 
 ## Local Development
 
-### Mock Mode (No API Keys)
-
-Perfect for testing the agent logic without real APIs:
-
 ```bash
+# Mock mode (no API keys)
 AGENT_MODE=mock npm run dev:cli
+
+# Production mode
+AGENT_MODE=production npm run dev
 ```
 
-This starts an interactive CLI where you can test commands:
-
-```
-@gitsplits> pay 100 USDC to near-sdk-rs
-✅ Paid 100 USDC to 4 contributors!
-
-Transaction: 0xabc123...
-Split: split-xyz789
-```
-
-### Production Mode (With API Keys)
+## Docker
 
 ```bash
-# Set your environment variables
-export GITHUB_APP_ID=123456
-export GITHUB_PRIVATE_KEY='-----BEGIN RSA PRIVATE KEY-----...'
-export NEAR_ACCOUNT_ID=gitsplits.near
-export NEAR_PRIVATE_KEY=ed25519:...
-export NEAR_CONTRACT_ID=gitsplits.near
-export PING_PAY_API_KEY=...
-export HOT_PAY_JWT=...
-export EIGENAI_WALLET_PRIVATE_KEY=0x...
-export EIGENAI_WALLET_ADDRESS=0x...
-
-# Run the server
-npm run dev
-```
-
-The server will:
-- Start on port 3000 (or PORT env var)
-- Initialize Farcaster client (if configured)
-- Listen for HTTP requests and mentions
-
-## Docker Deployment
-
-### Build Docker Image
-
-```bash
-cd agent
+# Build
 npm run docker:build
-```
 
-### Run Docker Container
-
-```bash
+# Run
 docker run -p 3000:3000 --env-file .env gitsplits-agent
 ```
 
-### Docker Compose
-
-```yaml
-version: '3.8'
-services:
-  gitsplits-agent:
-    build:
-      context: ./agent
-      dockerfile: Dockerfile.eigen
-    ports:
-      - "3000:3000"
-    environment:
-      - AGENT_MODE=production
-      - GITHUB_APP_ID=${GITHUB_APP_ID}
-      - GITHUB_PRIVATE_KEY=${GITHUB_PRIVATE_KEY}
-      - NEAR_ACCOUNT_ID=${NEAR_ACCOUNT_ID}
-      - NEAR_PRIVATE_KEY=${NEAR_PRIVATE_KEY}
-      - NEAR_CONTRACT_ID=${NEAR_CONTRACT_ID}
-      - PING_PAY_API_KEY=${PING_PAY_API_KEY}
-      - HOT_PAY_JWT=${HOT_PAY_JWT}
-      - EIGENAI_WALLET_PRIVATE_KEY=${EIGENAI_WALLET_PRIVATE_KEY}
-      - EIGENAI_WALLET_ADDRESS=${EIGENAI_WALLET_ADDRESS}
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-```
-
-## EigenCloud Deployment
-
-### Prerequisites
-
-1. EigenCloud account and API key
-2. Docker installed locally
-3. GitSplits agent built and tested locally
-
-### Deploy Steps
-
-1. **Build for EigenCloud:**
-   ```bash
-   cd agent
-   npm run build
-   docker build -t gitsplits-agent -f Dockerfile.eigen .
-   ```
-
-2. **Push to EigenCloud:**
-   ```bash
-   # Tag for EigenCloud registry
-   docker tag gitsplits-agent registry.eigencloud.xyz/gitsplits-agent:latest
-   
-   # Push image
-   docker push registry.eigencloud.xyz/gitsplits-agent:latest
-   ```
-
-3. **Deploy with TEE:**
-   ```bash
-   eigencloud deploy \
-     --image gitsplits-agent:latest \
-     --name gitsplits-agent \
-     --tee \
-     --env-file .env \
-     --port 3000
-   ```
-
-4. **Verify Deployment:**
-   ```bash
-   # Get deployment URL
-   eigencloud status gitsplits-agent
-   
-   # Check health
-   curl https://gitsplits-agent.eigencloud.xyz/health
-   ```
-
-### EigenCloud Environment Variables
-
-Set these in the EigenCloud dashboard or via CLI:
+## EigenCompute Deployment
 
 ```bash
-eigencloud env set GITHUB_APP_ID 123456 --app gitsplits-agent
-eigencloud env set GITHUB_PRIVATE_KEY "-----BEGIN RSA PRIVATE KEY-----..." --app gitsplits-agent
-eigencloud env set NEAR_PRIVATE_KEY ed25519:... --app gitsplits-agent
-eigencloud env set NEAR_CONTRACT_ID gitsplits.near --app gitsplits-agent
-eigencloud env set PING_PAY_API_KEY ... --app gitsplits-agent
-eigencloud env set HOT_PAY_JWT ... --app gitsplits-agent
-eigencloud env set EIGENAI_WALLET_PRIVATE_KEY 0x... --app gitsplits-agent
-eigencloud env set EIGENAI_WALLET_ADDRESS 0x... --app gitsplits-agent
-eigencloud env set NEYNAR_API_KEY ... --app gitsplits-agent
+cd agent/deploy
+./deploy.sh
 ```
 
-## Farcaster Bot Setup
+See [EIGENCOMPUTE.md](./deploy/EIGENCOMPUTE.md) for details.
 
-### 1. Create Farcaster Account
-
-1. Download Warpcast app
-2. Create a new account for your bot
-3. Note the FID from your profile URL
-
-### 2. Get Neynar API Access
-
-1. Sign up at https://neynar.com/
-2. Create an API key
-3. Create a signer for your bot
-
-### 3. Configure Environment
+## Health Checks
 
 ```bash
-NEYNAR_API_KEY=your_api_key
-NEYNAR_SIGNER_UUID=your_signer_uuid
-FARCASTER_BOT_FID=12345
-```
-
-### 4. Test the Bot
-
-```bash
-# Post a test cast
-curl -X POST http://localhost:3000/webhook/farcaster \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "cast.created",
-    "cast": {
-      "text": "@gitsplits pay 100 USDC to near-sdk-rs",
-      "author": {"fid": 123, "username": "testuser"},
-      "mentioned_profiles": [{"fid": 12345, "username": "gitsplits"}]
-    }
-  }'
-```
-
-## Health Monitoring
-
-### Health Check Endpoint
-
-```bash
+# Health
 curl http://localhost:3000/health
-```
 
-Response:
-```json
-{
-  "status": "healthy",
-  "timestamp": "2026-02-16T10:30:00Z",
-  "uptime": 3600000,
-  "version": "1.0.0",
-  "services": {
-    "farcaster": "connected",
-    "github": "available",
-    "near": "available",
-    "pingpay": "available",
-    "eigenai": "available",
-    "teeWallet": "tee"
-  },
-  "metrics": {
-    "requests": 150,
-    "errors": 2
-  }
-}
-```
-
-### Ready Check
-
-For Kubernetes or load balancers:
-
-```bash
+# Ready (for load balancers)
 curl http://localhost:3000/ready
 ```
 
-Returns 200 when all services are available, 503 otherwise.
-
 ## Troubleshooting
 
-### Agent Won't Start
-
-```bash
-# Check environment
-npm run build
-node dist/index.js
-
-# Look for missing env vars
-```
-
-### Farcaster Connection Failed
-
-- Verify NEYNAR_API_KEY is valid
-- Check that signer UUID is correct
-- Ensure bot FID matches the signer account
-
-### GitHub API Errors
-
-- Check GitHub App is installed on the canary repo(s)
-- Verify `GITHUB_APP_ID` and `GITHUB_PRIVATE_KEY` are valid
-- Confirm app permissions include metadata/code read access
-
-### NEAR Contract Errors
-
-- Verify NEAR_ACCOUNT_ID has contract deployed
-- Check NEAR_PRIVATE_KEY format (ed25519:...)
-- Ensure account has sufficient balance
-
-### Docker Build Fails
-
-```bash
-# Clean build
-docker build --no-cache -t gitsplits-agent -f Dockerfile.eigen .
-
-# Check Node version
-docker run --rm node:18-slim node --version
-```
+| Issue | Solution |
+|-------|----------|
+| Agent won't start | Check `npm run build` output for missing env vars |
+| Farcaster failed | Verify `NEYNAR_API_KEY` and `NEYNAR_SIGNER_UUID` |
+| GitHub errors | Check GitHub App is installed on target repos |
+| NEAR errors | Verify account has balance and contract deployed |
 
 ## Production Checklist
 
 - [ ] All API keys are production keys
-- [ ] NEAR account is mainnet (not testnet)
-- [ ] GitHub token has limited scopes
-- [ ] Environment variables are secure (not in repo)
-- [ ] Health checks are configured
-- [ ] Logging is set up
-- [ ] Monitoring alerts configured
-- [ ] Farcaster bot account secured with 2FA
-- [ ] Backup plan for private keys
-
-## Support
-
-- GitHub Issues: https://github.com/yourusername/gitsplits/issues
-- Documentation: https://docs.gitsplits.xyz
-- Discord: https://discord.gg/gitsplits
+- [ ] NEAR account is mainnet
+- [ ] GitHub App installed on target repos
+- [ ] Environment variables secured (not in repo)
+- [ ] Health checks configured
+- [ ] Farcaster bot secured with 2FA

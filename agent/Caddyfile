@@ -7,7 +7,7 @@
 
     # Reverse proxy to your Node.js application
     # Modify the port to match your application (default: 3000)
-    reverse_proxy localhost:{$APP_PORT:3000} {
+    reverse_proxy 127.0.0.1:{$APP_PORT:3000} {
         # Health check configuration
         health_uri /health
         health_interval 30s

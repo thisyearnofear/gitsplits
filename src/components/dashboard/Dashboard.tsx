@@ -8,7 +8,7 @@ import { useAccount } from "wagmi";
 import { useRouter } from "next/navigation";
 import XCommandsGuide from "./XCommandsGuide";
 import DashboardOverview from "./DashboardOverview";
-import VerificationCenter from "./VerificationCenter";
+import { VerificationCenter } from "./features/verification";
 import AgentActivity from "./AgentActivity";
 import NearContractManager from "./NearContractManager";
 import WalletStatusBar from "@/components/shared/WalletStatusBar";

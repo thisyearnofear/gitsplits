@@ -1,6 +1,6 @@
 # GitSplits
 
-Autonomous AI agent that compensates open source contributors via natural language commands.
+Autonomous AI agent that compensates open source contributors via natural language commands, running on EigenCompute for cryptographic transparency.
 
 ## Quick Demo
 
@@ -15,7 +15,19 @@ The agent analyzes the repository, calculates fair splits based on contribution 
 - **Natural Language**: Just mention @gitsplits with a command
 - **No Setup**: Contributors verify once, then auto-receive payments
 - **Cross-Chain**: Contributors receive funds on their preferred chain
+- **Cryptographic Transparency**: Optional attestations via EigenCompute TEE
 - **Web UI**: Interactive chat interface at https://gitsplits.xyz/agent
+
+## Why EigenCompute?
+
+GitSplits runs on [EigenCompute](https://eigencloud.xyz/) to provide:
+
+| Feature | Benefit |
+|---------|---------|
+| **Attested Execution** | Cryptographic proof that splits were calculated fairly |
+| **Verifiable Agent** | Anyone can verify the agent behaved correctly |
+| **Optional Privacy** | Private repo analysis without exposing sensitive data |
+| **TEE Security** | Hardware-secure computation, encrypted even from us |
 
 ## How to Use
 
@@ -49,15 +61,17 @@ DM @gitsplits: verify your-github-username
 
 ```
 Farcaster/Web → Intent Agent → EigenCompute (TEE) → NEAR + Payments
+                                    ↓
+                          Attestation of Execution
 ```
 
-| Layer | Technology |
-|-------|-----------|
-| Social | Farcaster (@gitsplits bot) |
-| Agent | Custom intent-based framework |
-| Compute | EigenCompute (TEE + AVS) |
-| Blockchain | NEAR Protocol |
-| Payments | Ping Pay, HOT Pay |
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| Social | Farcaster (@gitsplits bot) | Natural language interface |
+| Agent | Custom intent-based framework | Command parsing & orchestration |
+| Compute | EigenCompute (TEE + AVS) | Verifiable, private execution |
+| Blockchain | NEAR Protocol | Split contracts & payments |
+| Payments | Ping Pay, HOT Pay | Cross-chain distribution |
 
 ## Web Interface
 
@@ -74,12 +88,10 @@ Farcaster/Web → Intent Agent → EigenCompute (TEE) → NEAR + Payments
 
 ## Current Status (February 17, 2026)
 
-- Agent is deployed on EigenCompute (Sepolia infra) and reachable at:
-  - `https://agent.gitsplits.thisyearnofear.com`
-- Readiness and health are passing:
-  - `https://agent.gitsplits.thisyearnofear.com/ready`
-  - `https://agent.gitsplits.thisyearnofear.com/health`
-- Farcaster is currently disabled in runtime until Neynar vars are set.
+- Agent deployed on EigenCompute (Sepolia testnet)
+- Endpoint: `https://agent.gitsplits.thisyearnofear.com`
+- Health: `https://agent.gitsplits.thisyearnofear.com/health`
+- Farcaster temporarily disabled pending Neynar configuration
 
 ## Development
 
@@ -107,7 +119,7 @@ npm run dev
 Web app expects `AGENT_BASE_URL` in `.env.local`:
 ```
 AGENT_BASE_URL=http://localhost:3000
-# deployed endpoint:
+# Or deployed endpoint:
 # AGENT_BASE_URL=https://agent.gitsplits.thisyearnofear.com
 ```
 

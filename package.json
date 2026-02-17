@@ -89,7 +89,6 @@
     "eslint": "^8",
     "eslint-config-next": "14.2.15",
     "https-browserify": "^1.0.0",
-    "near-cli-rs": "^0.19.0",
     "os-browserify": "^0.3.0",
     "pino-pretty": "^11.3.0",
     "postcss": "^8",

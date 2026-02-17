@@ -19,6 +19,12 @@ The agent analyzes the repository, calculates fair splits based on contribution 
 - **Autonomous**: Single command triggers full distribution flow
 - **Cross-Chain**: Contributors receive funds on their preferred chain
 
+## ✅ Production Progress (Feb 17, 2026)
+
+- Live production preflight checks are passing for GitHub App, NEAR, Ping/HOT Pay, and EigenAI.
+- Live canary intent tests are passing for `analyze`, `create`, and `pay`.
+- Payment routing uses Ping Pay first and falls back to HOT partner API if Ping endpoints are unavailable.
+
 ## 📋 How to Use
 
 ### For Contributors

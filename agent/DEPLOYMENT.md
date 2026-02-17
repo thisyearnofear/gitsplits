@@ -2,6 +2,13 @@
 
 This guide covers deploying the GitSplits agent to various environments.
 
+## Current Production Progress (Feb 17, 2026)
+
+- Production preflight suite is passing (`11/11`).
+- Live canary intents suite is passing (`analyze/create/pay`).
+- GitHub App auth is the primary production mode.
+- Pay routing currently uses Ping Pay first, then HOT partner API fallback when Ping endpoints are unavailable.
+
 ## Quick Start
 
 ```bash
@@ -28,9 +35,15 @@ npm start
 | Variable | Description | Get From |
 |----------|-------------|----------|
 | `AGENT_MODE` | `mock` or `production` | - |
-| `GITHUB_TOKEN` | GitHub API access | https://github.com/settings/tokens |
+| `GITHUB_APP_ID` | GitHub App ID | https://github.com/settings/apps |
+| `GITHUB_PRIVATE_KEY` | GitHub App private key | GitHub App settings |
 | `NEAR_ACCOUNT_ID` | Your NEAR account | NEAR Wallet |
 | `NEAR_PRIVATE_KEY` | NEAR private key | NEAR CLI or Wallet |
+| `NEAR_CONTRACT_ID` | Contract account ID | NEAR |
+| `PING_PAY_API_KEY` | Ping Pay API key | Ping Pay dashboard |
+| `HOT_PAY_JWT` | HOT partner JWT | HOT dashboard |
+| `EIGENAI_WALLET_PRIVATE_KEY` | deTERMinal grant wallet key | deTERMinal |
+| `EIGENAI_WALLET_ADDRESS` | deTERMinal grant wallet address | deTERMinal |
 
 ### Optional Variables
 
@@ -39,7 +52,10 @@ npm start
 | `NEYNAR_API_KEY` | Farcaster API access | https://neynar.com/ |
 | `NEYNAR_SIGNER_UUID` | Farcaster signer | Neynar Dashboard |
 | `FARCASTER_BOT_FID` | Your bot's FID | Warpcast Profile |
-| `PING_PAY_API_KEY` | Cross-chain payments | https://pingpay.io/ |
+| `PING_PAY_API_BASE` | Optional Ping API base override | Ping Pay docs |
+| `PING_PAY_INTENTS_PATH` | Optional Ping intents path override | Ping Pay docs |
+| `PING_PAY_PROBE_PATH` | Optional Ping probe path override | Ping Pay docs |
+| `HOT_PAY_NEAR_ACCOUNT` | HOT merchant account | HOT dashboard |
 
 ## Local Development
 
@@ -65,9 +81,15 @@ Split: split-xyz789
 
 ```bash
 # Set your environment variables
-export GITHUB_TOKEN=ghp_...
+export GITHUB_APP_ID=123456
+export GITHUB_PRIVATE_KEY='-----BEGIN RSA PRIVATE KEY-----...'
 export NEAR_ACCOUNT_ID=gitsplits.near
 export NEAR_PRIVATE_KEY=ed25519:...
+export NEAR_CONTRACT_ID=gitsplits.near
+export PING_PAY_API_KEY=...
+export HOT_PAY_JWT=...
+export EIGENAI_WALLET_PRIVATE_KEY=0x...
+export EIGENAI_WALLET_ADDRESS=0x...
 
 # Run the server
 npm run dev
@@ -106,9 +128,15 @@ services:
       - "3000:3000"
     environment:
       - AGENT_MODE=production
-      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_APP_ID=${GITHUB_APP_ID}
+      - GITHUB_PRIVATE_KEY=${GITHUB_PRIVATE_KEY}
       - NEAR_ACCOUNT_ID=${NEAR_ACCOUNT_ID}
       - NEAR_PRIVATE_KEY=${NEAR_PRIVATE_KEY}
+      - NEAR_CONTRACT_ID=${NEAR_CONTRACT_ID}
+      - PING_PAY_API_KEY=${PING_PAY_API_KEY}
+      - HOT_PAY_JWT=${HOT_PAY_JWT}
+      - EIGENAI_WALLET_PRIVATE_KEY=${EIGENAI_WALLET_PRIVATE_KEY}
+      - EIGENAI_WALLET_ADDRESS=${EIGENAI_WALLET_ADDRESS}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
@@ -166,8 +194,14 @@ services:
 Set these in the EigenCloud dashboard or via CLI:
 
 ```bash
-eigencloud env set GITHUB_TOKEN ghp_... --app gitsplits-agent
+eigencloud env set GITHUB_APP_ID 123456 --app gitsplits-agent
+eigencloud env set GITHUB_PRIVATE_KEY "-----BEGIN RSA PRIVATE KEY-----..." --app gitsplits-agent
 eigencloud env set NEAR_PRIVATE_KEY ed25519:... --app gitsplits-agent
+eigencloud env set NEAR_CONTRACT_ID gitsplits.near --app gitsplits-agent
+eigencloud env set PING_PAY_API_KEY ... --app gitsplits-agent
+eigencloud env set HOT_PAY_JWT ... --app gitsplits-agent
+eigencloud env set EIGENAI_WALLET_PRIVATE_KEY 0x... --app gitsplits-agent
+eigencloud env set EIGENAI_WALLET_ADDRESS 0x... --app gitsplits-agent
 eigencloud env set NEYNAR_API_KEY ... --app gitsplits-agent
 ```
 
@@ -227,7 +261,10 @@ Response:
   "services": {
     "farcaster": "connected",
     "github": "available",
-    "near": "available"
+    "near": "available",
+    "pingpay": "available",
+    "eigenai": "available",
+    "teeWallet": "tee"
   },
   "metrics": {
     "requests": 150,
@@ -266,9 +303,9 @@ node dist/index.js
 
 ### GitHub API Errors
 
-- Check GITHUB_TOKEN has `public_repo` scope
-- Verify token hasn't expired
-- Check rate limits: https://api.github.com/rate_limit
+- Check GitHub App is installed on the canary repo(s)
+- Verify `GITHUB_APP_ID` and `GITHUB_PRIVATE_KEY` are valid
+- Confirm app permissions include metadata/code read access
 
 ### NEAR Contract Errors
 

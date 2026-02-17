@@ -55,6 +55,32 @@ export function sanitizeEigenAiContent(content: string): string {
   return sanitized || content.trim();
 }
 
+function looksLikeInternalReasoning(text: string): boolean {
+  const normalized = text.trim().toLowerCase();
+  if (!normalized) return false;
+
+  return (
+    normalized.startsWith('we need to ') ||
+    normalized.startsWith("let's ") ||
+    normalized.startsWith('i need to ') ||
+    normalized.startsWith('the user ') ||
+    normalized.includes('chain-of-thought')
+  );
+}
+
+function buildSafeFallbackInsight(
+  contributors: Array<{ username: string; commits: number }>
+): string {
+  const total = contributors.reduce((sum, c) => sum + c.commits, 0);
+  const top3 = contributors.slice(0, 3).reduce((sum, c) => sum + c.commits, 0);
+  const concentration = total > 0 ? Math.round((top3 / total) * 100) : 0;
+  return (
+    `Top contributors account for about ${concentration}% of commits among the sampled set. ` +
+    'Commit count suggests concentration, but final payout weights should also consider review load, ' +
+    'maintenance work, and architectural impact.'
+  );
+}
+
 // Cached grant auth so we don't re-sign every request
 let cachedAuth: GrantAuth | null = null;
 
@@ -179,7 +205,8 @@ export const eigenaiTool = {
         content:
           'You are a fair and objective analyst of open source contributions. ' +
           'Assess the contribution percentages and suggest adjustments if needed. ' +
-          'Consider that commit count alone may not reflect true contribution value.',
+          'Return only a concise user-facing summary. Do not output chain-of-thought, ' +
+          'internal reasoning, scratch work, or hidden analysis.',
       },
       {
         role: 'user',
@@ -193,7 +220,10 @@ export const eigenaiTool = {
 
     const result = await eigenaiTool.chat(messages);
     const rawAnalysis = result.choices?.[0]?.message?.content ?? '';
-    const analysis = sanitizeEigenAiContent(rawAnalysis);
+    const sanitized = sanitizeEigenAiContent(rawAnalysis);
+    const analysis = looksLikeInternalReasoning(sanitized)
+      ? buildSafeFallbackInsight(contributors)
+      : sanitized;
 
     return {
       analysis,

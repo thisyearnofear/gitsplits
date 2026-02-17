@@ -4,7 +4,6 @@ import "./globals.css";
 import { headers } from "next/headers";
 import ContextProvider from "@/context";
 import BitteWalletProvider from "@/components/near/BitteWalletProvider";
-import SessionClientProvider from "@/components/SessionClientProvider";
 
 export const metadata: Metadata = {
   title: "Gitsplits",
@@ -21,11 +20,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <SessionClientProvider>
-          <ContextProvider cookies={cookies}>
-            <BitteWalletProvider>{children}</BitteWalletProvider>
-          </ContextProvider>
-        </SessionClientProvider>
+        <ContextProvider cookies={cookies}>
+          <BitteWalletProvider>{children}</BitteWalletProvider>
+        </ContextProvider>
       </body>
     </html>
   );

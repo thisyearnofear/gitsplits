@@ -16,6 +16,7 @@ export default function DashboardPage() {
   const [message, setMessage] = useState("Checking agent readiness...");
   const [repoInput, setRepoInput] = useState("");
   const [coverageOutput, setCoverageOutput] = useState("");
+  const [coverageStats, setCoverageStats] = useState<{ verified: number; total: number } | null>(null);
   const [pendingOutput, setPendingOutput] = useState("");
   const [insightLoading, setInsightLoading] = useState(false);
 
@@ -71,6 +72,12 @@ export default function DashboardPage() {
           .find((line) => line.toLowerCase().includes("verification coverage")) ||
         "Verification coverage unavailable.";
       setCoverageOutput(coverageLine);
+      const coverageMatch = coverageLine.match(/(\d+)\s*\/\s*(\d+)\s+verified/i);
+      setCoverageStats(
+        coverageMatch
+          ? { verified: Number(coverageMatch[1]), total: Number(coverageMatch[2]) }
+          : null
+      );
 
       const pendingRes = await fetch("/api/agent", {
         method: "POST",
@@ -83,6 +90,7 @@ export default function DashboardPage() {
       }
       setPendingOutput(String(pendingData.response || ""));
     } catch (error) {
+      setCoverageStats(null);
       setPendingOutput(error instanceof Error ? error.message : "Failed to load repo verification insights.");
     } finally {
       setInsightLoading(false);
@@ -157,6 +165,44 @@ export default function DashboardPage() {
                 <AlertTitle>Coverage</AlertTitle>
                 <AlertDescription>{coverageOutput}</AlertDescription>
               </Alert>
+            )}
+            {repoInput.trim() && coverageStats && coverageStats.verified < coverageStats.total && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Verification Needed Before Full Payout</AlertTitle>
+                <AlertDescription>
+                  {`${coverageStats.total - coverageStats.verified} contributor(s) are still unverified. `}
+                  <Link
+                    href={`/verify?repo=${encodeURIComponent(
+                      repoInput
+                        .trim()
+                        .replace(/^(https?:\/\/)?(www\.)?github\.com\//i, "")
+                        .replace(/\/+$/, "")
+                    )}`}
+                    className="underline"
+                  >
+                    Open verification flow
+                  </Link>
+                  .
+                </AlertDescription>
+              </Alert>
+            )}
+            {repoInput.trim() && coverageStats && coverageStats.verified > 0 && (
+              <div className="flex gap-2">
+                <Link
+                  href={`/agent?command=${encodeURIComponent(
+                    `pay 1 USDC to github.com/${repoInput
+                      .trim()
+                      .replace(/^(https?:\/\/)?(www\.)?github\.com\//i, "")
+                      .replace(/\/+$/, "")}`
+                  )}`}
+                >
+                  <Button type="button" variant="outline">Open Pay Command</Button>
+                </Link>
+                <Link href="/splits">
+                  <Button type="button" variant="secondary">Open Splits Workspace</Button>
+                </Link>
+              </div>
             )}
             {pendingOutput && (
               <div className="rounded border bg-gray-50 p-3 text-sm whitespace-pre-wrap">

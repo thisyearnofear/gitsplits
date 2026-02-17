@@ -33,6 +33,11 @@ type OutreachBundle = {
   prCommentTemplate: string;
 };
 
+type CoverageStats = {
+  verified: number;
+  total: number;
+};
+
 function normalizeRepoUrl(input: string): string {
   const cleaned = input
     .trim()
@@ -71,6 +76,8 @@ export default function SplitsPage() {
   const [analyzeResponse, setAnalyzeResponse] = useState("");
   const [createResponse, setCreateResponse] = useState("");
   const [verificationHint, setVerificationHint] = useState("");
+  const [coverageStats, setCoverageStats] = useState<CoverageStats | null>(null);
+  const [pendingClaimsOutput, setPendingClaimsOutput] = useState("");
   const [selectedContributor, setSelectedContributor] = useState("");
   const [copiedState, setCopiedState] = useState("");
 
@@ -187,6 +194,12 @@ export default function SplitsPage() {
       setSelectedContributor(parsed[0]?.githubUsername || "");
       if (coverageLine) {
         setVerificationHint(coverageLine.trim());
+        const match = coverageLine.match(/(\d+)\s*\/\s*(\d+)\s+verified/i);
+        setCoverageStats(
+          match
+            ? { verified: Number(match[1]), total: Number(match[2]) }
+            : null
+        );
       }
       setStatus("success");
       setMessage(
@@ -197,6 +210,7 @@ export default function SplitsPage() {
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Failed to analyze repository.");
+      setCoverageStats(null);
     }
   };
 
@@ -243,6 +257,29 @@ export default function SplitsPage() {
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Failed to repair split.");
+    }
+  };
+
+  const checkPendingClaims = async () => {
+    if (!repoInput.trim()) {
+      setStatus("error");
+      setMessage("Repository URL is required.");
+      return;
+    }
+
+    const normalized = normalizeRepoUrl(repoInput);
+    setStatus("loading");
+    setMessage("Checking pending claims...");
+    setPendingClaimsOutput("");
+
+    try {
+      const response = await callAgent(`pending ${normalized}`);
+      setPendingClaimsOutput(response);
+      setStatus("success");
+      setMessage("Pending claims loaded.");
+    } catch (error) {
+      setStatus("error");
+      setMessage(error instanceof Error ? error.message : "Failed to fetch pending claims.");
     }
   };
 
@@ -294,9 +331,12 @@ export default function SplitsPage() {
               <Button variant="outline" onClick={repairSplit} disabled={status === "loading"}>
                 Repair Split
               </Button>
+              <Button variant="outline" onClick={checkPendingClaims} disabled={status === "loading"}>
+                Check Pending
+              </Button>
               {repoInput.trim() && (
                 <Link
-                  href={`/agent?command=${encodeURIComponent(`pay 10 USDC to ${normalizeRepoUrl(repoInput)}`)}`}
+                  href={`/agent?command=${encodeURIComponent(`pay 1 USDC to ${normalizeRepoUrl(repoInput)}`)}`}
                 >
                   <Button variant="secondary" type="button">Pay Now</Button>
                 </Link>
@@ -305,6 +345,31 @@ export default function SplitsPage() {
 
             {verificationHint && (
               <p className="text-sm text-blue-700">{verificationHint}. Invite contributors at /verify.</p>
+            )}
+            {repoPath && coverageStats && coverageStats.verified < coverageStats.total && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Unverified Contributors Block Full Payout</AlertTitle>
+                <AlertDescription>
+                  {`${coverageStats.total - coverageStats.verified} contributor(s) still need verification. `}
+                  <Link
+                    href={`/verify?repo=${encodeURIComponent(repoPath)}${selectedContributor ? `&user=${encodeURIComponent(selectedContributor)}` : ""}`}
+                    className="underline"
+                  >
+                    Send them to verification
+                  </Link>
+                  .
+                </AlertDescription>
+              </Alert>
+            )}
+            {coverageStats && coverageStats.verified > 0 && (
+              <Alert className="bg-green-50 border-green-200">
+                <CheckCircle2 className="h-4 w-4 text-green-700" />
+                <AlertTitle>Payout Path Is Active</AlertTitle>
+                <AlertDescription>
+                  {coverageStats.verified} verified contributor(s) can be paid now. Unverified contributors are routed to pending claims.
+                </AlertDescription>
+              </Alert>
             )}
 
             {!isNearConnected && !isEvmConnected && (
@@ -427,6 +492,12 @@ export default function SplitsPage() {
               <div className="rounded-md border bg-gray-50 p-3 text-sm whitespace-pre-wrap">
                 <p className="mb-2 font-medium">Create Response</p>
                 {createResponse}
+              </div>
+            )}
+            {pendingClaimsOutput && (
+              <div className="rounded-md border bg-gray-50 p-3 text-sm whitespace-pre-wrap">
+                <p className="mb-2 font-medium">Pending Claims</p>
+                {pendingClaimsOutput}
               </div>
             )}
           </CardContent>

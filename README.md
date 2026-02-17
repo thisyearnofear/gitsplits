@@ -85,6 +85,7 @@ Farcaster/Web → Intent Agent → EigenCompute (TEE) → NEAR + Payments
 - `/dashboard` now acts as a web control hub and checks live agent readiness via `/api/agent`.
 - `/verify` now performs GitHub gist + NEAR signature verification and syncs successful links to the agent/contract path used by payouts.
 - `/splits` now uses the live agent proxy (`/api/agent`) for analyze/create flows (instead of the old placeholder NEAR demo service).
+- `pay` now supports partial payouts by default: verified contributors are paid immediately and unverified contributors get pending claims until they verify.
 
 ## Documentation
 

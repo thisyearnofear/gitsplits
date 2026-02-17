@@ -10,6 +10,7 @@ import { connect, keyStores, KeyPair, Contract } from 'near-api-js';
 let contract: any = null;
 let useMockMode = false;
 const isProductionMode = process.env.AGENT_MODE === 'production';
+let workerRegistrationChecked = false;
 
 async function initNear() {
   if (contract || useMockMode) return;
@@ -56,10 +57,12 @@ async function initNear() {
       viewMethods: [
         'get_split',
         'get_split_by_repo',
+        'is_worker_registered',
         'is_github_verified',
         'get_wallet_address',
       ],
       changeMethods: [
+        'register_worker',
         'create_split',
         'update_split',
         'store_verification',
@@ -76,6 +79,68 @@ async function initNear() {
     console.log('[NEAR] Connection failed, using mock mode:', error.message);
     useMockMode = true;
   }
+}
+
+function normalizeContributorPercentages(
+  contributors: Array<{ github_username: string; percentage: number }>
+) {
+  if (contributors.length === 0) return contributors;
+
+  const rounded = contributors.map((c) => ({
+    github_username: c.github_username,
+    percentage: Math.max(0, Math.round(c.percentage)),
+  }));
+
+  let total = rounded.reduce((sum, c) => sum + c.percentage, 0);
+  if (total === 0) {
+    rounded[0].percentage = 100;
+    return rounded;
+  }
+
+  const target = 100;
+  const diff = target - total;
+  rounded[0].percentage += diff;
+  if (rounded[0].percentage < 0) {
+    rounded[0].percentage = 0;
+  }
+
+  total = rounded.reduce((sum, c) => sum + c.percentage, 0);
+  if (total !== target) {
+    rounded[0].percentage += target - total;
+  }
+
+  return rounded;
+}
+
+async function ensureWorkerRegistered() {
+  if (workerRegistrationChecked || useMockMode || !contract) return;
+
+  const accountId = process.env.NEAR_ACCOUNT_ID;
+  if (!accountId) {
+    if (isProductionMode) {
+      throw new Error('[NEAR] NEAR_ACCOUNT_ID is required for worker registration.');
+    }
+    return;
+  }
+
+  const isRegistered = await contract.is_worker_registered({ account_id: accountId });
+  if (isRegistered) {
+    workerRegistrationChecked = true;
+    return;
+  }
+
+  const workerCodeHash = process.env.NEAR_WORKER_CODE_HASH || 'gitsplits-agent';
+  const attestation = {
+    quote: process.env.NEAR_WORKER_QUOTE || 'local-attestation',
+    endorsements: process.env.NEAR_WORKER_ENDORSEMENTS || 'local-endorsements',
+  };
+
+  await contract.register_worker({
+    _attestation: attestation,
+    code_hash: workerCodeHash,
+  });
+
+  workerRegistrationChecked = true;
 }
 
 export const nearTool = {
@@ -107,6 +172,7 @@ export const nearTool = {
     contributors: Array<{ github_username: string; percentage: number }>;
   }) {
     await initNear();
+    await ensureWorkerRegistered();
     
     if (useMockMode) {
       return {
@@ -116,9 +182,10 @@ export const nearTool = {
       };
     }
     
-    const formattedContributors = params.contributors.map((c) => ({
+    const normalized = normalizeContributorPercentages(params.contributors);
+    const formattedContributors = normalized.map((c) => ({
       github_username: c.github_username,
-      percentage: BigInt(c.percentage) * BigInt(10) ** BigInt(22),
+      percentage: (BigInt(c.percentage) * BigInt(10) ** BigInt(22)).toString(),
     }));
     
     const splitId = await contract.create_split({
@@ -134,7 +201,7 @@ export const nearTool = {
     return {
       id: splitId,
       repoUrl: params.repoUrl,
-      contributors: params.contributors,
+      contributors: normalized,
     };
   },
   
@@ -156,6 +223,7 @@ export const nearTool = {
   
   async storePendingVerification(params: any) {
     await initNear();
+    await ensureWorkerRegistered();
     
     if (useMockMode) {
       return { success: true };

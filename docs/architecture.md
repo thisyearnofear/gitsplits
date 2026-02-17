@@ -42,6 +42,7 @@ Autonomous social layer:
 | `github` | Repo analysis via GitHub App | ✅ Implemented |
 | `near` | Smart contract interactions | ✅ Live on Mainnet (`lhkor_marty.near`) |
 | `pingpay` | Cross-chain payments | ✅ Implemented |
+| `hotpay` | Fiat & NEAR payments | ✅ Live |
 
 **GitHub Authentication:** Uses a single GitHub App owned by GitSplits team. Users don't need their own tokens.
 
@@ -57,10 +58,10 @@ Shade Agent runs in a TEE container:
 
 | Sponsor | Purpose | Status |
 |---------|---------|--------|
-| **Ping Pay** | Cross-chain payments via NEAR Intents | 🔲 Get API key |
-| **EigenCloud** | Verifiable compute (TEE + AVS) | 🔲 Get API key |
+| **Ping Pay** | Cross-chain payments via NEAR Intents | ✅ Implemented |
+| **HOT Pay** | Fiat onramp & NEAR payments | ✅ Live |
+| **EigenCloud** | Verifiable compute (TEE + AVS) | ✅ Implemented |
 | **NOVA** | Private data encryption | 🔲 Future integration |
-| **HOT Pay** | Fiat onramp for sponsors | 🔲 Future integration |
 
 ### 7. NEAR Smart Contract
 
@@ -174,6 +175,7 @@ cd agent/deploy
 | GitHub tool | ✅ Complete | Single GitHub App for all repos |
 | NEAR tool | ✅ Live | Mainnet deployed (`lhkor_marty.near`) |
 | Ping Pay tool | ✅ Complete | Real API calls |
+| HOT Pay tool | ✅ Live | Mainnet Verified |
 | Web UI & API | ✅ Complete | Interactive chat and dashboard |
 | EigenCloud deploy | 🔲 Ready | Config and Dockerfile ready |
 | TEE attestation | 🔲 Pending | Requires EigenCloud deployment |
@@ -184,7 +186,8 @@ cd agent/deploy
    - Create GitHub App at github.com/settings/apps
    - Get Ping Pay API key
    - Get EigenCloud API key
-   - NEAR mainnet is already set up on `lhkor_marty.near`
+   - NEAR mainnet is set up on `lhkor_marty.near`
+   - HOT Pay is set up on `papajams.near`
 
 2. **Deploy to EigenCloud**
 

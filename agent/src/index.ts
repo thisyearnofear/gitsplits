@@ -17,6 +17,7 @@ import { UserContext } from './context/user';
 import { githubTool } from './tools/github';
 import { nearTool } from './tools/near';
 import { pingpayTool } from './tools/pingpay';
+import { hotpayTool } from './tools/hotpay';
 import { eigenaiTool } from './tools/eigenai';
 import { teeWalletTool } from './tools/tee-wallet';
 import { validateRuntimeConfig } from './config';
@@ -47,6 +48,7 @@ agent.registerIntent(verifyIntent);
 agent.registerTool(githubTool);
 agent.registerTool(nearTool);
 agent.registerTool(pingpayTool);
+agent.registerTool(hotpayTool);
 agent.registerTool(eigenaiTool);
 agent.registerTool(teeWalletTool);
 

@@ -75,19 +75,37 @@ export const payIntent: Intent = {
         };
       }
       
-      // Execute distribution via Ping Pay
-      const distribution = await tools.pingpay.distribute({
-        splitId: split.id,
-        amount,
-        token,
-        recipients: contributors.map((c: any) => ({
-          wallet: c.wallet,
-          percentage: c.percentage,
-        })),
-      });
+      // Execute distribution
+      let distribution;
+      const isHotPayPreferred = token === 'NEAR' || context.message?.text?.toLowerCase().includes('hotpay');
       
+      if (isHotPayPreferred) {
+        console.log('[Agent] Using HOT Pay for distribution');
+        distribution = await tools.hotpay.distribute({
+          splitId: split.id,
+          amount,
+          token,
+          recipients: contributors.map((c: any) => ({
+            wallet: c.wallet,
+            percentage: c.percentage,
+          })),
+        });
+      } else {
+        console.log('[Agent] Using Ping Pay for distribution');
+        distribution = await tools.pingpay.distribute({
+          splitId: split.id,
+          amount,
+          token,
+          recipients: contributors.map((c: any) => ({
+            wallet: c.wallet,
+            percentage: c.percentage,
+          })),
+        });
+      }
+      
+      const providerName = isHotPayPreferred ? 'HOT Pay' : 'Ping Pay';
       return {
-        response: `✅ Paid ${amount} ${token} to ${contributors.length} contributors!\n\nTransaction: ${distribution.txHash}\nSplit: ${split.id}`,
+        response: `✅ Paid ${amount} ${token} to ${contributors.length} contributors via ${providerName}!\n\nTransaction: ${distribution.txHash}\nSplit: ${split.id}`,
         context: {
           ...context,
           lastPayment: {

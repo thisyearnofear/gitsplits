@@ -1,5 +1,5 @@
 import { KeyPair, keyStores, connect, utils, Account } from 'near-api-js';
-import { twitterClient } from './twitter';
+import { twitterClient } from '../services/twitter';
 
 // Interface for contract connection
 interface ContractConnection {

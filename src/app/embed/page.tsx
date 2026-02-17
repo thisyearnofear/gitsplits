@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getRepoInfo } from "@/utils/api";
+import { getRepoInfo } from "@/lib/services/api";
 import AttributionWidget from "@/components/dashboard/AttributionWidget";
 import { RepoInfo } from "@/types";
 

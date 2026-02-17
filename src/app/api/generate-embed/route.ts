@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRepoInfo } from "@/utils/api";
+import { getRepoInfo } from "@/lib/services/api";
 import { generateEmbedCode } from "@/utils/embed";
 
 export async function POST(request: Request) {

@@ -14,7 +14,6 @@ import {
   Check,
   Wallet,
 } from "lucide-react";
-import { signIn, useSession } from "next-auth/react";
 import { useAppKitAccount } from "@reown/appkit/react";
 import { useNearWallet } from "@/hooks/useNearWallet";
 import { useSignMessage } from "wagmi";
@@ -68,16 +67,6 @@ const VerificationCenter: React.FC<VerificationCenterProps> = ({
     cleanWalletAddress(nearAccountId) ||
     cleanWalletAddress(evmAddress) ||
     "";
-
-  const { data: session } = useSession();
-
-  // Determine Twitter verification from next-auth session
-  const twitterSessionHandle =
-    session?.user?.name || session?.user?.email || "";
-  const isTwitterSessionVerified =
-    !!twitterSessionHandle &&
-    !!session?.user?.image &&
-    session.user.image.includes("twimg.com");
 
   // Load verification status and pending distributions
   useEffect(() => {
@@ -572,26 +561,16 @@ const VerificationCenter: React.FC<VerificationCenterProps> = ({
                   <div className="flex items-center mb-2">
                     <Twitter className="mr-2 h-5 w-5" />
                     <h4 className="font-medium">X/Twitter</h4>
-                    {(isTwitterVerified || isTwitterSessionVerified) && (
+                    {isTwitterVerified && (
                       <Check className="ml-2 h-4 w-4 text-green-500" />
                     )}
                   </div>
-                  {isTwitterVerified || isTwitterSessionVerified ? (
+                  {isTwitterVerified ? (
                     <p className="text-sm text-green-600">
-                      Verified as: @{twitterHandle || twitterSessionHandle}
+                      Verified as: @{twitterHandle}
                     </p>
                   ) : (
-                    <>
-                      <p className="text-sm text-gray-600 mb-2">Not verified</p>
-                      <Button
-                        variant="outline"
-                        className="mt-2"
-                        onClick={() => signIn("twitter")}
-                      >
-                        <Twitter className="mr-2 h-4 w-4" />
-                        Sign in with Twitter
-                      </Button>
-                    </>
+                    <p className="text-sm text-gray-600">Not verified</p>
                   )}
                 </div>
               </div>

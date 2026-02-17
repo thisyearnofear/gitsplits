@@ -105,7 +105,7 @@ export const createIntent: Intent = {
         .join('\n');
       
       return {
-        response: `✅ Split created for ${repoUrl}!\n\nSplit ID: ${split.id}\n\nTop contributors:\n${topContributors}${contributors.length > 5 ? `\n...and ${contributors.length - 5} more` : ''}\n\nTo pay them: "@gitsplits pay 100 USDC to ${repoUrl}"`,
+        response: `✅ Split created for ${repoUrl}!\n\n🤖 Powered by GitHub App Automation\n📜 Split ID: ${split.id}\n\nTop contributors (verified via Git history):\n${topContributors}${contributors.length > 5 ? `\n...and ${contributors.length - 5} more` : ''}\n\nTo pay them: "@gitsplits pay 100 USDC to ${repoUrl}"`,
         context: {
           ...context,
           lastSplit: {

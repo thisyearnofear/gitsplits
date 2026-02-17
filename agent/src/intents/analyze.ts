@@ -71,17 +71,19 @@ export const analyzeIntent: Intent = {
           repoUrl,
           analysis.contributors.slice(0, 10),
         );
-        aiInsight = aiResult.analysis ? `\n\n🤖 AI Analysis (verifiable):\n${aiResult.analysis}` : '';
-        aiSignature = aiResult.signature && !aiResult.mock ? `\n\n🔐 Signature: ${aiResult.signature}` : '';
+        const explorerLink = aiResult.explorerUrl ? `\n🔗 Verify on deTERMinal: ${aiResult.explorerUrl}` : '';
+        aiInsight = aiResult.analysis ? `\n\n🛡️ Verifiable AI Insight:\n${aiResult.analysis}${explorerLink}` : '';
       } catch (err: any) {
         if (strictEigenAiInTest) {
           throw new Error(`[EigenAI] ${err.message}`);
         }
         console.log('[Analyze] EigenAI analysis skipped:', err.message);
       }
+
+      const teeInfo = tools.teeWallet.isRunningInTEE() ? `\n\n🔒 Signed by TEE: ${tools.teeWallet.getAddress()}` : '';
       
       return {
-        response: `📊 Analysis for ${repoUrl}\n\nTotal commits: ${totalCommits}\nContributors: ${analysis.contributors.length}\n\nTop contributors:\n${topContributors}${analysis.contributors.length > 5 ? `\n...and ${analysis.contributors.length - 5} more` : ''}${aiInsight}${aiSignature}\n\nCreate a split: "@gitsplits create ${repoUrl}"`,
+        response: `📊 Analysis for ${repoUrl}\n\nTotal commits: ${totalCommits}\nContributors: ${analysis.contributors.length}\n\nTop contributors:\n${topContributors}${analysis.contributors.length > 5 ? `\n...and ${analysis.contributors.length - 5} more` : ''}${aiInsight}${teeInfo}\n\nCreate a split: "@gitsplits create ${repoUrl}"`,
         context: {
           ...context,
           lastAnalysis: {

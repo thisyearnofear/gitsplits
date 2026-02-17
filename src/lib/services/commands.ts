@@ -3,7 +3,7 @@ import { parseCommand } from "./parser";
 import { getRepoInfo } from "./api";
 import { VerificationLevel } from "@/types";
 import { twitterClient } from "./twitter";
-import { processTwitterCommand } from "./near";
+import { processTwitterCommand } from "../near/client";
 
 // Rate limiting maps
 const userCommandsMap = new Map<string, number[]>();

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { processCommand } from "@/utils/commands";
+import { processCommand } from "@/lib/services/commands";
 
 // Twitter webhook CRC token validation
 export async function GET(request: Request) {

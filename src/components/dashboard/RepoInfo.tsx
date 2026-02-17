@@ -4,7 +4,7 @@ import AttributionWidget from "@/components/dashboard/AttributionWidget";
 import EmbedCodeDisplay from "@/components/shared/EmbedCodeDisplay";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRepoInfo } from "@/utils/api";
+import { getRepoInfo } from "@/lib/services/api";
 
 interface RepoInfoProps {
   url: string;

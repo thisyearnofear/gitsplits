@@ -238,6 +238,26 @@ export const nearTool = {
     };
   },
 
+  async storePendingDistribution(params: {
+    githubUsername: string;
+    amount: number;
+    token: string;
+  }) {
+    await initNear();
+    await ensureWorkerRegistered();
+
+    if (useMockMode) {
+      return `pending-${params.githubUsername}-${Date.now()}`;
+    }
+
+    const yoctoAmount = BigInt(Math.round(params.amount * 1_000_000)).toString();
+    return await contract.store_pending_distribution({
+      github_username: params.githubUsername,
+      amount: yoctoAmount,
+      token: params.token,
+    });
+  },
+
   async storeVerification(params: {
     githubUsername: string;
     walletAddress: string;

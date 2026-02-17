@@ -336,7 +336,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                         onClick={() => handleTryAgent(`${analysisResult.owner}/${analysisResult.name}`)}
                         className="bg-blue-600 hover:bg-blue-700 shadow-md"
                       >
-                        Pay Now
+                        Set Up Payment
                         <ArrowRight className="ml-1 h-4 w-4" />
                       </Button>
                     </div>
@@ -382,6 +382,29 @@ const LandingPage: React.FC<LandingPageProps> = ({
                       <span className="font-semibold text-blue-700 bg-blue-100 px-3 py-1 rounded-full">
                         AI-calculated
                       </span>
+                    </div>
+
+                    {/* Verification Notice */}
+                    <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <svg className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <div className="text-sm text-amber-800">
+                          <p className="font-medium mb-1">Contributors must verify before receiving payments</p>
+                          <p className="text-amber-700">
+                            Found {analysisResult.contributors} contributors. Payments only go to verified wallets. 
+                            <a 
+                              href="https://gitsplits.xyz/verify" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="underline hover:text-amber-900 ml-1"
+                            >
+                              Learn about verification →
+                            </a>
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -429,15 +452,15 @@ const LandingPage: React.FC<LandingPageProps> = ({
               },
               { 
                 step: "3", 
-                title: "Pay", 
-                desc: "Distribute payments in one command via NEAR.",
-                icon: <Sparkles className="w-5 h-5" />,
+                title: "Verify", 
+                desc: "Contributors verify their wallets to receive payments.",
+                icon: <Shield className="w-5 h-5" />,
               },
               { 
                 step: "4", 
-                title: "Verify", 
-                desc: "Optional attestations prove fair execution on EigenCompute.",
-                icon: <Shield className="w-5 h-5" />,
+                title: "Pay", 
+                desc: "Distribute payments to verified contributors via NEAR.",
+                icon: <Sparkles className="w-5 h-5" />,
               },
             ].map((item) => (
               <div key={item.step} className="text-center p-5 bg-white/40 backdrop-blur-sm rounded-xl">

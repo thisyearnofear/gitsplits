@@ -214,6 +214,42 @@ export const nearTool = {
       contributors: normalized,
     };
   },
+
+  async updateSplit(params: {
+    splitId: string;
+    contributors: Array<{ github_username: string; percentage: number }>;
+  }) {
+    await initNear();
+    await ensureWorkerRegistered();
+
+    if (useMockMode) {
+      return {
+        id: params.splitId,
+        contributors: params.contributors,
+        mock: true,
+      };
+    }
+
+    const normalized = normalizeContributorPercentages(params.contributors);
+    const formattedContributors = normalized.map((c) => ({
+      github_username: c.github_username,
+      percentage: (BigInt(c.percentage) * (10n ** 22n)).toString(),
+    }));
+
+    const ok = await contract.update_split({
+      split_id: params.splitId,
+      contributors: formattedContributors,
+    });
+
+    if (!ok) {
+      throw new Error(`Failed to update split ${params.splitId}`);
+    }
+
+    return {
+      id: params.splitId,
+      contributors: normalized,
+    };
+  },
   
   async getVerifiedWallet(githubUsername: string) {
     await initNear();

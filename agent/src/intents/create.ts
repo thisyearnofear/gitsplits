@@ -54,7 +54,9 @@ export const createIntent: Intent = {
       
       // Check if split already exists
       const existing = await tools.near.getSplit(repoUrl);
-      if (existing) {
+      const existingHasContributors =
+        existing && Array.isArray(existing.contributors) && existing.contributors.length > 0;
+      if (existingHasContributors) {
         return {
           response: `A split already exists for ${repoUrl}. View it with: "@gitsplits splits ${repoUrl}"`,
           context,
@@ -90,13 +92,21 @@ export const createIntent: Intent = {
           }));
       }
       
-      // Create split on NEAR contract
-      const ownerId = resolveSplitOwner(context);
-      const split = await tools.near.createSplit({
-        repoUrl,
-        owner: ownerId,
-        contributors,
-      });
+      // Create split or repair existing empty split on NEAR contract
+      let split;
+      if (existing && existing.id) {
+        split = await tools.near.updateSplit({
+          splitId: existing.id,
+          contributors,
+        });
+      } else {
+        const ownerId = resolveSplitOwner(context);
+        split = await tools.near.createSplit({
+          repoUrl,
+          owner: ownerId,
+          contributors,
+        });
+      }
       
       // Format response
       const topContributors = contributors
@@ -105,7 +115,12 @@ export const createIntent: Intent = {
         .join('\n');
       
       return {
-        response: `✅ Split created for ${repoUrl}!\n\n🤖 Powered by GitHub App Automation\n📜 Split ID: ${split.id}\n\nTop contributors (verified via Git history):\n${topContributors}${contributors.length > 5 ? `\n...and ${contributors.length - 5} more` : ''}\n\nTo pay them: "@gitsplits pay 100 USDC to ${repoUrl}"`,
+        response:
+          `${existing && existing.id ? `✅ Split repaired for ${repoUrl}!` : `✅ Split created for ${repoUrl}!`}\n\n` +
+          `🤖 Powered by GitHub App Automation\n📜 Split ID: ${split.id}\n\n` +
+          `Top contributors (verified via Git history):\n${topContributors}` +
+          `${contributors.length > 5 ? `\n...and ${contributors.length - 5} more` : ''}\n\n` +
+          `To pay them: "@gitsplits pay 100 USDC to ${repoUrl}"`,
         context: {
           ...context,
           lastSplit: {

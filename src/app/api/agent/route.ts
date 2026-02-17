@@ -14,6 +14,14 @@ function getAgentBaseUrl(): string | null {
   return value.replace(/\/+$/, '');
 }
 
+function getAbortMessage(error: unknown): string {
+  if (error instanceof Error && error.name === 'AbortError') {
+    return `Agent request timed out after ${REQUEST_TIMEOUT_MS}ms`;
+  }
+  if (error instanceof Error) return error.message;
+  return 'Internal server error';
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -49,22 +57,29 @@ export async function POST(request: NextRequest) {
       headers['x-agent-api-key'] = process.env.AGENT_API_KEY;
     }
 
-    const upstream = await fetch(`${agentBaseUrl}/process`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        text: `@gitsplits ${text}`,
-        author: userId,
-        type: 'web',
-        walletAddress,
-        nearAccountId,
-        evmAddress,
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
+    let upstream: Response;
+    try {
+      upstream = await fetch(`${agentBaseUrl}/process`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          text: `@gitsplits ${text}`,
+          author: userId,
+          type: 'web',
+          walletAddress,
+          nearAccountId,
+          evmAddress,
+        }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
-    const payload = await upstream.json().catch(() => ({}));
+    const contentType = upstream.headers.get('content-type') || '';
+    const payload = contentType.includes('application/json')
+      ? await upstream.json().catch(() => ({}))
+      : { response: await upstream.text().catch(() => '') };
     if (!upstream.ok) {
       return NextResponse.json(
         {
@@ -84,14 +99,10 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    const message =
-      error?.name === 'AbortError'
-        ? `Agent request timed out after ${REQUEST_TIMEOUT_MS}ms`
-        : error?.message || 'Internal server error';
     console.error('Agent error:', error);
     return NextResponse.json(
-      { error: message },
-      { status: 500 }
+      { error: getAbortMessage(error) },
+      { status: error instanceof Error && error.name === 'AbortError' ? 504 : 500 }
     );
   }
 }
@@ -112,10 +123,19 @@ export async function GET() {
   }
 
   try {
-    const upstream = await fetch(`${agentBaseUrl}/ready`, {
-      method: 'GET',
-      cache: 'no-store',
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let upstream: Response;
+    try {
+      upstream = await fetch(`${agentBaseUrl}/ready`, {
+        method: 'GET',
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+
     const payload = await upstream.json().catch(() => ({}));
     return NextResponse.json(
       {
@@ -134,7 +154,7 @@ export async function GET() {
         status: 'degraded',
         service: 'gitsplits-agent-proxy',
         upstream: agentBaseUrl,
-        reason: error?.message || 'Failed to reach agent upstream',
+        reason: getAbortMessage(error) || 'Failed to reach agent upstream',
         timestamp: new Date().toISOString(),
       },
       { status: 503 }

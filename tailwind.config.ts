@@ -9,8 +9,12 @@ const config: Config = {
   ],
   theme: {
   	extend: {
-  		colors: {
-  			background: 'hsl(var(--background))',
+      // Custom gradient colors for the site theme
+      colors: {
+        'gentle-blue': '#E8F4FD',
+        'gentle-purple': '#F3E8FF',
+        'gentle-orange': '#FEF3C7',
+        background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {
   				DEFAULT: 'hsl(var(--card))',

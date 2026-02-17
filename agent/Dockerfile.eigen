@@ -2,7 +2,7 @@
 # Runs in TEE for verifiable execution
 
 # Build stage
-FROM node:18-slim AS builder
+FROM --platform=linux/amd64 node:18-slim AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -28,7 +28,7 @@ COPY . .
 RUN npm run build
 
 # Production stage
-FROM node:18-slim
+FROM --platform=linux/amd64 node:18-slim
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
@@ -46,18 +46,14 @@ RUN npm ci --only=production && npm cache clean --force
 # Copy built application from builder
 COPY --from=builder /build/dist ./dist
 
-# Copy TEE attestation helper (provided by EigenCloud runtime)
-# This will be available at runtime in EigenCloud environment
-
-# Create non-root user for security
-RUN groupadd -r gitsplits && useradd -r -g gitsplits gitsplits
-RUN chown -R gitsplits:gitsplits /app
-USER gitsplits
+# EigenCompute TEE requires root user
+USER root
 
 # Expose health check port
 EXPOSE 3000
 
 # Environment variables (set at runtime)
+# MNEMONIC is injected by EigenCompute KMS at runtime
 ENV NODE_ENV=production
 ENV PORT=3000
 

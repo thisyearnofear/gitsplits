@@ -1,30 +1,140 @@
 /**
  * GitHub Tool
  * 
- * Fetches repository data using GitHub App authentication.
+ * Fetches repository data using GitHub authentication.
+ * Priority: GitHub App (production) -> personal token fallback.
  */
 
 import { Octokit } from '@octokit/rest';
+import crypto from 'crypto';
+import { getGitHubAuthMode } from '../config';
 
-// Lazy initialization - don't throw on module load
-let octokit: Octokit | null = null;
+let appOctokit: Octokit | null = null;
+let tokenOctokit: Octokit | null = null;
+const installationClientCache = new Map<number, Octokit>();
 
-function getOctokit(): Octokit {
-  if (octokit) return octokit;
-  
+function normalizePrivateKey(privateKey: string): string {
+  return privateKey.replace(/\\n/g, '\n');
+}
+
+function getTokenClient(): Octokit {
+  if (tokenOctokit) return tokenOctokit;
   const token = process.env.GITHUB_TOKEN;
-  
-  if (token) {
-    // Personal access token
-    console.log('Using GitHub personal token');
-    octokit = new Octokit({ auth: token });
-  } else {
-    // Unauthenticated (public repos only, 60 requests/hour)
-    console.log('Using unauthenticated GitHub access');
-    octokit = new Octokit();
+  if (!token) {
+    throw new Error('GITHUB_TOKEN is not configured.');
   }
-  
-  return octokit;
+  console.log('[GitHub] Using personal access token auth');
+  tokenOctokit = new Octokit({ auth: token });
+  return tokenOctokit;
+}
+
+async function getAppClient(): Promise<Octokit> {
+  if (appOctokit) return appOctokit;
+  const appId = process.env.GITHUB_APP_ID;
+  const privateKey = process.env.GITHUB_PRIVATE_KEY;
+
+  if (!appId || !privateKey) {
+    throw new Error('GitHub App credentials are not configured.');
+  }
+
+  console.log('[GitHub] Using GitHub App auth');
+  appOctokit = new Octokit();
+  return appOctokit;
+}
+
+function parseRepo(repoUrl: string): { owner: string; repo: string } {
+  const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/?#]+)/);
+  if (!match) {
+    throw new Error('Invalid GitHub repository URL');
+  }
+  return { owner: match[1], repo: match[2].replace(/\.git$/, '') };
+}
+
+async function getInstallationClient(owner: string, repo: string): Promise<Octokit> {
+  const appClient = await getAppClient();
+  const appId = process.env.GITHUB_APP_ID!;
+  const privateKey = normalizePrivateKey(process.env.GITHUB_PRIVATE_KEY!);
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    iat: now - 60,
+    exp: now + 9 * 60,
+    iss: appId,
+  };
+  const encode = (obj: object) =>
+    Buffer.from(JSON.stringify(obj))
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/g, '');
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const tokenInput = `${encode(header)}.${encode(payload)}`;
+  const signer = crypto.createSign('RSA-SHA256');
+  signer.update(tokenInput);
+  signer.end();
+  const signature = signer
+    .sign(privateKey, 'base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+  const appJwt = `${tokenInput}.${signature}`;
+
+  let installation: any;
+  try {
+    installation = await appClient.request('GET /repos/{owner}/{repo}/installation', {
+      owner,
+      repo,
+      headers: {
+        authorization: `Bearer ${appJwt}`,
+        'x-github-api-version': '2022-11-28',
+      },
+    });
+  } catch (error: any) {
+    if (error?.status === 404) {
+      throw new Error(
+        `[GitHub] App is not installed on ${owner}/${repo}. Install the app on the canary repository or update TEST_* repo env vars.`
+      );
+    }
+    throw error;
+  }
+
+  const installationId = installation.data.id;
+  const cached = installationClientCache.get(installationId);
+  if (cached) return cached;
+
+  const tokenResponse = await appClient.request(
+    'POST /app/installations/{installation_id}/access_tokens',
+    {
+      installation_id: installationId,
+      headers: {
+        authorization: `Bearer ${appJwt}`,
+        'x-github-api-version': '2022-11-28',
+      },
+    }
+  );
+
+  const client = new Octokit({ auth: tokenResponse.data.token });
+  installationClientCache.set(installationId, client);
+  return client;
+}
+
+async function getRepoClient(owner: string, repo: string): Promise<Octokit> {
+  const mode = getGitHubAuthMode();
+
+  if (mode === 'app') {
+    return await getInstallationClient(owner, repo);
+  }
+  if (mode === 'token') {
+    return getTokenClient();
+  }
+
+  if (process.env.AGENT_MODE === 'production') {
+    throw new Error(
+      'No GitHub auth available in production. Configure GitHub App credentials.'
+    );
+  }
+
+  console.log('[GitHub] Using unauthenticated access (non-production fallback)');
+  return new Octokit();
 }
 
 export const githubTool = {
@@ -34,15 +144,8 @@ export const githubTool = {
    * Analyze repository contributions
    */
   async analyze(repoUrl: string) {
-    const client = getOctokit();
-    
-    // Parse owner/repo from URL
-    const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
-    if (!match) {
-      throw new Error('Invalid GitHub repository URL');
-    }
-    
-    const [, owner, repo] = match;
+    const { owner, repo } = parseRepo(repoUrl);
+    const client = await getRepoClient(owner, repo);
     
     // Fetch contributors from GitHub API
     const { data: contributors } = await client.rest.repos.listContributors({
@@ -84,7 +187,13 @@ export const githubTool = {
    * Verify GitHub gist ownership
    */
   async verifyGist(githubUsername: string, code: string) {
-    const client = getOctokit();
+    const mode = getGitHubAuthMode();
+    const client =
+      mode === 'app'
+        ? await getAppClient()
+        : mode === 'token'
+          ? getTokenClient()
+          : new Octokit();
     
     // Search for gist containing the verification code
     const { data: gists } = await client.rest.gists.listForUser({
@@ -110,12 +219,31 @@ export const githubTool = {
    * Get rate limit status
    */
   async getRateLimit() {
-    const client = getOctokit();
+    const mode = getGitHubAuthMode();
+    const client =
+      mode === 'app'
+        ? await getAppClient()
+        : mode === 'token'
+          ? getTokenClient()
+          : new Octokit();
     const { data } = await client.rest.rateLimit.get();
     return {
       limit: data.rate.limit,
       remaining: data.rate.remaining,
       resetAt: new Date(data.rate.reset * 1000).toISOString(),
+    };
+  },
+
+  async probeAuth(repoUrl: string) {
+    const { owner, repo } = parseRepo(repoUrl);
+    const client = await getRepoClient(owner, repo);
+    const { data } = await client.rest.repos.get({ owner, repo });
+
+    return {
+      ok: true,
+      authMode: getGitHubAuthMode(),
+      repo: data.full_name,
+      private: data.private,
     };
   },
 };

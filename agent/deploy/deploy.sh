@@ -1,52 +1,57 @@
 #!/bin/bash
 
 # GitSplits Agent Deployment Script
-# Deploys to EigenCloud EigenCompute
+# Deploys to EigenCompute using the @layr-labs/ecloud-cli
 
 set -e
 
-echo "🚀 Deploying GitSplits Agent to EigenCloud..."
+TESTNET=false
 
-# Configuration
-IMAGE_NAME="gitsplits-agent"
-IMAGE_TAG="${1:-latest}"
-EIGENCLOUD_PROJECT="${EIGENCLOUD_PROJECT:-gitsplits}"
+for arg in "$@"; do
+  case $arg in
+    --testnet)
+      TESTNET=true
+      shift
+      ;;
+  esac
+done
+
+echo "🚀 Deploying GitSplits Agent to EigenCompute..."
 
 # Check prerequisites
 if ! command -v docker &> /dev/null; then
     echo "❌ Docker is required"
+    echo "Install: https://docs.docker.com/get-docker/"
     exit 1
 fi
 
-if ! command -v eigencloud &> /dev/null; then
-    echo "❌ EigenCloud CLI is required"
-    echo "Install: npm install -g @eigencloud/cli"
+if ! command -v ecloud &> /dev/null; then
+    echo "❌ ecloud CLI is required"
+    echo "Install: npm install -g @layr-labs/ecloud-cli"
     exit 1
 fi
 
-# Build the image
-echo "📦 Building Docker image..."
-cd ..
-docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -f Dockerfile.eigen .
+# Verify authentication
+echo "🔑 Verifying authentication..."
+if ! ecloud auth whoami; then
+    echo "❌ Not authenticated. Run: ecloud auth login"
+    exit 1
+fi
 
-# Tag for EigenCloud registry
-docker tag ${IMAGE_NAME}:${IMAGE_TAG} registry.eigencloud.xyz/${EIGENCLOUD_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}
+# Set testnet environment if requested
+if [ "$TESTNET" = true ]; then
+    echo "🧪 Setting environment to Sepolia testnet..."
+    ecloud compute env set sepolia
+fi
 
-# Push to EigenCloud registry
-echo "📤 Pushing to EigenCloud registry..."
-docker push registry.eigencloud.xyz/${EIGENCLOUD_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}
+# Deploy (ecloud handles docker build, push, and deploy from the Dockerfile)
+echo "🚀 Running ecloud compute app deploy..."
+cd "$(dirname "$0")/.."
+ecloud compute app deploy
 
-# Deploy to EigenCompute
-echo "🚀 Deploying to EigenCompute..."
-eigencloud deploy \
-    --config eigencloud.yaml \
-    --image registry.eigencloud.xyz/${EIGENCLOUD_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG} \
-    --project ${EIGENCLOUD_PROJECT} \
-    --name gitsplits-agent \
-    --tee
-
+echo ""
 echo "✅ Deployment complete!"
 echo ""
-echo "Check status:"
-echo "  eigencloud logs --project ${EIGENCLOUD_PROJECT} --name gitsplits-agent"
-echo "  eigencloud status --project ${EIGENCLOUD_PROJECT} --name gitsplits-agent"
+echo "Useful commands:"
+echo "  Check logs:   ecloud compute app logs"
+echo "  Check status: ecloud compute app info"

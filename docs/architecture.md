@@ -40,7 +40,7 @@ Autonomous social layer:
 | Tool | Purpose | Status |
 |------|---------|--------|
 | `github` | Repo analysis via GitHub App | ✅ Implemented |
-| `near` | Smart contract interactions | ✅ Implemented |
+| `near` | Smart contract interactions | ✅ Live on Mainnet (`lhkor_marty.near`) |
 | `pingpay` | Cross-chain payments | ✅ Implemented |
 
 **GitHub Authentication:** Uses a single GitHub App owned by GitSplits team. Users don't need their own tokens.
@@ -172,12 +172,11 @@ cd agent/deploy
 | Agent framework | ✅ Complete | Intent parsing, tool registry, context |
 | Farcaster client | ✅ Complete | Real integration |
 | GitHub tool | ✅ Complete | Single GitHub App for all repos |
-| NEAR tool | ✅ Complete | Real contract calls |
+| NEAR tool | ✅ Live | Mainnet deployed (`lhkor_marty.near`) |
 | Ping Pay tool | ✅ Complete | Real API calls |
 | Web UI & API | ✅ Complete | Interactive chat and dashboard |
 | EigenCloud deploy | 🔲 Ready | Config and Dockerfile ready |
 | TEE attestation | 🔲 Pending | Requires EigenCloud deployment |
-| Mainnet contract | 🔲 Pending | Currently testnet |
 
 ## Next Steps
 
@@ -185,7 +184,7 @@ cd agent/deploy
    - Create GitHub App at github.com/settings/apps
    - Get Ping Pay API key
    - Get EigenCloud API key
-   - Set up NEAR mainnet account
+   - NEAR mainnet is already set up on `lhkor_marty.near`
 
 2. **Deploy to EigenCloud**
 

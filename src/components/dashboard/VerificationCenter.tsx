@@ -23,15 +23,15 @@ interface VerificationCenterProps {
   isGitHubConnected: boolean;
   setIsGitHubConnected: (connected: boolean) => void;
   walletAddress?: string;
-  provider?: any;
 }
 
 const VerificationCenter: React.FC<VerificationCenterProps> = ({
   isGitHubConnected,
   setIsGitHubConnected,
   walletAddress,
-  provider,
 }) => {
+  const cleanWalletAddress = (value?: string | null) =>
+    value && value !== "Unknown NEAR Account" ? value : "";
   const [verificationLevel, setVerificationLevel] = useState(1); // Basic level by default
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -63,6 +63,11 @@ const VerificationCenter: React.FC<VerificationCenterProps> = ({
   const [evmSig, setEvmSig] = useState("");
   const [nearSig, setNearSig] = useState("");
   const { signMessageAsync } = useSignMessage();
+  const resolvedWalletAddress =
+    cleanWalletAddress(walletAddress) ||
+    cleanWalletAddress(nearAccountId) ||
+    cleanWalletAddress(evmAddress) ||
+    "";
 
   const { data: session } = useSession();
 
@@ -76,11 +81,10 @@ const VerificationCenter: React.FC<VerificationCenterProps> = ({
 
   // Load verification status and pending distributions
   useEffect(() => {
-    if (walletAddress) {
+    if (resolvedWalletAddress) {
       fetchVerificationStatus();
-      fetchPendingDistributions();
     }
-  }, [walletAddress]);
+  }, [resolvedWalletAddress]);
 
   // Fetch verification status
   const fetchVerificationStatus = async () => {
@@ -90,19 +94,31 @@ const VerificationCenter: React.FC<VerificationCenterProps> = ({
 
       // Call API to get verification status
       const response = await fetch(
-        `/api/verification-status?wallet=${walletAddress}`
+        `/api/verification-status?wallet=${resolvedWalletAddress}`
       );
       const data = await response.json();
 
       if (data.success) {
         if (data.githubVerified) {
           setIsGithubVerified(true);
-          setGithubUsername(data.githubUsername || "");
+          const username = data.githubUsername || "";
+          setGithubUsername(username);
+          if (username) {
+            fetchPendingDistributions(username);
+          }
         }
 
         if (data.twitterVerified) {
           setIsTwitterVerified(true);
           setTwitterHandle(data.twitterHandle || "");
+        }
+
+        if (data.evmVerified) {
+          setIsEvmVerified(true);
+        }
+
+        if (data.nearVerified) {
+          setIsNearVerified(true);
         }
 
         // Update verification level
@@ -126,12 +142,13 @@ const VerificationCenter: React.FC<VerificationCenterProps> = ({
   };
 
   // Fetch pending distributions
-  const fetchPendingDistributions = async () => {
+  const fetchPendingDistributions = async (usernameArg?: string) => {
     try {
-      if (!githubUsername) return;
+      const username = usernameArg || githubUsername;
+      if (!username) return;
 
       const response = await fetch(
-        `/api/pending-distributions?github=${githubUsername}`
+        `/api/pending-distributions?github=${username}`
       );
       const data = await response.json();
 
@@ -146,8 +163,8 @@ const VerificationCenter: React.FC<VerificationCenterProps> = ({
 
   // Generate verification codes for GitHub and Twitter
   const generateSignatures = async () => {
-    if (!provider || !walletAddress) {
-      setStatusMessage("Please connect your wallet first.");
+    if (!resolvedWalletAddress) {
+      setStatusMessage("Please connect an EVM or NEAR wallet first.");
       return;
     }
 
@@ -162,7 +179,7 @@ const VerificationCenter: React.FC<VerificationCenterProps> = ({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          walletAddress,
+          walletAddress: resolvedWalletAddress,
           githubUsername: githubUsername || undefined,
           twitterHandle: twitterHandle || undefined,
         }),
@@ -233,7 +250,7 @@ const VerificationCenter: React.FC<VerificationCenterProps> = ({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          walletAddress,
+          walletAddress: resolvedWalletAddress,
           evmSignature: signature,
           evmMessage: message,
           evmAddress,
@@ -297,7 +314,7 @@ const VerificationCenter: React.FC<VerificationCenterProps> = ({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          walletAddress,
+          walletAddress: resolvedWalletAddress,
           githubUsername: githubUsername || undefined,
           twitterHandle: twitterHandle || undefined,
           githubGistId: githubGistId || undefined,
@@ -360,7 +377,7 @@ const VerificationCenter: React.FC<VerificationCenterProps> = ({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          walletAddress,
+          walletAddress: resolvedWalletAddress,
           githubUsername,
         }),
       });
@@ -443,7 +460,7 @@ const VerificationCenter: React.FC<VerificationCenterProps> = ({
 
               <p className="text-gray-600 mb-4">
                 {verificationLevel === 1
-                  ? "You have basic verification. Connect your EVM or NEAR wallet."
+                  ? "You have basic verification. Connect your EVM or NEAR wallet to continue."
                   : verificationLevel === 2
                   ? "One of your identities and one wallet is verified. Verify both GitHub and X/Twitter, and both wallets for the highest level."
                   : verificationLevel === 3
@@ -481,7 +498,12 @@ const VerificationCenter: React.FC<VerificationCenterProps> = ({
                       )}
                     </>
                   ) : (
-                    <p className="text-sm text-gray-600">Not connected</p>
+                    <>
+                      <p className="text-sm text-gray-600 mb-2">Not connected</p>
+                      <Button size="sm" variant="outline" disabled>
+                        Connect from wallet menu
+                      </Button>
+                    </>
                   )}
                 </div>
                 <div className="border rounded-md p-4">
@@ -504,7 +526,12 @@ const VerificationCenter: React.FC<VerificationCenterProps> = ({
                       )}
                     </>
                   ) : (
-                    <p className="text-sm text-gray-600">Not connected</p>
+                    <>
+                      <p className="text-sm text-gray-600 mb-2">Not connected</p>
+                      <Button size="sm" variant="outline" onClick={connectNear}>
+                        Connect NEAR Wallet
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>
@@ -606,6 +633,11 @@ const VerificationCenter: React.FC<VerificationCenterProps> = ({
         <CardContent>
           {verificationStep === "input" && (
             <div className="space-y-4">
+              {!resolvedWalletAddress && (
+                <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                  Connect an EVM or NEAR wallet before generating verification codes.
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="githubUsername">GitHub Username</Label>
@@ -640,6 +672,7 @@ const VerificationCenter: React.FC<VerificationCenterProps> = ({
                 onClick={generateSignatures}
                 disabled={
                   isLoading ||
+                  !resolvedWalletAddress ||
                   (!githubUsername && !twitterHandle) ||
                   (isGithubVerified && isTwitterVerified)
                 }

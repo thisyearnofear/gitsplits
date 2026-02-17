@@ -17,25 +17,21 @@ import { UserContext } from './context/user';
 import { githubTool } from './tools/github';
 import { nearTool } from './tools/near';
 import { pingpayTool } from './tools/pingpay';
+import { eigenaiTool } from './tools/eigenai';
+import { teeWalletTool } from './tools/tee-wallet';
+import { validateRuntimeConfig } from './config';
 
-// Validate required environment variables
-const requiredEnv = [
-  'GITHUB_APP_ID',
-  'GITHUB_PRIVATE_KEY',
-  'NEAR_ACCOUNT_ID',
-  'NEAR_PRIVATE_KEY',
-  'NEAR_CONTRACT_ID',
-  'PING_PAY_API_KEY',
-];
-
-const missing = requiredEnv.filter(key => !process.env[key]);
-
-if (missing.length > 0) {
-  console.error('❌ Missing required environment variables:');
-  missing.forEach(key => console.error(`   - ${key}`));
-  console.error('');
-  console.error('Set all required variables in .env file');
-  // Don't exit - let it fail when actually called
+const runtimeValidation = validateRuntimeConfig();
+if (runtimeValidation.warnings.length > 0) {
+  console.warn('⚠️ Runtime configuration warnings:');
+  runtimeValidation.warnings.forEach((warning) => console.warn(`   - ${warning}`));
+}
+if (runtimeValidation.errors.length > 0) {
+  console.error('❌ Runtime configuration errors:');
+  runtimeValidation.errors.forEach((error) => console.error(`   - ${error}`));
+  if (runtimeValidation.isProduction) {
+    throw new Error('Invalid production runtime configuration.');
+  }
 }
 
 // Initialize agent
@@ -51,6 +47,8 @@ agent.registerIntent(verifyIntent);
 agent.registerTool(githubTool);
 agent.registerTool(nearTool);
 agent.registerTool(pingpayTool);
+agent.registerTool(eigenaiTool);
+agent.registerTool(teeWalletTool);
 
 // User context management
 const userContext = new UserContext();

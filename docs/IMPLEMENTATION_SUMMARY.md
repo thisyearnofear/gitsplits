@@ -42,10 +42,10 @@ We successfully built a fully-functional autonomous agent for compensating open 
 
 **NEAR Tool** (`agent/src/tools/near.ts`)
 
-- Smart contract interactions
-- Split creation and retrieval
-- Wallet verification
-- Mock implementation for testing
+- **Mainnet Deployed**: Successfully deployed to `lhkor_marty.near` on NEAR Mainnet.
+- **SDK Upgrade**: Upgraded to `near-sdk` 5.4.0 to resolve dependency conflicts.
+- **Wasm Optimization**: Implemented a manual `wasm-opt` pipeline to strip `bulk-memory` and `sign-ext` features, ensuring compatibility with the NEAR Mainnet runtime and fixing "PrepareError: Deserialization" issues.
+- **Full Integration**: Agent is now fully connected to the live contract in `production` mode.
 
 **Ping Pay Tool** (`agent/src/tools/pingpay.ts`)
 
@@ -196,18 +196,17 @@ gitsplits/
 | Intent Framework  | ✅ Complete    | Built-in         | Ready  |
 | Farcaster Bot     | ✅ Complete    | Via Neynar       | Ready  |
 | GitHub Analysis   | ✅ Complete    | Built-in         | Ready  |
-| NEAR Contract     | ✅ Complete    | Deployed         | Ready  |
+| NEAR Contract     | ✅ Complete    | Mainnet Deployed | Live   |
 | Ping Pay          | ✅ Complete    | API integration  | Ready  |
 | EigenCloud        | ✅ Complete    | Dockerfile ready | Ready  |
 | Health Monitoring | ✅ Complete    | Built-in         | Ready  |
-| Testing           | ✅ Complete    | Jest + mock      | Ready  |
+| Testing           | ✅ Complete    | Mainnet Verified | Passed |
 
 ## Next Steps to Go Live
 
 1. **Get API Keys**:
 
    - GitHub personal access token
-   - NEAR mainnet account + private key
    - Neynar API key + signer UUID
    - Ping Pay API key (optional for testing)
 
@@ -216,6 +215,7 @@ gitsplits/
    ```bash
    cp agent/.env.example agent/.env
    # Edit with real API keys
+   # NEAR mainnet account (lhkor_marty.near) is already configured
    ```
 
 3. **Deploy to EigenCloud**:

@@ -61,8 +61,27 @@ export const analyzeIntent: Intent = {
         (sum: number, c: any) => sum + c.commits, 0
       );
       
+      // Run verifiable AI analysis via EigenAI
+      let aiInsight = '';
+      let aiSignature = '';
+      const strictEigenAiInTest =
+        process.env.AGENT_MODE === 'production' && process.env.NODE_ENV === 'test';
+      try {
+        const aiResult = await tools.eigenai.analyzeContributions(
+          repoUrl,
+          analysis.contributors.slice(0, 10),
+        );
+        aiInsight = aiResult.analysis ? `\n\n🤖 AI Analysis (verifiable):\n${aiResult.analysis}` : '';
+        aiSignature = aiResult.signature && !aiResult.mock ? `\n\n🔐 Signature: ${aiResult.signature}` : '';
+      } catch (err: any) {
+        if (strictEigenAiInTest) {
+          throw new Error(`[EigenAI] ${err.message}`);
+        }
+        console.log('[Analyze] EigenAI analysis skipped:', err.message);
+      }
+      
       return {
-        response: `📊 Analysis for ${repoUrl}\n\nTotal commits: ${totalCommits}\nContributors: ${analysis.contributors.length}\n\nTop contributors:\n${topContributors}${analysis.contributors.length > 5 ? `\n...and ${analysis.contributors.length - 5} more` : ''}\n\nCreate a split: "@gitsplits create ${repoUrl}"`,
+        response: `📊 Analysis for ${repoUrl}\n\nTotal commits: ${totalCommits}\nContributors: ${analysis.contributors.length}\n\nTop contributors:\n${topContributors}${analysis.contributors.length > 5 ? `\n...and ${analysis.contributors.length - 5} more` : ''}${aiInsight}${aiSignature}\n\nCreate a split: "@gitsplits create ${repoUrl}"`,
         context: {
           ...context,
           lastAnalysis: {

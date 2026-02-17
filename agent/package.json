@@ -9,6 +9,8 @@
     "dev:cli": "tsx watch src/index.ts",
     "start": "node dist/server.js",
     "test": "jest",
+    "test:production:preflight": "jest tests/production.preflight.test.ts --runInBand",
+    "test:production:intents": "jest tests/production.intents.test.ts --runInBand",
     "lint": "eslint src/**/*.ts",
     "docker:build": "docker build -t gitsplits-agent -f Dockerfile.eigen .",
     "docker:run": "docker run -p 3000:3000 --env-file .env gitsplits-agent"
@@ -19,7 +21,8 @@
     "@octokit/rest": "^20.0.2",
     "dotenv": "^16.4.5",
     "ethers": "^6.16.0",
-    "near-api-js": "^3.0.4"
+    "near-api-js": "^3.0.4",
+    "viem": "^2.21.33"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",

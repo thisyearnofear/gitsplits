@@ -4,7 +4,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Shield, AlertCircle, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DashboardProps } from "@/types";
-import { useAccount, useWalletClient } from "wagmi";
+import { useAccount } from "wagmi";
+import { useRouter } from "next/navigation";
 import XCommandsGuide from "./XCommandsGuide";
 import DashboardOverview from "./DashboardOverview";
 import VerificationCenter from "./VerificationCenter";
@@ -18,12 +19,17 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState("verification");
   const { address } = useAccount();
-  const { data: walletClient } = useWalletClient();
+  const router = useRouter();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gentle-blue via-gentle-purple to-gentle-orange">
       <div className="container mx-auto px-4 py-8">
         <WalletStatusBar />
+        <div className="mb-4 flex justify-end">
+          <Button variant="outline" onClick={() => router.push("/splits")}>
+            Open Splits
+          </Button>
+        </div>
         {/* Main Dashboard Tabs */}
         <Tabs
           value={activeTab}
@@ -43,7 +49,6 @@ const Dashboard: React.FC<DashboardProps> = ({
               isGitHubConnected={isGitHubConnected}
               setIsGitHubConnected={setIsGitHubConnected}
               walletAddress={address}
-              provider={walletClient}
             />
           </TabsContent>
 

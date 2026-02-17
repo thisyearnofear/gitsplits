@@ -38,6 +38,23 @@ interface GrantAuth {
   walletAddress: string;
 }
 
+export function sanitizeEigenAiContent(content: string): string {
+  if (!content) return '';
+
+  // Some model providers prepend hidden reasoning blocks like:
+  // <|channel|>analysis<|message|>...<|end|>Final answer
+  const lastEnd = content.lastIndexOf('<|end|>');
+  let sanitized = lastEnd >= 0 ? content.slice(lastEnd + '<|end|>'.length) : content;
+
+  // Strip composite channel+message wrappers first.
+  sanitized = sanitized.replace(/<\|channel\|>[^<]*<\|message\|>/g, '');
+
+  // Strip any remaining control tokens.
+  sanitized = sanitized.replace(/<\|[^|]+?\|>/g, '').trim();
+
+  return sanitized || content.trim();
+}
+
 // Cached grant auth so we don't re-sign every request
 let cachedAuth: GrantAuth | null = null;
 
@@ -175,9 +192,11 @@ export const eigenaiTool = {
     ];
 
     const result = await eigenaiTool.chat(messages);
+    const rawAnalysis = result.choices?.[0]?.message?.content ?? '';
+    const analysis = sanitizeEigenAiContent(rawAnalysis);
 
     return {
-      analysis: result.choices?.[0]?.message?.content ?? '',
+      analysis,
       signature: result.signature,
       model: result.model,
       repoUrl,

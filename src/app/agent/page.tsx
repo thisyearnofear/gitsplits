@@ -1,17 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import Badge from '@/components/ui/badge';
 import Header from '@/components/shared/Header';
-import { Search, Plus, DollarSign, Shield, Send, Loader2 } from 'lucide-react';
+import { Search, Plus, DollarSign, Shield, Send, Loader2, Bot, Sparkles } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'agent';
   text: string;
   timestamp?: Date;
+  isTyping?: boolean;
 }
 
 interface CommandExample {
@@ -21,7 +24,21 @@ interface CommandExample {
   category: 'analyze' | 'create' | 'pay' | 'verify';
 }
 
+// Typing indicator component
+const TypingIndicator = () => (
+  <div className="flex gap-1 items-center px-1">
+    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+  </div>
+);
+
 export default function AgentPage() {
+  const searchParams = useSearchParams();
+  const repoParam = searchParams.get('repo');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
     { 
@@ -31,6 +48,34 @@ export default function AgentPage() {
     },
   ]);
   const [loading, setLoading] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
+
+  // Auto-scroll to bottom
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Handle repo parameter from landing page
+  useEffect(() => {
+    if (repoParam && !hasInteracted) {
+      const command = `analyze ${repoParam}`;
+      setInput(command);
+      // Small delay to show the user what happened
+      const timer = setTimeout(() => {
+        sendMessage(command);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [repoParam]);
+
+  // Focus input on mount
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const commandExamples: CommandExample[] = [
     {
@@ -69,13 +114,32 @@ export default function AgentPage() {
     return colors[category] || 'bg-gray-100 text-gray-700';
   };
 
-  const sendMessage = async () => {
-    if (!input.trim() || loading) return;
+  const sendMessage = async (messageText?: string) => {
+    const textToSend = messageText || input;
+    if (!textToSend.trim() || loading) return;
 
-    const userMessage = input.trim();
-    setMessages((prev) => [...prev, { role: 'user', text: userMessage, timestamp: new Date() }]);
-    setInput('');
+    setHasInteracted(true);
+    const userMessage = textToSend.trim();
+    
+    if (!messageText) {
+      setInput('');
+    }
+    
+    setMessages((prev) => [...prev, { 
+      role: 'user', 
+      text: userMessage, 
+      timestamp: new Date() 
+    }]);
+    
     setLoading(true);
+
+    // Add typing indicator
+    setMessages((prev) => [...prev, { 
+      role: 'agent', 
+      text: '', 
+      timestamp: new Date(),
+      isTyping: true 
+    }]);
 
     try {
       const res = await fetch('/api/agent', {
@@ -86,13 +150,32 @@ export default function AgentPage() {
 
       const data = await res.json();
 
-      if (data.success) {
-        setMessages((prev) => [...prev, { role: 'agent', text: data.response, timestamp: new Date() }]);
-      } else {
-        setMessages((prev) => [...prev, { role: 'agent', text: `❌ ${data.error}`, timestamp: new Date() }]);
-      }
+      // Remove typing indicator and add response
+      setMessages((prev) => {
+        const withoutTyping = prev.filter(m => !m.isTyping);
+        if (data.success) {
+          return [...withoutTyping, { 
+            role: 'agent', 
+            text: data.response, 
+            timestamp: new Date() 
+          }];
+        } else {
+          return [...withoutTyping, { 
+            role: 'agent', 
+            text: `❌ ${data.error}`, 
+            timestamp: new Date() 
+          }];
+        }
+      });
     } catch (error: any) {
-      setMessages((prev) => [...prev, { role: 'agent', text: `❌ Error: ${error.message}`, timestamp: new Date() }]);
+      setMessages((prev) => {
+        const withoutTyping = prev.filter(m => !m.isTyping);
+        return [...withoutTyping, { 
+          role: 'agent', 
+          text: `❌ Error: ${error.message}`, 
+          timestamp: new Date() 
+        }];
+      });
     } finally {
       setLoading(false);
     }
@@ -105,6 +188,11 @@ export default function AgentPage() {
     }
   };
 
+  const handleExampleClick = (command: string) => {
+    setInput(command);
+    inputRef.current?.focus();
+  };
+
   return (
     <>
       <Header />
@@ -112,45 +200,55 @@ export default function AgentPage() {
         <div className="max-w-3xl mx-auto px-4 py-8">
           {/* Header */}
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">GitSplits Agent</h1>
+            <div className="inline-flex items-center gap-2 bg-white/60 backdrop-blur-sm border border-blue-200 rounded-full px-4 py-1.5 text-sm text-blue-700 mb-4">
+              <Sparkles className="w-4 h-4" />
+              <span>AI-Powered</span>
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center justify-center gap-3">
+              <Bot className="w-8 h-8 text-blue-600" />
+              GitSplits Agent
+            </h1>
             <p className="text-gray-600">Compensate open source contributors with natural language commands</p>
           </div>
 
           {/* Chat Container */}
-          <Card className="shadow-lg border-0">
+          <Card className="shadow-xl border-0 overflow-hidden">
             <CardContent className="p-0">
               {/* Messages */}
               <div className="h-96 overflow-y-auto p-4 space-y-4 bg-white">
                 {messages.map((msg, i) => (
-                  <div
+                  <motion.div
                     key={i}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
                     className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    <div
-                      className={`max-w-[85%] rounded-2xl px-4 py-3 whitespace-pre-wrap text-sm ${
-                        msg.role === 'user'
-                          ? 'bg-blue-600 text-white rounded-br-md'
-                          : 'bg-gray-100 text-gray-900 rounded-bl-md border border-gray-200'
-                      }`}
-                    >
-                      {msg.text}
-                    </div>
-                  </div>
+                    {msg.isTyping ? (
+                      <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-3 border border-gray-200">
+                        <TypingIndicator />
+                      </div>
+                    ) : (
+                      <div
+                        className={`max-w-[85%] rounded-2xl px-4 py-3 whitespace-pre-wrap text-sm ${
+                          msg.role === 'user'
+                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-br-md'
+                            : 'bg-gray-100 text-gray-900 rounded-bl-md border border-gray-200'
+                        }`}
+                      >
+                        {msg.text}
+                      </div>
+                    )}
+                  </motion.div>
                 ))}
-                {loading && (
-                  <div className="flex justify-start">
-                    <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-3 border border-gray-200 flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                      <span className="text-sm text-gray-600">Processing...</span>
-                    </div>
-                  </div>
-                )}
+                <div ref={messagesEndRef} />
               </div>
 
               {/* Input Area */}
-              <div className="border-t border-gray-200 p-4 bg-gray-50 rounded-b-lg">
+              <div className="border-t border-gray-200 p-4 bg-gray-50">
                 <div className="flex gap-2">
                   <Input
+                    ref={inputRef}
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
@@ -160,9 +258,9 @@ export default function AgentPage() {
                     disabled={loading}
                   />
                   <Button
-                    onClick={sendMessage}
+                    onClick={() => sendMessage()}
                     disabled={loading || !input.trim()}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-6"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 transition-all"
                   >
                     {loading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -185,10 +283,10 @@ export default function AgentPage() {
               {commandExamples.map((cmd) => (
                 <button
                   key={cmd.command}
-                  onClick={() => setInput(cmd.command)}
-                  className="flex items-start gap-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all text-left group"
+                  onClick={() => handleExampleClick(cmd.command)}
+                  className="flex items-start gap-3 p-3 bg-white/80 backdrop-blur-sm rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all text-left group"
                 >
-                  <div className={`p-2 rounded-lg ${getCategoryColor(cmd.category)}`}>
+                  <div className={`p-2 rounded-lg ${getCategoryColor(cmd.category)} transition-transform group-hover:scale-110`}>
                     {cmd.icon}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -210,7 +308,7 @@ export default function AgentPage() {
           {/* Tips */}
           <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-100">
             <p className="text-sm text-blue-800">
-              <strong>Tip:</strong> You can also interact with the agent on X (Twitter) by mentioning @gitsplits or through Farcaster!
+              <strong>💡 Tip:</strong> You can also interact with the agent on X (Twitter) by mentioning @gitsplits or through Farcaster!
             </p>
           </div>
         </div>

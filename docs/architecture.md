@@ -1,196 +1,120 @@
 # GitSplits Architecture
 
-GitSplits is an autonomous AI agent that compensates open source contributors via natural language commands on Farcaster. Powered by our custom intent-based agent framework, running on EigenCloud's verifiable compute.
-
 ## Overview
 
+GitSplits is an autonomous agent that compensates open source contributors via natural language commands.
+
 ```
-User (Farcaster) → Intent Agent → EigenCompute (TEE) → NEAR + Sponsors
+User (Farcaster/Web) → Intent Agent → EigenCompute (TEE) → NEAR + Payments
 ```
 
 ## Components
 
-### 1. Intent-Based Agent Framework (`/agent/src/core/`)
+### 1. Intent Agent (`/agent/src/`)
 
-Custom lightweight framework for natural language command processing:
+Custom lightweight framework for natural language processing:
 
-- **Intent Recognition**: Pattern-based parsing (e.g., "pay {amount} {token} to {repo}")
-- **Tool Registry**: Coordinates GitHub API, NEAR contract, payment execution
-- **Context Management**: Per-user conversation state and preferences
+- **Intent Recognition**: Pattern-based parsing
+- **Tool Registry**: GitHub API, NEAR contract, payments
+- **Context Management**: Per-user conversation state
 
-### 2. Farcaster Integration (`/agent/src/farcaster/`)
-
-Autonomous social layer:
-
-- **@gitsplits bot**: Lives on Farcaster, responds to mentions and DMs
-- **Natural language**: Users type commands in plain English
-- **No setup required**: Users just mention @gitsplits
-
-### 3. Intents (`/agent/src/intents/`)
+### 2. Intents
 
 | Intent | Description | Example |
 |--------|-------------|---------|
-| `pay` | Distribute funds to contributors | "pay 100 USDC to near-sdk-rs" |
-| `create` | Create new split for repo | "create split for near-sdk-rs" |
-| `analyze` | Show contribution breakdown | "analyze near-sdk-rs" |
+| `pay` | Distribute funds | "pay 100 USDC to near-sdk-rs" |
+| `create` | Create split | "create split for near-sdk-rs" |
+| `analyze` | Show contributions | "analyze near-sdk-rs" |
 | `verify` | Link GitHub to wallet | "verify my-github-username" |
 
-### 4. Tools (`/agent/src/tools/`)
+### 3. Tools
 
-| Tool | Purpose | Status |
-|------|---------|--------|
-| `github` | Repo analysis via GitHub App | ✅ Implemented |
-| `near` | Smart contract interactions | ✅ Live on Mainnet (`lhkor_marty.near`) |
-| `pingpay` | Cross-chain payments | ✅ Implemented |
-| `hotpay` | Fiat & NEAR payments | ✅ Live |
+| Tool | Purpose |
+|------|---------|
+| `github` | Repo analysis via GitHub App |
+| `near` | Smart contract interactions |
+| `pingpay` | Cross-chain payments |
+| `hotpay` | Fiat & NEAR payments |
 
-**GitHub Authentication:** Uses a single GitHub App owned by GitSplits team. Users don't need their own tokens.
+### 4. EigenCompute
 
-### 5. EigenCloud EigenCompute
+Agent runs in a TEE container:
 
-Shade Agent runs in a TEE container:
-
-- **Verifiable Execution**: Cryptographic attestation of all operations
+- **Verifiable Execution**: Cryptographic attestation
 - **Chain Signatures**: Cross-chain transaction signing
-- **AVS Backing**: Actively Validated Service for slashing
+- **AVS Backing**: Actively Validated Service
 
-### 6. Sponsor Integrations
+### 5. Web UI (`/src/app/`)
 
-| Sponsor | Purpose | Status |
-|---------|---------|--------|
-| **Ping Pay** | Cross-chain payments via NEAR Intents | ✅ Implemented |
-| **HOT Pay** | Fiat onramp & NEAR payments | ✅ Live |
-| **EigenCloud** | Verifiable compute (TEE + AVS) | ✅ Implemented |
-| **NOVA** | Private data encryption | 🔲 Future integration |
-
-### 7. NEAR Smart Contract
-
-- Split management
-- Contributor registry with percentages
-- Identity verification
-- Chain signature generation
-
-### 8. Web UI & Agent API (`/src/app/`)
-
-The Next.js frontend provides a visual interface for the agent:
-
-- **Agent Chat UI** (`/src/app/agent/`): A clean, interactive interface for sending natural language commands.
-- **Agent API Route** (`/src/app/api/agent/`): Proxies the web interface to the standalone agent service over HTTP (`AGENT_BASE_URL`).
-- **Verification Flow** (`/src/app/verify/`): Secure identity linking for contributors.
-- **Dashboard** (`/src/app/dashboard/`): Visual management of splits and repository analytics.
-
-## System Workflow
-
-```
-[Web UI Chat] --(JSON)--> [Next.js API] --(HTTP /process)--> [Standalone Agent Service]
-[Farcaster] --(Mention)--> [Neynar API] --(Webhook)--> [Standalone Agent Service]
-```
-
-## User Flow
-
-### For Contributors (No Setup Required)
-
-```
-1. User sees @gitsplits mentioned on Farcaster
-2. User casts: "@gitsplits pay 100 USDC to near-sdk-rs"
-3. Agent analyzes repo, finds contributors
-4. If user is a contributor, they verify via DM
-5. Agent distributes funds to verified wallets
-```
-
-### For Repository Owners
-
-```
-1. Owner casts: "@gitsplits create split for my-org/my-repo"
-2. Agent analyzes repo, creates split
-3. Owner can now receive payments and distribute to contributors
-```
+- **Agent Chat** (`/agent`): Natural language interface
+- **API** (`/api/agent`): Proxies to agent service
+- **Verify** (`/verify`): Identity linking
+- **Dashboard** (`/dashboard`): Split management
 
 ## File Structure
 
 ```
 /
-├── agent/                      # Intent-based agent (runs on EigenCloud)
-│   ├── src/
-│   │   ├── core/              # Agent framework
-│   │   ├── intents/           # Pay, create, analyze, verify
-│   │   ├── tools/             # GitHub, NEAR, Ping Pay
-│   │   └── farcaster/         # Social layer
-│   ├── deploy/                # EigenCloud config
-│   └── Dockerfile.eigen       # TEE container
-├── contracts/near/             # NEAR smart contract
-├── src/                        # Web UI (Next.js)
-│   └── app/
-│       ├── verify/            # GitHub verification flow
-│       └── dashboard/         # Split management
-└── docs/                       # Documentation
+├── agent/                 # Intent agent (EigenCompute)
+│   ├── src/intents/      # Pay, create, analyze, verify
+│   ├── src/tools/        # GitHub, NEAR, payments
+│   └── deploy/           # EigenCompute deployment
+├── contracts/near/       # NEAR smart contract
+├── src/app/              # Web UI (Next.js)
+│   ├── agent/           # Chat interface
+│   ├── api/agent/       # API proxy
+│   ├── verify/          # Verification flow
+│   └── dashboard/       # Split management
+└── docs/                # Documentation
 ```
 
-## Environment Variables (For GitSplits Team Only)
+## Environment Variables
 
 ```bash
-# Farcaster (bot account)
-FARCASTER_PRIVATE_KEY=0x...
-FARCASTER_FID=12345
-
-# GitHub App (single app for all repos)
+# GitHub App
 GITHUB_APP_ID=123456
-GITHUB_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----..."
+GITHUB_PRIVATE_KEY="..."
 
-# NEAR (team account)
+# NEAR
 NEAR_ACCOUNT_ID=gitsplits.near
 NEAR_PRIVATE_KEY=ed25519:...
 NEAR_CONTRACT_ID=gitsplits.near
 
-# Ping Pay (team account)
+# Payments
 PING_PAY_API_KEY=...
+HOT_PAY_JWT=...
 
-# EigenCloud (deployment)
-EIGENCLOUD_API_KEY=...
+# EigenCompute
+EIGENAI_WALLET_PRIVATE_KEY=0x...
+EIGENAI_WALLET_ADDRESS=0x...
+
+# Farcaster (optional)
+NEYNAR_API_KEY=...
+NEYNAR_SIGNER_UUID=...
 ```
 
 ## Deployment
 
-### Build
-
 ```bash
+# Build agent
 cd agent
 npm run build
 docker build -t gitsplits-agent -f Dockerfile.eigen .
-```
 
-### Deploy to EigenCloud
-
-```bash
-cd agent/deploy
+# Deploy to EigenCompute
+cd deploy
 ./deploy.sh
 ```
 
-## Current Status
+## Status
 
-| Component | Status | Notes |
-|-----------|--------|-------|
-| Agent framework | ✅ Complete | Intent parsing, tool registry, context |
-| Farcaster client | ✅ Complete | Real integration |
-| GitHub tool | ✅ Complete | Single GitHub App for all repos |
-| NEAR tool | ✅ Live | Mainnet deployed (`lhkor_marty.near`) |
-| Ping Pay tool | ✅ Complete | Real API calls |
-| HOT Pay tool | ✅ Live | Mainnet Verified |
-| Web UI & API | ✅ Complete | Interactive chat and dashboard |
-| EigenCloud deploy | 🔲 Ready | Config and Dockerfile ready |
-| TEE attestation | 🔲 Pending | Requires EigenCloud deployment |
-
-## Next Steps
-
-1. **Get API keys** (GitSplits team only):
-   - Create GitHub App at github.com/settings/apps
-   - Get Ping Pay API key
-   - Get EigenCloud API key
-   - NEAR mainnet is set up on `lhkor_marty.near`
-   - HOT Pay is set up on `papajams.near`
-
-2. **Deploy to EigenCloud**
-
-3. **Register Farcaster FID** for @gitsplits
-
-4. **Test with real APIs**
+| Component | Status |
+|-----------|--------|
+| Agent framework | ✅ Complete |
+| Farcaster client | ✅ Complete |
+| GitHub tool | ✅ Complete |
+| NEAR tool | ✅ Live (mainnet) |
+| Ping Pay | ✅ Complete |
+| HOT Pay | ✅ Live |
+| Web UI | ✅ Complete |
+| EigenCompute | ✅ Deployed |

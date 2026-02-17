@@ -91,7 +91,7 @@ export const createIntent: Intent = {
       }
       
       // Create split on NEAR contract
-      const ownerId = context?.farcasterId || context?.message?.author || 'unknown';
+      const ownerId = resolveSplitOwner(context);
       const split = await tools.near.createSplit({
         repoUrl,
         owner: ownerId,
@@ -124,6 +124,31 @@ export const createIntent: Intent = {
     }
   },
 };
+
+function isLikelyNearAccount(value: string): boolean {
+  if (!value) return false;
+  return /\.near$|\.testnet$/i.test(value);
+}
+
+function resolveSplitOwner(context: any): string {
+  const candidates = [
+    context?.message?.nearAccountId,
+    context?.message?.walletAddress,
+    context?.farcasterId,
+    context?.message?.author,
+  ].filter(Boolean);
+
+  const firstNear = candidates.find((candidate: string) => isLikelyNearAccount(candidate));
+  if (firstNear) return firstNear;
+
+  if (process.env.NEAR_ACCOUNT_ID) {
+    return process.env.NEAR_ACCOUNT_ID;
+  }
+
+  throw new Error(
+    'No valid NEAR owner account available. Connect a NEAR wallet in web UI or set NEAR_ACCOUNT_ID.'
+  );
+}
 
 function normalizeRepoUrl(input: string): string {
   let cleaned = input

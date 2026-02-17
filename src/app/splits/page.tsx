@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useAppKitAccount } from "@reown/appkit/react";
 import { useNearWallet } from "@/hooks/useNearWallet";
 import WalletStatusBar from "@/components/shared/WalletStatusBar";
-import { NearContractService } from "@/services/nearContractService";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,72 +12,128 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertCircle, CheckCircle2, GitBranch } from "lucide-react";
 
-type Contributor = {
+type ParsedContributor = {
   githubUsername: string;
   percentage: number;
 };
 
+type AgentApiResponse = {
+  success?: boolean;
+  response?: string;
+  error?: string;
+};
+
+function normalizeRepoUrl(input: string): string {
+  const cleaned = input
+    .trim()
+    .replace(/^(https?:\/\/)?(www\.)?github\.com\//i, "")
+    .replace(/\/+$/, "");
+  return `github.com/${cleaned}`;
+}
+
+function parseContributorsFromAnalyzeResponse(response: string): ParsedContributor[] {
+  return response
+    .split("\n")
+    .map((line) => line.trim())
+    .map((line) => {
+      const match = line.match(/^[^a-zA-Z0-9]*([a-zA-Z0-9_.-]+):.*\((\d+)%\)/);
+      if (!match) return null;
+      return {
+        githubUsername: match[1],
+        percentage: Number(match[2]),
+      };
+    })
+    .filter((item): item is ParsedContributor => !!item);
+}
+
 export default function SplitsPage() {
-  const { selector, isConnected: isNearConnected, accountId: nearAccountId } = useNearWallet();
-  const [repoUrl, setRepoUrl] = useState("");
-  const [contributors, setContributors] = useState<Contributor[]>([]);
+  const { isConnected: isNearConnected, accountId: nearAccountId } = useNearWallet();
+  const { isConnected: isEvmConnected, address: evmAddress } = useAppKitAccount();
+  const [repoInput, setRepoInput] = useState("");
+  const [contributors, setContributors] = useState<ParsedContributor[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
-  const [createdSplitId, setCreatedSplitId] = useState("");
+  const [analyzeResponse, setAnalyzeResponse] = useState("");
+  const [createResponse, setCreateResponse] = useState("");
 
-  const contractService = useMemo(() => new NearContractService(selector, nearAccountId), [selector, nearAccountId]);
+  const walletIdentity = useMemo(() => {
+    if (nearAccountId && nearAccountId !== "Unknown NEAR Account") return nearAccountId;
+    if (evmAddress) return evmAddress;
+    return "web_user";
+  }, [nearAccountId, evmAddress]);
+
+  const walletAddressForAgent = useMemo(() => {
+    if (nearAccountId && nearAccountId !== "Unknown NEAR Account") return nearAccountId;
+    return evmAddress || "";
+  }, [nearAccountId, evmAddress]);
+
+  async function callAgent(text: string) {
+    const response = await fetch("/api/agent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        userId: walletIdentity,
+        walletAddress: walletAddressForAgent,
+        nearAccountId: nearAccountId || undefined,
+        evmAddress: evmAddress || undefined,
+      }),
+    });
+    const data: AgentApiResponse = await response.json();
+    if (!response.ok || !data.success || !data.response) {
+      throw new Error(data.error || "Agent request failed.");
+    }
+    return data.response;
+  }
 
   const analyzeRepo = async () => {
-    if (!repoUrl.trim()) {
+    if (!repoInput.trim()) {
       setStatus("error");
       setMessage("Repository URL is required.");
       return;
     }
 
+    const normalizedRepo = normalizeRepoUrl(repoInput);
     setStatus("loading");
     setMessage("");
-    setCreatedSplitId("");
+    setAnalyzeResponse("");
+    setCreateResponse("");
+    setContributors([]);
 
     try {
-      const response = await fetch("/api/github/analyze-contributions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repoUrl: repoUrl.trim() }),
-      });
-      const data = await response.json();
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || data.error || "Failed to analyze repository.");
-      }
-
-      setContributors(data.contributors || []);
+      const response = await callAgent(`analyze ${normalizedRepo}`);
+      const parsed = parseContributorsFromAnalyzeResponse(response);
+      setAnalyzeResponse(response);
+      setContributors(parsed);
       setStatus("success");
-      setMessage("Repository analyzed. You can now create a split on NEAR.");
+      setMessage(
+        parsed.length > 0
+          ? "Repository analyzed successfully. You can create a split now."
+          : "Analysis completed. Contributor table could not be fully parsed, but you can still create a split."
+      );
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Failed to analyze repository.");
-      setContributors([]);
     }
   };
 
   const createSplit = async () => {
-    if (!isNearConnected || !nearAccountId) {
+    if (!repoInput.trim()) {
       setStatus("error");
-      setMessage("Connect a NEAR wallet before creating a split.");
-      return;
-    }
-    if (!repoUrl.trim() || contributors.length === 0) {
-      setStatus("error");
-      setMessage("Analyze a repository first.");
+      setMessage("Repository URL is required.");
       return;
     }
 
+    const normalizedRepo = normalizeRepoUrl(repoInput);
     setStatus("loading");
-    setMessage("Creating split on NEAR...");
+    setMessage("Creating split via agent...");
+    setCreateResponse("");
+
     try {
-      const splitId = await contractService.createSplit(repoUrl.trim(), nearAccountId);
-      setCreatedSplitId(splitId);
+      const response = await callAgent(`create ${normalizedRepo}`);
+      setCreateResponse(response);
       setStatus("success");
-      setMessage("Split creation transaction submitted on NEAR.");
+      setMessage("Split creation flow completed.");
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Failed to create split.");
@@ -93,7 +149,7 @@ export default function SplitsPage() {
           <CardHeader>
             <CardTitle>Splits</CardTitle>
             <CardDescription>
-              Analyze a GitHub repo and create a contributor split backed by your connected NEAR wallet.
+              Analyze a GitHub repository and create a split through the live agent backend.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -116,8 +172,8 @@ export default function SplitsPage() {
               <Label htmlFor="repoUrl">GitHub Repository URL</Label>
               <Input
                 id="repoUrl"
-                value={repoUrl}
-                onChange={(e) => setRepoUrl(e.target.value)}
+                value={repoInput}
+                onChange={(e) => setRepoInput(e.target.value)}
                 placeholder="https://github.com/owner/repo"
               />
             </div>
@@ -126,19 +182,15 @@ export default function SplitsPage() {
               <Button onClick={analyzeRepo} disabled={status === "loading"}>
                 {status === "loading" ? "Processing..." : "Analyze Contributions"}
               </Button>
-              <Button
-                variant="outline"
-                onClick={createSplit}
-                disabled={status === "loading" || contributors.length === 0 || !isNearConnected}
-              >
-                Create Split on NEAR
+              <Button variant="outline" onClick={createSplit} disabled={status === "loading"}>
+                Create Split
               </Button>
             </div>
 
-            {createdSplitId && (
-              <div className="rounded-md border bg-white p-3 text-sm">
-                Created split ID: <span className="font-mono">{createdSplitId}</span>
-              </div>
+            {!isNearConnected && !isEvmConnected && (
+              <p className="text-sm text-amber-700">
+                Connect a wallet for best results. Without a wallet, split ownership falls back to server NEAR account.
+              </p>
             )}
 
             <div className="rounded-md border bg-white">
@@ -147,7 +199,7 @@ export default function SplitsPage() {
                 Contributor Allocation
               </div>
               {contributors.length === 0 ? (
-                <p className="p-4 text-sm text-gray-600">No contributors loaded yet.</p>
+                <p className="p-4 text-sm text-gray-600">No contributors parsed yet.</p>
               ) : (
                 <Table>
                   <TableHeader>
@@ -167,6 +219,20 @@ export default function SplitsPage() {
                 </Table>
               )}
             </div>
+
+            {analyzeResponse && (
+              <div className="rounded-md border bg-gray-50 p-3 text-sm whitespace-pre-wrap">
+                <p className="mb-2 font-medium">Analyze Response</p>
+                {analyzeResponse}
+              </div>
+            )}
+
+            {createResponse && (
+              <div className="rounded-md border bg-gray-50 p-3 text-sm whitespace-pre-wrap">
+                <p className="mb-2 font-medium">Create Response</p>
+                {createResponse}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -8,6 +8,60 @@ import {
 import { setDoc, doc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
+const REQUEST_TIMEOUT_MS = 20_000;
+
+function getAgentBaseUrl(): string | null {
+  const value = process.env.AGENT_BASE_URL?.trim();
+  if (!value) return null;
+  return value.replace(/\/+$/, "");
+}
+
+async function syncVerificationToContract(params: {
+  githubUsername: string;
+  nearAccountId: string;
+  walletAddress: string;
+}): Promise<void> {
+  const agentBaseUrl = getAgentBaseUrl();
+  if (!agentBaseUrl) {
+    throw new Error("AGENT_BASE_URL is not configured for contract sync");
+  }
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (process.env.AGENT_API_KEY) {
+    headers["x-agent-api-key"] = process.env.AGENT_API_KEY;
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const upstream = await fetch(`${agentBaseUrl}/process`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        text: `@gitsplits verify ${params.githubUsername}`,
+        author: params.nearAccountId,
+        type: "web",
+        walletAddress: params.walletAddress,
+        nearAccountId: params.nearAccountId,
+      }),
+      signal: controller.signal,
+    });
+
+    const payload = await upstream.json().catch(() => ({}));
+    if (!upstream.ok) {
+      throw new Error(payload?.error || `Agent sync failed (${upstream.status})`);
+    }
+    const responseText = String(payload?.response || "");
+    if (responseText.includes("❌")) {
+      throw new Error(responseText);
+    }
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -35,6 +89,7 @@ export async function POST(request: NextRequest) {
     let twitterVerified = false;
     let evmVerified = false;
     let nearVerified = false;
+    let contractSynced = false;
 
     // Verify GitHub identity
     if (githubUsername && githubGistId) {
@@ -66,6 +121,15 @@ export async function POST(request: NextRequest) {
         nearSignature,
         nearAccountId
       );
+    }
+
+    if (githubVerified && nearVerified && githubUsername && nearAccountId) {
+      await syncVerificationToContract({
+        githubUsername,
+        nearAccountId,
+        walletAddress,
+      });
+      contractSynced = true;
     }
 
     // Store the verification status in Firestore
@@ -105,11 +169,15 @@ export async function POST(request: NextRequest) {
       twitterVerified,
       evmVerified,
       nearVerified,
+      contractSynced,
     });
   } catch (error) {
     console.error("Error verifying identities:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to verify identities" },
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to verify identities",
+      },
       { status: 500 }
     );
   }

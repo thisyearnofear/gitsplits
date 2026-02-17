@@ -17,7 +17,13 @@ function getAgentBaseUrl(): string | null {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { text, userId = 'web_user' } = body;
+    const {
+      text,
+      userId = 'web_user',
+      walletAddress,
+      nearAccountId,
+      evmAddress,
+    } = body;
 
     if (!text) {
       return NextResponse.json(
@@ -50,6 +56,9 @@ export async function POST(request: NextRequest) {
         text: `@gitsplits ${text}`,
         author: userId,
         type: 'web',
+        walletAddress,
+        nearAccountId,
+        evmAddress,
       }),
       signal: controller.signal,
     });

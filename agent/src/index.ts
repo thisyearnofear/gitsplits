@@ -59,7 +59,14 @@ const userContext = new UserContext();
  * Process incoming message
  */
 export async function processMessage(
-  message: { text: string; author: string; type: 'cast' | 'dm' | 'web' }
+  message: {
+    text: string;
+    author: string;
+    type: 'cast' | 'dm' | 'web';
+    walletAddress?: string;
+    nearAccountId?: string;
+    evmAddress?: string;
+  }
 ): Promise<string> {
   // Get or create user context
   const context = await userContext.get(message.author);

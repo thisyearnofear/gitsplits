@@ -63,6 +63,9 @@ We successfully built a fully-functional autonomous agent for compensating open 
 
 - **Web UI API** (`src/app/api/agent/route.ts`): Functional proxy endpoint from Next.js to standalone agent HTTP backend (`AGENT_BASE_URL`).
 - **Agent UI** (`src/app/agent/page.tsx`): Dedicated interface for interacting with the GitSplits agent via natural language.
+- **Dashboard Route** (`src/app/dashboard/page.tsx`): Switched to a reliable web-first control hub with live agent readiness checks.
+- **Splits Route** (`src/app/splits/page.tsx`): Rewired from placeholder contract demo calls to live agent-backed analyze/create requests.
+- **Verification Sync** (`src/app/api/verify-identities/route.ts`): After successful GitHub + NEAR verification, route now syncs contributor mapping through agent `/process` so pay flow can resolve verified wallets from the contract path.
 - **Fixed Build Issues**: Resolved hydration and build-time errors related to Firebase initialization and missing environment variables.
 - **Masa Integration Fix**: Restored missing `masa.js` utility and updated `pages/api/search.js` to correctly use the `MasaAPI` class.
 - **Environment Setup**: Configured root `.env` with necessary placeholders and copied agent credentials to ensure cross-component compatibility.

@@ -141,8 +141,10 @@ export default function VerifyPage() {
       setIsVerified(true);
       setMode("success");
       setMessage(
-        data.nearVerified
-          ? "Contributor verification complete. GitHub and NEAR are linked."
+        data.nearVerified && data.contractSynced
+          ? "Contributor verification complete. GitHub and NEAR are linked on-chain."
+          : data.nearVerified
+          ? "GitHub and NEAR verified, but contract sync is pending. Retry in a moment."
           : "GitHub verified. Connect NEAR and retry to fully link GitHub + NEAR."
       );
     } catch (error) {

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { generateEmbedCode } from "@/utils/embed";
+import { generateEmbedCode } from "@/lib/services/embed";
 import { useToast } from "@/hooks/use-toast";
 
 interface EmbedCodeDisplayProps {

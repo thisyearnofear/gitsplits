@@ -18,6 +18,9 @@ export const pingpayTool = {
   name: 'pingpay',
   
   async distribute(params: DistributionParams) {
+    const apiBase = process.env.PING_PAY_API_BASE || 'https://api.pingpay.io';
+    const intentsPath = process.env.PING_PAY_INTENTS_PATH || '/v1/intents';
+
     // Mock mode if Ping Pay not configured (only allowed outside production)
     if (!process.env.PING_PAY_API_KEY || process.env.PING_PAY_API_KEY === 'placeholder') {
       if (process.env.AGENT_MODE === 'production') {
@@ -44,7 +47,7 @@ export const pingpayTool = {
     }));
     
     // Create NEAR Intent via Ping Pay API
-    const response = await fetch('https://api.pingpay.io/v1/intents', {
+    const response = await fetch(`${apiBase}${intentsPath}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -64,7 +67,7 @@ export const pingpayTool = {
     
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Ping Pay error: ${error}`);
+      throw new Error(`Ping Pay error (${response.status}): ${error || response.statusText}`);
     }
     
     const result: any = await response.json();
@@ -81,6 +84,9 @@ export const pingpayTool = {
   },
   
   async getStatus(intentId: string) {
+    const apiBase = process.env.PING_PAY_API_BASE || 'https://api.pingpay.io';
+    const intentsPath = process.env.PING_PAY_INTENTS_PATH || '/v1/intents';
+
     if (!process.env.PING_PAY_API_KEY || process.env.PING_PAY_API_KEY === 'placeholder') {
       if (process.env.AGENT_MODE === 'production') {
         throw new Error('[PingPay] Missing PING_PAY_API_KEY in production mode');
@@ -88,20 +94,26 @@ export const pingpayTool = {
       return { status: 'completed', intentId, mock: true };
     }
     
-    const response = await fetch(`https://api.pingpay.io/v1/intents/${intentId}`, {
+    const response = await fetch(`${apiBase}${intentsPath}/${intentId}`, {
       headers: {
         'Authorization': `Bearer ${process.env.PING_PAY_API_KEY}`,
       },
     });
     
     if (!response.ok) {
-      throw new Error('Failed to fetch intent status');
+      const error = await response.text();
+      throw new Error(
+        `Failed to fetch intent status (${response.status}): ${error || response.statusText}`
+      );
     }
     
     return await response.json();
   },
 
   async probeAuth() {
+    const apiBase = process.env.PING_PAY_API_BASE || 'https://api.pingpay.io';
+    const probePath = process.env.PING_PAY_PROBE_PATH || '/v1/intents/probe';
+
     if (!process.env.PING_PAY_API_KEY || process.env.PING_PAY_API_KEY === 'placeholder') {
       if (process.env.AGENT_MODE === 'production') {
         throw new Error('[PingPay] Missing PING_PAY_API_KEY in production mode');
@@ -109,18 +121,27 @@ export const pingpayTool = {
       return { ok: true, mock: true };
     }
 
-    const response = await fetch('https://api.pingpay.io/v1/intents/probe', {
+    const response = await fetch(`${apiBase}${probePath}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${process.env.PING_PAY_API_KEY}`,
       },
     });
 
-    if (response.status === 401 || response.status === 403) {
-      throw new Error(`[PingPay] Authentication failed with status ${response.status}`);
-    }
-    if (response.status >= 500) {
-      throw new Error(`[PingPay] Probe failed with status ${response.status}`);
+    if (!response.ok) {
+      const body = await response.text();
+      if (response.status === 401 || response.status === 403) {
+        throw new Error(`[PingPay] Authentication failed with status ${response.status}`);
+      }
+      if (response.status === 404) {
+        throw new Error(
+          `[PingPay] Probe endpoint not found (${apiBase}${probePath}). ` +
+          `Set PING_PAY_API_BASE/PING_PAY_PROBE_PATH to the current production API.`
+        );
+      }
+      throw new Error(
+        `[PingPay] Probe failed with status ${response.status}: ${body || response.statusText}`
+      );
     }
 
     return {

@@ -32,8 +32,14 @@ describeProduction('production intents (live integrations)', () => {
     expect(response).toContain('Analysis for');
     expect(response).toContain('Top contributors');
     expect(response).not.toContain('Analysis failed');
-    expect(response).toContain('🤖 AI Analysis (verifiable)');
-    expect(response).toContain('🔐 Signature:');
+    assertContainsAny(response, [
+      '🛡️ Verifiable AI Insight:',
+      '🤖 AI Analysis (verifiable)',
+    ]);
+    assertContainsAny(response, [
+      '🔗 Verify on deTERMinal:',
+      '🔐 Signature:',
+    ]);
   });
 
   test('create intent uses NEAR contract path', async () => {

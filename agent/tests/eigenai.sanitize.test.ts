@@ -17,4 +17,11 @@ describe('sanitizeEigenAiContent', () => {
     const raw = 'Normal assistant response.';
     expect(sanitizeEigenAiContent(raw)).toBe('Normal assistant response.');
   });
+
+  test('leaves plain-text content for second-stage guards', () => {
+    const raw = "We need to calculate percentages and adjust the split.";
+    expect(sanitizeEigenAiContent(raw)).toBe(
+      'We need to calculate percentages and adjust the split.'
+    );
+  });
 });

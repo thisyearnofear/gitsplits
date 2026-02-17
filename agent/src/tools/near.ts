@@ -8,6 +8,8 @@
 import { connect, keyStores, KeyPair, Contract } from 'near-api-js';
 
 let contract: any = null;
+let nearAccount: any = null;
+let nearContractId: string | null = null;
 let useMockMode = false;
 const isProductionMode = process.env.AGENT_MODE === 'production';
 let workerRegistrationChecked = false;
@@ -40,6 +42,8 @@ async function initNear() {
     });
     
     const account = await near.account(accountId);
+    nearAccount = account;
+    nearContractId = contractId;
     
     // Check if contract account exists and has deployed code
     const contractAccount = await near.account(contractId);
@@ -195,7 +199,7 @@ export const nearTool = {
     const normalized = normalizeContributorPercentages(params.contributors);
     const formattedContributors = normalized.map((c) => ({
       github_username: c.github_username,
-      percentage: (BigInt(c.percentage) * BigInt(10) ** BigInt(22)).toString(),
+      percentage: (BigInt(c.percentage) * BigInt(10) ** BigInt(21)).toString(),
     }));
     
     const splitId = await contract.create_split({
@@ -203,10 +207,7 @@ export const nearTool = {
       owner: params.owner,
     });
     
-    await contract.update_split({
-      split_id: splitId,
-      contributors: formattedContributors,
-    });
+    await callUpdateSplitRaw(splitId, formattedContributors);
     
     return {
       id: splitId,
@@ -233,13 +234,10 @@ export const nearTool = {
     const normalized = normalizeContributorPercentages(params.contributors);
     const formattedContributors = normalized.map((c) => ({
       github_username: c.github_username,
-      percentage: (BigInt(c.percentage) * (10n ** 22n)).toString(),
+      percentage: (BigInt(c.percentage) * (10n ** 21n)).toString(),
     }));
 
-    const ok = await contract.update_split({
-      split_id: params.splitId,
-      contributors: formattedContributors,
-    });
+    const ok = await callUpdateSplitRaw(params.splitId, formattedContributors);
 
     if (!ok) {
       throw new Error(`Failed to update split ${params.splitId}`);
@@ -306,12 +304,8 @@ export const nearTool = {
       return `pending-${params.githubUsername}-${Date.now()}`;
     }
 
-    const yoctoAmount = BigInt(Math.round(params.amount * 1_000_000)).toString();
-    return await contract.store_pending_distribution({
-      github_username: params.githubUsername,
-      amount: yoctoAmount,
-      token: params.token,
-    });
+    const microAmount = BigInt(Math.round(params.amount * 1_000_000)).toString();
+    return await callStorePendingDistributionRaw(params.githubUsername, microAmount, params.token);
   },
 
   async storeVerification(params: {
@@ -356,5 +350,53 @@ function normalizeStoredPercentage(value: string | number): number {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return 0;
   if (numeric <= 100) return numeric;
-  return numeric / 1e22;
+  return numeric / 1e21;
+}
+
+async function callUpdateSplitRaw(
+  splitId: string,
+  contributors: Array<{ github_username: string; percentage: string }>
+): Promise<boolean> {
+  if (!nearAccount || !nearContractId) {
+    throw new Error('[NEAR] Account not initialized for raw contract call');
+  }
+
+  const contributorsJson = contributors
+    .map((c) => `{"github_username":"${escapeJson(c.github_username)}","percentage":${c.percentage}}`)
+    .join(',');
+  const args = `{"split_id":"${escapeJson(splitId)}","contributors":[${contributorsJson}]}`;
+
+  await nearAccount.functionCall({
+    contractId: nearContractId,
+    methodName: 'update_split',
+    args: Buffer.from(args),
+    gas: '300000000000000',
+  });
+
+  return true;
+}
+
+async function callStorePendingDistributionRaw(
+  githubUsername: string,
+  amount: string,
+  token: string
+): Promise<string> {
+  if (!nearAccount || !nearContractId) {
+    throw new Error('[NEAR] Account not initialized for raw contract call');
+  }
+
+  const args = `{"github_username":"${escapeJson(githubUsername)}","amount":${amount},"token":"${escapeJson(token)}"}`;
+
+  await nearAccount.functionCall({
+    contractId: nearContractId,
+    methodName: 'store_pending_distribution',
+    args: Buffer.from(args),
+    gas: '300000000000000',
+  });
+
+  return `pending-${githubUsername}-${Date.now()}`;
+}
+
+function escapeJson(input: string): string {
+  return input.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }

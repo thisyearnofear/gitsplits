@@ -223,6 +223,29 @@ export default function SplitsPage() {
     }
   };
 
+  const repairSplit = async () => {
+    if (!repoInput.trim()) {
+      setStatus("error");
+      setMessage("Repository URL is required.");
+      return;
+    }
+
+    const normalizedRepo = normalizeRepoUrl(repoInput);
+    setStatus("loading");
+    setMessage("Repairing split via agent...");
+    setCreateResponse("");
+
+    try {
+      const response = await callAgent(`create ${normalizedRepo}`);
+      setCreateResponse(response);
+      setStatus("success");
+      setMessage("Split repair flow completed.");
+    } catch (error) {
+      setStatus("error");
+      setMessage(error instanceof Error ? error.message : "Failed to repair split.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gentle-blue via-gentle-purple to-gentle-orange py-10">
       <div className="container mx-auto max-w-4xl px-4">
@@ -267,6 +290,9 @@ export default function SplitsPage() {
               </Button>
               <Button variant="outline" onClick={createSplit} disabled={status === "loading"}>
                 Create Split
+              </Button>
+              <Button variant="outline" onClick={repairSplit} disabled={status === "loading"}>
+                Repair Split
               </Button>
               {repoInput.trim() && (
                 <Link

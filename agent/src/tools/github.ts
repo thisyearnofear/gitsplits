@@ -121,7 +121,20 @@ async function getRepoClient(owner: string, repo: string): Promise<Octokit> {
   const mode = getGitHubAuthMode();
 
   if (mode === 'app') {
-    return await getInstallationClient(owner, repo);
+    try {
+      return await getInstallationClient(owner, repo);
+    } catch (error: any) {
+      const appMissingInstallation =
+        error?.status === 404 ||
+        String(error?.message || '').includes('App is not installed');
+      if (appMissingInstallation && process.env.GITHUB_TOKEN) {
+        console.warn(
+          `[GitHub] App not installed on ${owner}/${repo}; falling back to GITHUB_TOKEN for read-only analysis.`
+        );
+        return getTokenClient();
+      }
+      throw error;
+    }
   }
   if (mode === 'token') {
     return getTokenClient();

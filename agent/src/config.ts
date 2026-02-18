@@ -31,6 +31,15 @@ function hasValue(value?: string): boolean {
   return !!value && value.trim().length > 0;
 }
 
+export function getWebAppBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
+  const raw = (env.WEB_APP_BASE_URL || 'https://gitsplits.vercel.app').trim();
+  return raw.replace(/\/+$/, '');
+}
+
+export function getVerifyBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
+  return `${getWebAppBaseUrl(env)}/verify`;
+}
+
 export function isProductionMode(env: NodeJS.ProcessEnv = process.env): boolean {
   return env.AGENT_MODE === 'production';
 }

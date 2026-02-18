@@ -5,6 +5,7 @@
  */
 
 import { Intent } from '../core/agent';
+import { getVerifyBaseUrl } from '../config';
 
 export const pendingIntent: Intent = {
   name: 'pending',
@@ -27,6 +28,7 @@ export const pendingIntent: Intent = {
 
   execute: async (params: any, context: any, tools: any) => {
     const target = params.target as string;
+    const verifyBaseUrl = getVerifyBaseUrl();
 
     try {
       if (looksLikeRepo(target)) {
@@ -73,7 +75,7 @@ export const pendingIntent: Intent = {
             `Contributors with pending claims: ${pendingByUser.length}\n` +
             `Total pending claim entries: ${totalClaims}\n\n` +
             `${lines}\n\n` +
-            `Ask contributors to verify at https://gitsplits.vercel.app/verify`,
+            `Ask contributors to verify at ${verifyBaseUrl}`,
           context,
         };
       }

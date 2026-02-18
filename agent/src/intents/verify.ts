@@ -10,6 +10,7 @@
  */
 
 import { Intent } from '../core/agent';
+import { getVerifyBaseUrl } from '../config';
 
 export const verifyIntent: Intent = {
   name: 'verify',
@@ -71,6 +72,7 @@ export const verifyIntent: Intent = {
 
       // Generate verification code for social channels.
       const code = `gitsplits-verify-${Math.random().toString(36).substring(2, 10)}`;
+      const verifyBaseUrl = getVerifyBaseUrl();
       await tools.near.storePendingVerification({
         githubUsername,
         farcasterId: message.author,
@@ -79,7 +81,7 @@ export const verifyIntent: Intent = {
       });
       
       return {
-        response: `🔐 Verification initiated for @${githubUsername}\n\nTo complete:\n1. Create a public GitHub gist\n2. Paste this code: ${code}\n3. Reply here with the gist URL\n\nOr verify at: https://gitsplits.vercel.app/verify?github=${githubUsername}&code=${code}`,
+        response: `🔐 Verification initiated for @${githubUsername}\n\nTo complete:\n1. Create a public GitHub gist\n2. Paste this code: ${code}\n3. Reply here with the gist URL\n\nOr verify at: ${verifyBaseUrl}?github=${githubUsername}&code=${code}`,
         context: {
           ...context,
           pendingVerification: {

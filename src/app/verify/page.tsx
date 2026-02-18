@@ -97,6 +97,17 @@ export default function VerifyPage() {
   const [message, setMessage] = useState("");
   const [mode, setMode] = useState<"idle" | "success" | "error">("idle");
   const [mounted, setMounted] = useState(false);
+  const [mappingQuery, setMappingQuery] = useState("");
+  const [mappingLoading, setMappingLoading] = useState(false);
+  const [mappingError, setMappingError] = useState("");
+  const [mappingEntries, setMappingEntries] = useState<
+    Array<{ github_username: string; wallet_address: string; x_username?: string | null }>
+  >([]);
+  const [mappingCursor, setMappingCursor] = useState<string | null>(null);
+  const [mappingNextCursor, setMappingNextCursor] = useState<string | null>(null);
+  const [mappingCursorHistory, setMappingCursorHistory] = useState<string[]>([]);
+  const [mappingTotal, setMappingTotal] = useState(0);
+  const mappingLimit = 10;
 
   const prefillUser = searchParams.get("user") || "";
   const prefillRepo = searchParams.get("repo") || "";
@@ -114,6 +125,38 @@ export default function VerifyPage() {
   useEffect(() => {
     trackUxEvent("funnel_verify_opened", { repo: prefillRepo || undefined });
   }, [prefillRepo]);
+
+  const loadMapping = async (nextCursor: string | null = null, query = "") => {
+    try {
+      setMappingLoading(true);
+      setMappingError("");
+      const params = new URLSearchParams();
+      params.set("limit", String(mappingLimit));
+      if (nextCursor) params.set("cursor", nextCursor);
+      if (query.trim()) params.set("q", query.trim());
+      const response = await fetch(`/api/verification-mapping?${params.toString()}`);
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to load mapping");
+      }
+      setMappingEntries(Array.isArray(data.entries) ? data.entries : []);
+      setMappingCursor(data.cursor || null);
+      setMappingNextCursor(data.nextCursor || null);
+      setMappingTotal(Number(data.total || 0));
+    } catch (error) {
+      setMappingError(error instanceof Error ? error.message : "Failed to load mapping");
+      setMappingEntries([]);
+      setMappingCursor(null);
+      setMappingNextCursor(null);
+      setMappingTotal(0);
+    } finally {
+      setMappingLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadMapping(null, "");
+  }, []);
 
   useEffect(() => {
     const dismissed = localStorage.getItem("gitsplits_verify_onboarding_dismissed");
@@ -446,6 +489,114 @@ export default function VerifyPage() {
                 Verification complete. You can now manage splits and claim distributions in the dashboard.
               </p>
             )}
+          </CardContent>
+        </Card>
+
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Verification Explorer</CardTitle>
+            <CardDescription>
+              Search and browse the public GitHub → NEAR mapping stored in the contract.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                value={mappingQuery}
+                onChange={(e) => setMappingQuery(e.target.value)}
+                placeholder="Search by GitHub username or NEAR account"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                disabled={mappingLoading}
+                onClick={() => {
+                  trackUxEvent("verification_mapping_search");
+                  setMappingCursorHistory([]);
+                  void loadMapping(null, mappingQuery);
+                }}
+              >
+                Search
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={mappingLoading}
+                onClick={() => {
+                  setMappingQuery("");
+                  setMappingCursorHistory([]);
+                  void loadMapping(null, "");
+                }}
+              >
+                Reset
+              </Button>
+            </div>
+
+            {mappingError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Explorer Error</AlertTitle>
+                <AlertDescription>{mappingError}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="rounded-md border">
+              <div className="grid grid-cols-2 gap-2 px-3 py-2 text-xs font-semibold border-b bg-gray-50">
+                <span>GitHub</span>
+                <span>NEAR Wallet</span>
+              </div>
+              {mappingLoading ? (
+                <div className="p-3 text-sm text-gray-600">Loading verification mapping...</div>
+              ) : mappingEntries.length === 0 ? (
+                <div className="p-3 text-sm text-gray-600">No mappings found.</div>
+              ) : (
+                <div className="divide-y">
+                  {mappingEntries.map((entry) => (
+                    <div key={`${entry.github_username}-${entry.wallet_address}`} className="grid grid-cols-2 gap-2 px-3 py-2 text-sm">
+                      <span className="font-medium">@{entry.github_username}</span>
+                      <span className="font-mono text-xs break-all">{entry.wallet_address}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-gray-600">
+              <span>
+                Showing {mappingEntries.length} of {mappingTotal}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={mappingLoading || mappingCursorHistory.length === 0 || Boolean(mappingQuery.trim())}
+                  onClick={() => {
+                    const previous = mappingCursorHistory[mappingCursorHistory.length - 1] || null;
+                    setMappingCursorHistory((prev) => prev.slice(0, -1));
+                    void loadMapping(previous, "");
+                  }}
+                >
+                  Prev
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={
+                    mappingLoading ||
+                    Boolean(mappingQuery.trim()) ||
+                    !mappingNextCursor
+                  }
+                  onClick={() => {
+                    setMappingCursorHistory((prev) => [...prev, mappingCursor || ""]);
+                    void loadMapping(mappingNextCursor, "");
+                  }}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
         <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t p-3">

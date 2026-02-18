@@ -1,15 +1,22 @@
 # GitSplits Agent - Deployment
 
-## Current Status (February 17, 2026)
+## Current Status (February 18, 2026)
 
-- EigenCompute deployment is live on Sepolia infra (release commit: `54683ccfc76593b25ab557247b58374d82950746`).
-- Public HTTPS URL: `https://agent.gitsplits.thisyearnofear.com`
-- `GET /ready` and `GET /health` are both passing.
-- Live intent checks:
-  - `analyze` passes (GitHub + EigenAI signature path working).
-  - `create` passes (existing split path + repair path).
-  - `verify` passes (web-linked GitHub -> NEAR wallet mapping).
-  - `pay` and `pending` pass with verification gating + pending claims.
+### Production
+- **EigenCompute deployment**: Live with TEE attestation
+- **URL**: `https://agent.gitsplits.thisyearnofear.com`
+- **Health**: `GET /health` ✓
+- **Ready**: `GET /ready` ✓
+- **TEE Status**: Active (hardware-secure computation)
+
+### Staging
+- **Hetzner Server**: `http://157.180.36.156:8443`
+- **Purpose**: Test deployments before EigenCompute upgrade
+- **PM2 Managed**: Auto-restart on failure
+
+### Web Frontend
+- **Vercel**: `https://gitsplits.vercel.app`
+- **Agent Config**: `AGENT_BASE_URL=https://agent.gitsplits.thisyearnofear.com`
 
 ## Quick Start
 
@@ -61,14 +68,18 @@ docker run -p 3000:3000 --env-file .env gitsplits-agent
 
 ## EigenCompute Deployment
 
+### Deploy to Production
+
 ```bash
+# 1. Authenticate
+ecloud auth login
+
+# 2. Build and deploy
 cd agent/deploy
 ./deploy.sh
 ```
 
-See [EIGENCOMPUTE.md](./deploy/EIGENCOMPUTE.md) for details.
-
-### Verifiable Upgrade (non-interactive)
+### Upgrade Production (Verifiable)
 
 ```bash
 ecloud compute app upgrade <APP_ID> \
@@ -85,10 +96,34 @@ ecloud compute app upgrade <APP_ID> \
   --resource-usage-monitoring enable
 ```
 
-For web clients, set:
+### Monitor
 
 ```bash
-AGENT_BASE_URL=https://agent.gitsplits.thisyearnofear.com
+# Status
+ecloud compute app info
+
+# Logs
+ecloud compute app logs
+
+# Health check
+curl https://agent.gitsplits.thisyearnofear.com/health
+```
+
+## Staging (Hetzner)
+
+### Deploy to Staging
+
+```bash
+ssh snel-bot "cd /opt/gitsplits/repo/agent && git pull && npm run build && pm2 restart gitsplits-agent --update-env"
+```
+
+### Test Before Production
+
+```bash
+# Point local frontend to staging
+echo "AGENT_BASE_URL=http://157.180.36.156:8443" > .env.local
+
+# Test, then update EigenCompute when ready
 ```
 
 ## Health Checks

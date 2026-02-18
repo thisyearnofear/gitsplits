@@ -19,7 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
+import Badge from "@/components/ui/badge";
 import { EmptySearch } from "@/components/empty-states/EmptyState";
 
 // Types

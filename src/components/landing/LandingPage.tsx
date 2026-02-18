@@ -37,15 +37,6 @@ const POPULAR_REPOS = [
   { owner: "rust-lang", name: "rust", stars: "98k" },
 ];
 
-// Mock contributor data for visual preview
-const MOCK_CONTRIBUTORS = [
-  { name: "sarah-dev", commits: 145, avatar: "S" },
-  { name: "alex-coder", commits: 98, avatar: "A" },
-  { name: "mike-oss", commits: 76, avatar: "M" },
-  { name: "jane-git", commits: 54, avatar: "J" },
-  { name: "tom-repo", commits: 43, avatar: "T" },
-];
-
 // Features list
 const FEATURES = [
   {
@@ -163,7 +154,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
   const handleAnalyze = async (e?: React.FormEvent, presetUrl?: string) => {
     e?.preventDefault();
     const targetUrl = presetUrl || repoUrl;
-    
+
     if (!targetUrl.trim()) return;
 
     setIsAnalyzing(true);
@@ -176,23 +167,75 @@ const LandingPage: React.FC<LandingPageProps> = ({
         throw new Error("Invalid format. Try: owner/repo or github.com/owner/repo");
       }
 
-      await new Promise(resolve => setTimeout(resolve, 1200));
+      // Call the real agent API
+      const response = await fetch('/api/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: `analyze ${repoInfo.owner}/${repoInfo.name}`,
+          userId: 'landing_page_user',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || `Failed to analyze: ${response.status}`);
+      }
+
+      if (!data.success || !data.response) {
+        throw new Error('No analysis data returned');
+      }
+
+      // Parse the agent response to extract repo info
+      // The response format is: "📊 Analysis for github.com/owner/repo\n\nTotal commits: X\nContributors: Y..."
+      const responseText = data.response as string;
+      
+      // Extract total commits
+      const commitsMatch = responseText.match(/Total commits:\s*(\d+)/);
+      const contributorsMatch = responseText.match(/Contributors:\s*(\d+)/);
+      
+      // For language, we'll need to fetch separately or skip for now
+      // The agent response doesn't include language in the text format
       
       setAnalysisResult({
-        ...repoInfo,
-        contributors: Math.floor(Math.random() * 80) + 12,
-        totalCommits: Math.floor(Math.random() * 5000) + 500,
-        topLanguage: ["TypeScript", "Rust", "Python", "Go"][Math.floor(Math.random() * 4)],
+        owner: repoInfo.owner,
+        name: repoInfo.name,
+        contributors: contributorsMatch ? parseInt(contributorsMatch[1]) : 0,
+        totalCommits: commitsMatch ? parseInt(commitsMatch[1]) : 0,
+        topLanguage: 'Unknown', // Agent doesn't return language in text response
       });
 
       toast({
         description: `Analyzed ${repoInfo.owner}/${repoInfo.name} successfully!`,
       });
     } catch (error: any) {
-      toast({
-        description: error.message || "Please enter a valid repository",
-        variant: "destructive",
-      });
+      const errorMessage = error.message || 'Failed to analyze repository';
+      
+      // More helpful error messages
+      if (errorMessage.includes('AGENT_BASE_URL')) {
+        toast({
+          description: 'Agent service is not configured. Please try again later.',
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes('timed out') || errorMessage.includes('504')) {
+        toast({
+          description: 'The analysis took too long. Please try again.',
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes('503')) {
+        toast({
+          description: 'Agent service is temporarily unavailable. Please try again later.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          description: errorMessage,
+          variant: 'destructive',
+        });
+      }
+      
+      setAnalysisResult(null);
     } finally {
       setIsAnalyzing(false);
     }
@@ -417,33 +460,23 @@ const LandingPage: React.FC<LandingPageProps> = ({
                       <div className="flex items-center justify-between mb-3">
                         <p className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
                           <Users className="w-4 h-4" />
-                          Top Contributors
+                          Contributors
                         </p>
                         <span className="text-xs text-gray-500 dark:text-gray-400">
                           {analysisResult.contributors} total
                         </span>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex -space-x-2">
-                          {MOCK_CONTRIBUTORS.slice(0, 4).map((c, i) => (
-                            <div
-                              key={i}
-                              className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 border-2 border-white dark:border-gray-800 flex items-center justify-center text-white text-xs font-bold"
-                              title={c.name}
-                            >
-                              {c.avatar}
-                            </div>
-                          ))}
-                          {analysisResult.contributors > 4 && (
-                            <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 border-2 border-white dark:border-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-400 text-xs font-medium">
-                              +{analysisResult.contributors - 4}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 text-xs text-gray-600 dark:text-gray-400">
-                          <span className="font-medium text-gray-900 dark:text-white">{MOCK_CONTRIBUTORS[0].name}</span> leads with{" "}
-                          <span className="font-medium text-gray-900 dark:text-white">{MOCK_CONTRIBUTORS[0].commits} commits</span>
-                        </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        <p className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-green-500" />
+                          <span>
+                            Found <span className="font-semibold text-gray-900 dark:text-white">{analysisResult.contributors}</span> contributors with{" "}
+                            <span className="font-semibold text-gray-900 dark:text-white">{analysisResult.totalCommits.toLocaleString()}</span> total commits
+                          </span>
+                        </p>
+                        <p className="mt-2 text-xs text-gray-500 dark:text-gray-500">
+                          💡 Use the Agent to see detailed contributor breakdown and set up payment splits
+                        </p>
                       </div>
                     </div>
 

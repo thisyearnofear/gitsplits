@@ -234,7 +234,7 @@ export const nearTool = {
     const normalized = normalizeContributorPercentages(params.contributors);
     const formattedContributors = normalized.map((c) => ({
       github_username: c.github_username,
-      percentage: (BigInt(c.percentage) * (10n ** 21n)).toString(),
+      percentage: (BigInt(c.percentage) * BigInt(10) ** BigInt(21)).toString(),
     }));
 
     const ok = await callUpdateSplitRaw(params.splitId, formattedContributors);

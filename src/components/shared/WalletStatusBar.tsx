@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   useAppKit,
   useAppKitAccount,
@@ -37,6 +37,11 @@ const WalletStatusBar: React.FC = () => {
   } = useNearWallet();
 
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<{
+    loading: boolean;
+    verified: boolean;
+    githubUsername: string | null;
+  }>({ loading: false, verified: false, githubUsername: null });
   const isAnyWalletConnected = isEvmConnected || isNearConnected;
 
   const supportedNetworkIds = ["1", "eip155:1", "42161", "eip155:42161"];
@@ -79,6 +84,38 @@ const WalletStatusBar: React.FC = () => {
       console.error("Error disconnecting from NEAR wallet:", error);
     }
   };
+
+  useEffect(() => {
+    const q = nearAccountId || evmAddress;
+    if (!q) {
+      setVerificationStatus({ loading: false, verified: false, githubUsername: null });
+      return;
+    }
+
+    let cancelled = false;
+    const run = async () => {
+      try {
+        setVerificationStatus((prev) => ({ ...prev, loading: true }));
+        const response = await fetch(`/api/verification-mapping?q=${encodeURIComponent(q)}`);
+        const data = await response.json();
+        if (cancelled) return;
+        const entry = Array.isArray(data?.entries) ? data.entries[0] : null;
+        setVerificationStatus({
+          loading: false,
+          verified: Boolean(entry?.github_username),
+          githubUsername: entry?.github_username ? String(entry.github_username) : null,
+        });
+      } catch {
+        if (cancelled) return;
+        setVerificationStatus({ loading: false, verified: false, githubUsername: null });
+      }
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [nearAccountId, evmAddress]);
 
   return (
     <div className="flex justify-end items-center w-full mb-6" suppressHydrationWarning>
@@ -235,6 +272,28 @@ const WalletStatusBar: React.FC = () => {
                   {nearAccountId}
                 </DropdownMenuItem>
               </>
+            )}
+            <DropdownMenuItem className="flex justify-between">
+              <span>Verification</span>
+              {verificationStatus.loading ? (
+                <span className="text-xs text-gray-500">Checking...</span>
+              ) : verificationStatus.verified ? (
+                <span className="text-green-600 text-xs">
+                  Verified {verificationStatus.githubUsername ? `(@${verificationStatus.githubUsername})` : ""}
+                </span>
+              ) : (
+                <span className="text-amber-600 text-xs">Not verified</span>
+              )}
+            </DropdownMenuItem>
+            {!verificationStatus.loading && !verificationStatus.verified && (
+              <DropdownMenuItem
+                onClick={() => {
+                  window.location.href = "/verify";
+                }}
+                className="text-blue-700"
+              >
+                Verify identity for payouts
+              </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
             {!isEvmConnected && (

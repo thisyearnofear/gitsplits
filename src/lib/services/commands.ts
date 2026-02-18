@@ -180,8 +180,9 @@ async function sendTwitterReply(tweetId: string, message: string) {
       console.log(`Full message (${messageId}): ${message}`);
 
       // Create a shortened message with a link to view the full message
+      const appBaseUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://gitsplits.vercel.app").replace(/\/+$/, "");
       const shortMessage = message.substring(0, 230) +
-        `... \n\nView full message: https://gitsplits.example.com/messages/${messageId}`;
+        `... \n\nView full message: ${appBaseUrl}/messages/${messageId}`;
 
       // Send the shortened message
       const replyId = await twitterClient.sendReply(tweetId, shortMessage);

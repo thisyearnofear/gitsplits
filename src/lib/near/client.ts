@@ -168,7 +168,7 @@ async function handleCreateCommand(repoUrl: string, sender: string, tweetId: str
     // In a real implementation, we would fetch GitHub data and update the split with contributors
     return {
       success: true,
-      message: `✅ Split created for ${repoUrl}!\n\nSplit ID: ${splitId}\n\nView details: https://gitsplits.example.com/splits/${splitId}`,
+      message: `✅ Split created for ${repoUrl}!\n\nSplit ID: ${splitId}\n\nView details: ${((process.env.NEXT_PUBLIC_APP_URL || "https://gitsplits.vercel.app").replace(/\/+$/, ""))}/splits/${splitId}`,
       data: { splitId },
     };
   } catch (error) {
@@ -238,7 +238,7 @@ async function handleInfoCommand(repoUrl: string, tweetId: string): Promise<{
     }
 
     message += `\nTotal distributions: ${distributionIds.length}\n`;
-    message += `View details: https://gitsplits.example.com/splits/${split.id}`;
+    message += `View details: ${((process.env.NEXT_PUBLIC_APP_URL || "https://gitsplits.vercel.app").replace(/\/+$/, ""))}/splits/${split.id}`;
 
     return {
       success: true,
@@ -313,7 +313,7 @@ async function handleDistributeCommand(
 
     return {
       success: true,
-      message: `💸 Distribution initiated for ${repoUrl}!\n\nAmount: ${amount} ${token}\nRecipients: ${split.contributors.length} contributors\n\nContributors will be notified to claim their share.\nTrack status: https://gitsplits.example.com/distributions/${distributionId}`,
+      message: `💸 Distribution initiated for ${repoUrl}!\n\nAmount: ${amount} ${token}\nRecipients: ${split.contributors.length} contributors\n\nContributors will be notified to claim their share.\nTrack status: ${((process.env.NEXT_PUBLIC_APP_URL || "https://gitsplits.vercel.app").replace(/\/+$/, ""))}/distributions/${distributionId}`,
       data: { distributionId, recipientsCount: split.contributors.length },
     };
   } catch (error) {
@@ -352,7 +352,8 @@ async function handleVerifyCommand(
     // For now, we'll just return a success message with instructions
 
     // Generate a verification URL
-    const verificationUrl = `https://gitsplits.example.com/verify?twitter=${encodeURIComponent(sender)}&github=${encodeURIComponent(githubUsername)}`;
+    const appBaseUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://gitsplits.vercel.app").replace(/\/+$/, "");
+    const verificationUrl = `${appBaseUrl}/verify?twitter=${encodeURIComponent(sender)}&github=${encodeURIComponent(githubUsername)}`;
 
     return {
       success: true,

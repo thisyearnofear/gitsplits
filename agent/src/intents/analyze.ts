@@ -10,6 +10,7 @@
  */
 
 import { Intent } from '../core/agent';
+import { getVerifyBaseUrl } from '../config';
 
 export const analyzeIntent: Intent = {
   name: 'analyze',
@@ -34,6 +35,7 @@ export const analyzeIntent: Intent = {
   
   execute: async (params: any, context: any, tools: any) => {
     const { repo } = params;
+    const verifyBaseUrl = getVerifyBaseUrl();
     
     try {
       const repoUrl = normalizeRepoUrl(repo);
@@ -72,7 +74,7 @@ export const analyzeIntent: Intent = {
         verificationCoverage =
           `\n\n✅ Verification coverage (top ${sample.length}): ` +
           `${verifiedInSample}/${sample.length} verified` +
-          `\nInvite unverified contributors: https://gitsplits.vercel.app/verify`;
+          `\nInvite unverified contributors: ${verifyBaseUrl}`;
       } catch (err: any) {
         console.log('[Analyze] Verification coverage skipped:', err.message);
       }

@@ -10,6 +10,7 @@
  */
 
 import { Intent } from '../core/agent';
+import { getVerifyBaseUrl } from '../config';
 
 export const payIntent: Intent = {
   name: 'pay',
@@ -43,6 +44,7 @@ export const payIntent: Intent = {
   // Execute the intent
   execute: async (params: any, context: any, tools: any) => {
     const { amount, token, repo } = params;
+    const verifyBaseUrl = getVerifyBaseUrl();
     
     try {
       // Normalize repo URL
@@ -77,7 +79,7 @@ export const payIntent: Intent = {
           response:
             `❌ Strict mode enabled: payment blocked because ${unverified.length} contributors are unverified.\n\n` +
             `Unverified: ${unverified.map((c: any) => c.github_username).join(', ')}\n` +
-            `Ask them to verify at https://gitsplits.vercel.app/verify`,
+            `Ask them to verify at ${verifyBaseUrl}`,
           context,
         };
       }
@@ -86,7 +88,7 @@ export const payIntent: Intent = {
         return {
           response:
             `❌ No verified contributors found for ${repoUrl}. Nothing can be paid yet.\n\n` +
-            `Ask contributors to verify at https://gitsplits.vercel.app/verify`,
+            `Ask contributors to verify at ${verifyBaseUrl}`,
           context,
         };
       }
@@ -167,7 +169,7 @@ export const payIntent: Intent = {
             pendingClaims
               .map((c) => `- ${c.github_username}: ${c.amount.toFixed(4)} ${c.token} (claim id: ${c.id})`)
               .join('\n') +
-            `\n\nInvite them to verify: https://gitsplits.vercel.app/verify`
+            `\n\nInvite them to verify: ${verifyBaseUrl}`
           : '';
       
       return {

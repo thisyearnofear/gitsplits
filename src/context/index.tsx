@@ -27,7 +27,7 @@ const metadata = {
   name: "GitSplits",
   description: "Reward open source contributors fairly",
   url: "https://gitsplits.vercel.app", // origin must match your domain & subdomain
-  icons: ["https://gitsplits.vercel.app/logo.png"],
+  icons: ["/logo.png"],
 };
 
 // Create the modal

@@ -608,7 +608,7 @@ export default function AgentPage() {
           {/* Tips */}
           <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-100">
             <p className="text-sm text-blue-800">
-              <strong>💡 Tip:</strong> You can also interact with the agent on X (Twitter) by mentioning @gitsplits or through Farcaster!
+              <strong>💡 Tip:</strong> You can also interact with the agent on X (Twitter) by mentioning @gitsplits or through Farcaster! COMING SOON
             </p>
           </div>
         </div>

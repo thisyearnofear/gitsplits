@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import Badge from '@/components/ui/badge';
 import Header from '@/components/shared/Header';
 import FlowStatusStrip from '@/components/shared/FlowStatusStrip';
-import { Search, Plus, DollarSign, Shield, Send, Loader2, Bot, Sparkles, ChevronRight, Github, ExternalLink, CheckCircle2, AlertCircle, RefreshCcw, Wallet, Info } from 'lucide-react';
+import { Search, Plus, DollarSign, Shield, Send, Loader2, Bot, Sparkles, ChevronRight, Github, ExternalLink, CheckCircle2, AlertCircle, RefreshCcw, Wallet, Info, Maximize2, Minimize2 } from 'lucide-react';
 import { trackUxEvent } from '@/lib/services/ux-events';
 
 interface Message {
@@ -52,10 +52,12 @@ const TypingIndicator = () => (
 );
 
 export default function AgentPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const repoParam = searchParams.get('repo');
   const commandParam = searchParams.get('command');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
   const [input, setInput] = useState('');
@@ -70,6 +72,7 @@ export default function AgentPage() {
   const [loading, setLoading] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [lastCommand, setLastCommand] = useState('');
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   const flowSteps = useMemo(() => {
     const hasAnalysis = messages.some((m) => m.type === 'analysis');
@@ -86,9 +89,11 @@ export default function AgentPage() {
     ];
   }, [messages]);
 
-  // Auto-scroll to bottom
+  // Auto-scroll chat container only (prevents page jumping to example commands)
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
   };
 
   useEffect(() => {
@@ -118,30 +123,22 @@ export default function AgentPage() {
     inputRef.current?.focus();
   }, []);
 
+  useEffect(() => {
+    const original = document.body.style.overflow;
+    if (isFullScreen) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [isFullScreen]);
+
   const commandExamples: CommandExample[] = [
     {
-      command: 'analyze near/near-sdk-rs',
-      description: 'View top contributors and activity',
-      icon: <Search className="w-4 h-4" />,
-      category: 'analyze',
-    },
-    {
       command: 'analyze thisyearnofear/gitsplits',
-      description: 'Analyze contributors for GitSplits',
+      description: 'View top contributors and verification coverage',
       icon: <Search className="w-4 h-4" />,
       category: 'analyze',
-    },
-    {
-      command: 'analyze openclaw/openclaw',
-      description: 'Analyze contributors for OpenClaw',
-      icon: <Search className="w-4 h-4" />,
-      category: 'analyze',
-    },
-    {
-      command: 'create split for facebook/react',
-      description: 'Set up contributor splits',
-      icon: <Plus className="w-4 h-4" />,
-      category: 'create',
     },
     {
       command: 'create split for thisyearnofear/gitsplits',
@@ -150,32 +147,14 @@ export default function AgentPage() {
       category: 'create',
     },
     {
-      command: 'create split for openclaw/openclaw',
-      description: 'Create a split for OpenClaw',
-      icon: <Plus className="w-4 h-4" />,
-      category: 'create',
-    },
-    {
-      command: 'pay 100 USDC to near/near-sdk-rs',
-      description: 'Distribute payments automatically',
-      icon: <DollarSign className="w-4 h-4" />,
-      category: 'pay',
-    },
-    {
       command: 'pay 10 USDC to thisyearnofear/gitsplits',
-      description: 'Pay contributors on the GitSplits split',
+      description: 'Trigger a live payout via the backend agent',
       icon: <DollarSign className="w-4 h-4" />,
       category: 'pay',
     },
     {
-      command: 'pay 10 USDC to openclaw/openclaw',
-      description: 'Pay contributors on the OpenClaw split',
-      icon: <DollarSign className="w-4 h-4" />,
-      category: 'pay',
-    },
-    {
-      command: 'verify my-github-username',
-      description: 'Link your GitHub identity',
+      command: 'verify contributors for thisyearnofear/gitsplits',
+      description: 'See who is verified and invite the rest',
       icon: <Shield className="w-4 h-4" />,
       category: 'verify',
     },
@@ -203,6 +182,30 @@ export default function AgentPage() {
     if (cmd.startsWith('create')) trackUxEvent('funnel_split_create_started');
     if (cmd.startsWith('pay')) trackUxEvent('funnel_pay_submitted');
     setLastCommand(userMessage);
+
+    if (cmd.startsWith('pay ')) {
+      const parsed = parsePayCommand(userMessage);
+      if (parsed?.repo) {
+        const repoPath = parsed.repo.replace(/^github\.com\//i, '');
+        const amount = parsed.amount ?? 1;
+        const token = parsed.token ?? 'NEAR';
+        setMessages((prev) => [
+          ...prev,
+          { role: 'user', text: userMessage, timestamp: new Date() },
+          {
+            role: 'agent',
+            text:
+              `🔐 Direct wallet payout required.\n\n` +
+              `GitSplits now executes payouts from your connected NEAR wallet (not backend treasury).\n` +
+              `Continuing to Splits for wallet signature...`,
+            timestamp: new Date(),
+            type: 'payment_sent',
+          },
+        ]);
+        router.push(`/splits?repo=${encodeURIComponent(repoPath)}&amount=${amount}&token=${encodeURIComponent(token)}`);
+        return;
+      }
+    }
     
     if (!messageText) {
       setInput('');
@@ -238,7 +241,11 @@ export default function AgentPage() {
       const detectType = (text: string) => {
         if (text.includes('📊 Analysis for')) return 'analysis';
         if (text.includes('✅ Split created') || text.includes('Split created')) return 'split_created';
-        if (text.includes('💸 Payment sent') || text.includes('Payment successfully sent')) return 'payment_sent';
+        if (
+          text.includes('💸 Payment sent') ||
+          text.includes('Payment successfully sent') ||
+          text.includes('✅ Distributed ')
+        ) return 'payment_sent';
         if (text.includes('✅ Verification coverage') || text.includes('Verification status')) return 'verification';
         return undefined;
       };
@@ -565,10 +572,10 @@ export default function AgentPage() {
                     <Button 
                       size="lg" 
                       className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white h-12 text-sm font-black rounded-xl shadow-xl shadow-green-100 border-b-4 border-green-800 active:border-b-0 active:translate-y-1 transition-all"
-                      onClick={() => sendMessage(`pay 10 USDC to ${repoName || 'this repo'}`)}
+                      onClick={() => router.push(`/splits?repo=${encodeURIComponent(repoName || '')}&amount=10&token=NEAR`)}
                     >
                       <DollarSign className="w-5 h-5 mr-2" />
-                      FUND & DISTRIBUTE NOW
+                      PAY FROM MY WALLET
                     </Button>
                   </div>
                   
@@ -594,6 +601,105 @@ export default function AgentPage() {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (msg.type === 'payment_sent') {
+      const repoUrl = extractRepoUrlFromText(msg.text);
+      const repoName = repoUrl?.replace('github.com/', '') || 'this repo';
+      const txRaw = msg.text.match(/(?:Transaction|🔗 Transaction):\s*([^\n]+)/i)?.[1]?.trim() || '';
+      const teeRaw = msg.text.match(/(?:TEE Signature|Signed by TEE):\s*([^\n]+)/i)?.[1]?.trim() || '';
+      const distributed = msg.text.match(/Distributed\s+([0-9.]+\s+[A-Z0-9]+)/i)?.[1] || null;
+      const coverage = msg.text.match(/Coverage:\s*(\d+)\s*\/\s*(\d+)/i);
+      const pendingClaims = msg.text.match(/Pending claims .*?\((\d+)\)/i);
+      const verifiedCount = coverage ? Number(coverage[1]) : null;
+      const totalCount = coverage ? Number(coverage[2]) : null;
+      const unverifiedCount =
+        verifiedCount !== null && totalCount !== null
+          ? Math.max(totalCount - verifiedCount, 0)
+          : null;
+      const pendingCount = pendingClaims ? Number(pendingClaims[1]) : 0;
+      const txHash = normalizeTxHash(txRaw);
+      const txLink = txHash ? `https://etherscan.io/tx/${txHash}` : null;
+      const txSepoliaLink = txHash ? `https://sepolia.etherscan.io/tx/${txHash}` : null;
+      const nearTxLink = txRaw && !txHash ? `https://nearblocks.io/txns/${txRaw}` : null;
+      const teeAddress = normalizeAddress(teeRaw);
+      const teeLink = teeAddress ? `https://etherscan.io/address/${teeAddress}` : null;
+      const isDirectWalletMode = msg.text.includes('direct_wallet_near') || msg.text.includes('Direct wallet payout required');
+
+      return (
+        <div className="max-w-[90%] bg-white rounded-2xl rounded-bl-md border border-green-200 shadow-lg overflow-hidden">
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-4 py-3 border-b border-green-100 flex items-center gap-2">
+            <div className="p-1.5 bg-white rounded-md shadow-sm">
+              <DollarSign className="w-4 h-4 text-green-700" />
+            </div>
+            <span className="text-xs font-bold text-green-800 uppercase tracking-tight">Payment Executed</span>
+          </div>
+          <div className="p-4 space-y-3">
+            <p className="text-xs text-green-900 bg-green-50 border border-green-100 rounded-md p-2 font-medium">
+              {isDirectWalletMode
+                ? 'Payment mode: direct NEAR wallet signing.'
+                : 'Live payout request was executed by the backend agent infrastructure.'}
+            </p>
+            {!isDirectWalletMode && (
+              <p className="text-xs text-blue-900 bg-blue-50 border border-blue-100 rounded-md p-2 font-medium">
+                Payment source: backend treasury rails (HOT/Ping). It does not currently debit your connected browser wallet directly.
+              </p>
+            )}
+            <div className="rounded-md border border-gray-200 bg-white p-3 text-xs text-gray-800 space-y-1">
+              <p><strong>Distributed now:</strong> {distributed || 'n/a'}</p>
+              <p><strong>Verified recipients:</strong> {verifiedCount !== null && totalCount !== null ? `${verifiedCount}/${totalCount}` : 'n/a'}</p>
+              <p><strong>Unverified recipients:</strong> {unverifiedCount !== null ? unverifiedCount : 'n/a'}</p>
+              <p><strong>Pending claims created:</strong> {pendingCount}</p>
+              {pendingCount > 0 && (
+                <p className="text-amber-700">
+                  Unverified contributors are not paid now; their portion is held as pending claims until they verify.
+                </p>
+              )}
+            </div>
+            <div className="whitespace-pre-wrap text-sm text-gray-700 bg-gray-50/70 p-3 rounded-lg border border-gray-100">
+              {msg.text}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {txLink && (
+                <a href={txLink} target="_blank" rel="noopener noreferrer">
+                  <Button size="sm" variant="outline" className="h-8 text-xs">
+                    <ExternalLink className="w-3 h-3 mr-1.5" />
+                    View Tx (Mainnet)
+                  </Button>
+                </a>
+              )}
+              {nearTxLink && (
+                <a href={nearTxLink} target="_blank" rel="noopener noreferrer">
+                  <Button size="sm" variant="outline" className="h-8 text-xs">
+                    <ExternalLink className="w-3 h-3 mr-1.5" />
+                    View Tx (NEAR)
+                  </Button>
+                </a>
+              )}
+              {txSepoliaLink && (
+                <a href={txSepoliaLink} target="_blank" rel="noopener noreferrer">
+                  <Button size="sm" variant="outline" className="h-8 text-xs">
+                    <ExternalLink className="w-3 h-3 mr-1.5" />
+                    View Tx (Sepolia)
+                  </Button>
+                </a>
+              )}
+              {teeLink && (
+                <a href={teeLink} target="_blank" rel="noopener noreferrer">
+                  <Button size="sm" variant="outline" className="h-8 text-xs">
+                    <Shield className="w-3 h-3 mr-1.5" />
+                    View TEE Signer
+                  </Button>
+                </a>
+              )}
+              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => sendMessage(`verify contributors for ${repoName}`)}>
+                <Shield className="w-3 h-3 mr-1.5" />
+                Review Recipient Verification
+              </Button>
             </div>
           </div>
         </div>
@@ -631,10 +737,30 @@ export default function AgentPage() {
           </div>
 
           {/* Chat Container */}
-          <Card className="shadow-xl border-0 overflow-hidden">
+          <Card className={`shadow-xl border-0 overflow-hidden ${isFullScreen ? 'fixed inset-3 z-[70] md:inset-6' : ''}`}>
             <CardContent className="p-0">
+              <div className="border-b bg-white px-3 py-2 flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsFullScreen((prev) => !prev)}
+                >
+                  {isFullScreen ? (
+                    <>
+                      <Minimize2 className="w-3.5 h-3.5 mr-1.5" />
+                      Exit Fullscreen
+                    </>
+                  ) : (
+                    <>
+                      <Maximize2 className="w-3.5 h-3.5 mr-1.5" />
+                      Fullscreen
+                    </>
+                  )}
+                </Button>
+              </div>
               {/* Messages */}
-              <div className="h-96 overflow-y-auto p-4 space-y-4 bg-white">
+              <div ref={messagesContainerRef} className={`${isFullScreen ? 'h-[calc(100vh-13.5rem)]' : 'h-96'} overflow-y-auto p-4 space-y-4 bg-white`}>
                 {messages.map((msg, i) => (
                   <motion.div
                     key={i}
@@ -676,6 +802,9 @@ export default function AgentPage() {
                 </div>
                 <p className="text-xs text-gray-500 mt-2 text-center">
                   Press Enter to send • Commands: analyze, create, pay, verify
+                </p>
+                <p className="text-[11px] text-gray-500 mt-1 text-center">
+                  Current mode: pay commands continue in Splits for direct NEAR wallet signing.
                 </p>
                 {lastCommand && !loading && (
                   <div className="mt-2 text-center">
@@ -740,4 +869,28 @@ function toUserFacingError(raw: string): string {
   if (lower.includes('timed out')) return 'The request timed out. Retry in a few seconds.';
   if (lower.includes('fetch') || lower.includes('network')) return 'Network issue while contacting the agent. Please retry.';
   return raw;
+}
+
+function normalizeTxHash(value: string): string | null {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  if (/^0x[a-fA-F0-9]{64}$/.test(raw)) return raw;
+  if (/^[a-fA-F0-9]{64}$/.test(raw)) return `0x${raw}`;
+  return null;
+}
+
+function normalizeAddress(value: string): string | null {
+  const raw = String(value || '').trim();
+  if (/^0x[a-fA-F0-9]{40}$/.test(raw)) return raw;
+  return null;
+}
+
+function parsePayCommand(input: string): { amount: number; token: string; repo: string } | null {
+  const match = input.match(/pay\s+(\d+(?:\.\d+)?)\s*([a-zA-Z0-9]+)\s+to\s+(.+)/i);
+  if (!match) return null;
+  return {
+    amount: Number(match[1]),
+    token: String(match[2] || 'NEAR').toUpperCase(),
+    repo: String(match[3] || '').trim(),
+  };
 }

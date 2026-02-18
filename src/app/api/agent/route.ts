@@ -40,6 +40,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (/^\s*@?gitsplits?\s+pay\b|^\s*pay\b/i.test(String(text))) {
+      return NextResponse.json(
+        {
+          error:
+            'Direct wallet payouts are required in web UI. Use /splits to execute NEAR payment from your connected wallet.',
+        },
+        { status: 400 }
+      );
+    }
+
     const agentBaseUrl = getAgentBaseUrl();
     if (!agentBaseUrl) {
       return NextResponse.json(

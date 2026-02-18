@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useAppKitAccount } from "@reown/appkit/react";
 import { useNearWallet } from "@/hooks/useNearWallet";
 import WalletStatusBar from "@/components/shared/WalletStatusBar";
@@ -15,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, CheckCircle2, GitBranch, Loader2 } from "lucide-react";
 import { trackUxEvent } from "@/lib/services/ux-events";
+import { utils } from "near-api-js";
 
 type ParsedContributor = {
   githubUsername: string;
@@ -134,7 +136,13 @@ function parsePayReceipt(response: string): PayReceipt {
 }
 
 export default function SplitsPage() {
-  const { isConnected: isNearConnected, accountId: nearAccountId } = useNearWallet();
+  const searchParams = useSearchParams();
+  const {
+    isConnected: isNearConnected,
+    accountId: nearAccountId,
+    signAndSendTransaction,
+    connect: connectNear,
+  } = useNearWallet();
   const { isConnected: isEvmConnected, address: evmAddress } = useAppKitAccount();
   const [repoInput, setRepoInput] = useState("");
   const [contributors, setContributors] = useState<ParsedContributor[]>([]);
@@ -148,10 +156,11 @@ export default function SplitsPage() {
   const [pendingClaimsOutput, setPendingClaimsOutput] = useState("");
   const [payResponse, setPayResponse] = useState("");
   const [payAmount, setPayAmount] = useState("1");
-  const [payToken, setPayToken] = useState("USDC");
+  const [payToken, setPayToken] = useState("NEAR");
   const [recentRepos, setRecentRepos] = useState<string[]>([]);
   const [selectedContributor, setSelectedContributor] = useState("");
   const [copiedState, setCopiedState] = useState("");
+  const [paymentTxs, setPaymentTxs] = useState<Array<{ recipient: string; txHash: string }>>([]);
 
   const walletIdentity = useMemo(() => {
     if (nearAccountId && nearAccountId !== "Unknown NEAR Account") return nearAccountId;
@@ -204,6 +213,15 @@ export default function SplitsPage() {
       setRecentRepos([]);
     }
   }, []);
+
+  useEffect(() => {
+    const repo = searchParams.get("repo");
+    const amount = searchParams.get("amount");
+    const token = searchParams.get("token");
+    if (repo) setRepoInput(repo);
+    if (amount) setPayAmount(amount);
+    if (token) setPayToken(token.toUpperCase());
+  }, [searchParams]);
 
   const outreach = useMemo<OutreachBundle | null>(() => {
     if (!selectedContributor || !repoPath) return null;
@@ -483,27 +501,112 @@ export default function SplitsPage() {
     }
 
     setStatus("loading");
-    setMessage("Submitting payout...");
+    setMessage("Preparing wallet-signed payout...");
     setPayResponse("");
+    setPaymentTxs([]);
     trackUxEvent("splits_pay_start", { repo: normalized, amount, token: payToken });
 
     try {
       trackUxEvent("funnel_pay_submitted", { repo: normalized, amount, token: payToken });
+      if (!isNearConnected || !nearAccountId) {
+        setStatus("error");
+        setMessage("Connect your NEAR wallet to execute a direct payout.");
+        return;
+      }
+      if (payToken.toUpperCase() !== "NEAR") {
+        setStatus("error");
+        setMessage("Direct wallet payouts currently support NEAR only. Set token to NEAR.");
+        return;
+      }
+      if (!contributors.length) {
+        setStatus("error");
+        setMessage("Analyze the repository first to load contributors.");
+        return;
+      }
+
+      const payoutCandidates = contributors
+        .map((contributor) => {
+          const liveStatus = contributorStatuses[contributor.githubUsername];
+          return {
+            githubUsername: contributor.githubUsername,
+            percentage: contributor.percentage,
+            verified: Boolean(liveStatus?.verified),
+            walletAddress: liveStatus?.walletAddress || null,
+          };
+        })
+        .filter((item) => item.verified && item.walletAddress && /\.near$|\.testnet$/i.test(item.walletAddress));
+
+      if (!payoutCandidates.length) {
+        setStatus("error");
+        setMessage("No verified NEAR recipients are available for direct payout.");
+        return;
+      }
+
+      const verifiedPercentage = payoutCandidates.reduce((sum, item) => sum + item.percentage, 0);
+      const payouts = payoutCandidates
+        .map((item) => {
+          const payoutAmount = verifiedPercentage > 0 ? (amount * item.percentage) / verifiedPercentage : 0;
+          return {
+            ...item,
+            payoutAmount,
+          };
+        })
+        .filter((item) => item.payoutAmount > 0);
+
+      const totalVerifiedCount = payoutCandidates.length;
+      const totalContributors = contributors.length;
       const proceed = window.confirm(
-        `Confirm payout:\n\nRepo: ${normalized}\nAmount: ${amount} ${payToken}\nCoverage: ${coverageStats ? `${coverageStats.verified}/${coverageStats.total} verified` : "unknown"}\n\nUnverified contributors will be routed to pending claims.`
+        `Confirm direct payout from your NEAR wallet:\n\nRepo: ${normalized}\nAmount: ${amount} NEAR\nVerified recipients: ${totalVerifiedCount}/${totalContributors}\nSender wallet: ${nearAccountId}\n\nOnly verified NEAR recipients will be paid in this transaction set.`
       );
       if (!proceed) {
         setStatus("idle");
         setMessage("Payout cancelled.");
         return;
       }
-      const response = await callAgent(`pay ${amount} ${payToken} to ${normalized}`);
+
+      const txResults: Array<{ recipient: string; txHash: string }> = [];
+      let distributedAmount = 0;
+
+      for (const payout of payouts) {
+        const yocto = utils.format.parseNearAmount(payout.payoutAmount.toFixed(6));
+        if (!yocto || yocto === "0") continue;
+
+        const result: any = await signAndSendTransaction(String(payout.walletAddress), [
+          {
+            type: "Transfer",
+            params: {
+              deposit: yocto,
+            },
+          },
+        ]);
+
+        const txHash =
+          result?.transaction?.hash ||
+          result?.transaction_outcome?.id ||
+          result?.final_execution_outcome?.transaction?.hash ||
+          "unknown";
+
+        txResults.push({
+          recipient: String(payout.walletAddress),
+          txHash: String(txHash),
+        });
+        distributedAmount += payout.payoutAmount;
+      }
+
+      setPaymentTxs(txResults);
+      const txPrimary = txResults[0]?.txHash || "n/a";
+      const unverifiedCount = Math.max(totalContributors - totalVerifiedCount, 0);
+      const response =
+        `✅ Distributed ${distributedAmount.toFixed(4)} NEAR from wallet ${nearAccountId} to ${txResults.length} verified contributors.\n\n` +
+        `Coverage: ${totalVerifiedCount}/${totalContributors} contributors verified\n` +
+        `Payment mode: direct_wallet_near\n` +
+        `🔗 Transaction: ${txPrimary}\n` +
+        `${unverifiedCount > 0 ? `Unverified contributors not paid now: ${unverifiedCount}` : "All contributors paid in this run."}`;
       setPayResponse(response);
       setStatus("success");
       setMessage("Payout request completed.");
       trackUxEvent("funnel_pay_success", { repo: normalized, amount, token: payToken });
       trackUxEvent("splits_pay_success", { repo: normalized, amount, token: payToken });
-      await checkPendingClaims();
     } catch (error) {
       setStatus("error");
       setMessage(toUserFacingError(error));
@@ -523,7 +626,7 @@ export default function SplitsPage() {
           <CardHeader>
             <CardTitle>Splits</CardTitle>
             <CardDescription>
-              Analyze a GitHub repository and create a split through the live agent backend.
+              Analyze a GitHub repository, create a split, and pay verified contributors directly from your NEAR wallet.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -583,15 +686,15 @@ export default function SplitsPage() {
                   value={payToken}
                   onChange={(e) => setPayToken(e.target.value.toUpperCase())}
                   className="h-8 w-20 text-xs"
-                  placeholder="USDC"
+                  placeholder="NEAR"
                 />
                 <Button variant="secondary" type="button" onClick={payNow} disabled={status === "loading"}>
-                  Pay Now
+                  Pay from Wallet
                 </Button>
               </div>
               {repoInput.trim() && (
                 <Link
-                  href={`/agent?command=${encodeURIComponent(`pay ${payAmount || "1"} ${payToken || "USDC"} to ${normalizeRepoUrl(repoInput)}`)}`}
+                  href={`/agent?command=${encodeURIComponent(`pay ${payAmount || "1"} ${payToken || "NEAR"} to ${normalizeRepoUrl(repoInput)}`)}`}
                 >
                   <Button variant="outline" type="button">Open in Agent Chat</Button>
                 </Link>
@@ -637,7 +740,7 @@ export default function SplitsPage() {
                 <CheckCircle2 className="h-4 w-4 text-green-700" />
                 <AlertTitle>Payout Path Is Active</AlertTitle>
                 <AlertDescription>
-                  {coverageStats.verified} verified contributor(s) can be paid now. Unverified contributors are routed to pending claims.
+                  {coverageStats.verified} verified contributor(s) can be paid now from your connected NEAR wallet.
                 </AlertDescription>
               </Alert>
             )}
@@ -660,7 +763,7 @@ export default function SplitsPage() {
                     Contributors are payout-eligible.
                     {" "}
                     <Link
-                      href={`/agent?command=${encodeURIComponent(`pay 1 USDC to github.com/${repoPath}`)}`}
+                      href={`/agent?command=${encodeURIComponent(`pay 1 NEAR to github.com/${repoPath}`)}`}
                       className="underline text-blue-700"
                     >
                       Open pay command
@@ -671,12 +774,12 @@ export default function SplitsPage() {
             )}
             {coverageStats && (
               <div className="rounded-md border bg-white p-3 text-sm">
-                <p className="font-medium">Payout Preview (1 USDC)</p>
+                <p className="font-medium">Payout Preview (1 NEAR)</p>
                 <p className="text-gray-600">
-                  Immediate payout: {(coverageStats.verified / Math.max(coverageStats.total, 1)).toFixed(2)} USDC
+                  Immediate payout: {(coverageStats.verified / Math.max(coverageStats.total, 1)).toFixed(2)} NEAR
                 </p>
                 <p className="text-gray-600">
-                  Pending claims: {((coverageStats.total - coverageStats.verified) / Math.max(coverageStats.total, 1)).toFixed(2)} USDC
+                  Deferred until verification: {((coverageStats.total - coverageStats.verified) / Math.max(coverageStats.total, 1)).toFixed(2)} NEAR
                 </p>
               </div>
             )}
@@ -685,6 +788,14 @@ export default function SplitsPage() {
               <p className="text-sm text-amber-700">
                 Connect a wallet for best results. Without a wallet, split ownership falls back to server NEAR account.
               </p>
+            )}
+            {!isNearConnected && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 flex items-center justify-between gap-3">
+                <p className="text-sm text-amber-900">Direct payouts require a connected NEAR wallet.</p>
+                <Button type="button" size="sm" onClick={connectNear}>
+                  Connect NEAR
+                </Button>
+              </div>
             )}
 
             <div className="rounded-md border bg-white">
@@ -888,6 +999,24 @@ export default function SplitsPage() {
                 <p>Split: {payReceipt.splitId || "n/a"}</p>
                 <p>Pending claims created: {payReceipt.pendingCount ?? 0}</p>
                 <p>Timestamp: {payReceipt.at ? new Date(payReceipt.at).toLocaleString() : "n/a"}</p>
+                {paymentTxs.length > 0 && (
+                  <div className="rounded border bg-gray-50 p-2 space-y-1">
+                    <p className="font-medium">Signed NEAR transactions</p>
+                    {paymentTxs.map((tx) => (
+                      <p key={`${tx.recipient}-${tx.txHash}`} className="text-xs break-all">
+                        {tx.recipient}:{" "}
+                        <a
+                          className="underline text-blue-700"
+                          href={`https://nearblocks.io/txns/${tx.txHash}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {tx.txHash}
+                        </a>
+                      </p>
+                    ))}
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-2">
                   <Button type="button" variant="outline" size="sm" onClick={checkPendingClaims}>
                     View Pending Claims

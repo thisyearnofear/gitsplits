@@ -81,7 +81,7 @@ const WalletStatusBar: React.FC = () => {
   };
 
   return (
-    <div className="flex justify-end items-center w-full mb-6">
+    <div className="flex justify-end items-center w-full mb-6" suppressHydrationWarning>
       {/* Wallet Selection Modal */}
       <Dialog open={showWalletModal} onOpenChange={setShowWalletModal}>
         <DialogContent className="sm:max-w-md">

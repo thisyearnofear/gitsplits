@@ -55,9 +55,14 @@ export default function VerifyPage() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [message, setMessage] = useState("");
   const [mode, setMode] = useState<"idle" | "success" | "error">("idle");
+  const [mounted, setMounted] = useState(false);
 
   const prefillUser = searchParams.get("user") || "";
   const prefillRepo = searchParams.get("repo") || "";
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (prefillUser && !githubUsername) {
@@ -268,13 +273,23 @@ export default function VerifyPage() {
                   <Wallet className="h-4 w-4" /> Wallet
                 </div>
                 <p className="text-sm text-gray-700">
-                  {walletAddress ? `Connected: ${walletAddress}` : "No wallet connected"}
+                  {!mounted ? "Loading..." : walletAddress ? `Connected: ${walletAddress}` : "No wallet connected"}
                 </p>
                 <div className="flex gap-2">
-                  <Button type="button" variant="outline" onClick={() => open()}>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => mounted && open()}
+                    disabled={!mounted}
+                  >
                     Connect EVM
                   </Button>
-                  <Button type="button" variant="outline" onClick={connectNear}>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => mounted && connectNear()}
+                    disabled={!mounted}
+                  >
                     Connect NEAR
                   </Button>
                 </div>

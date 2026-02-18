@@ -3,10 +3,10 @@
 ## Current Status (February 18, 2026)
 
 ### Production
-- **EigenCompute deployment**: In progress (verifiable build passes, app deployment currently blocked)
-- **Blocker**: `EstimateGasExecutionError` on Sepolia app creation transaction in `ecloud compute app deploy`
-- **Build status**: ✅ Verifiable image + provenance signature generated
-- **TEE status**: Pending successful app deployment
+- **EigenCompute deployment**: Live on Sepolia
+- **App ID**: `0xe852Fa024C69F871D3D67D5463F5BA35E9d19e2B`
+- **Latest release**: `7c0278e55db676bd1e9850d48a44b98ff7490fdd`
+- **TEE status**: Active
 
 ### Staging
 - **Hetzner Server**: `http://157.180.36.156:8443`
@@ -15,7 +15,7 @@
 
 ### Web Frontend
 - **Vercel**: `https://gitsplits.vercel.app`
-- **Agent Config**: `AGENT_BASE_URL=https://agent.gitsplits.thisyearnofear.com` (domain reserved; app not yet live)
+- **Agent Config**: `AGENT_BASE_URL=https://agent.gitsplits.thisyearnofear.com`
 
 ## Quick Start
 
@@ -78,27 +78,22 @@ cd agent/deploy
 ./deploy.sh
 ```
 
-### Current Known Blocker
+### Important Note
 
-```bash
-# Build succeeds, app creation reverts on Sepolia:
-ecloud compute app deploy --environment sepolia ...
-# -> EstimateGasExecutionError: execution reverted
-```
-
-Workaround while this is unresolved: keep the Hetzner agent live behind `AGENT_BASE_URL`.
+Use `app upgrade` for ongoing releases on the existing Sepolia app.  
+Use `app deploy` only for first-time app creation.
 
 ### Upgrade Production (Verifiable)
 
 ```bash
-ecloud compute app upgrade <APP_ID> \
+ecloud compute app upgrade 0xe852Fa024C69F871D3D67D5463F5BA35E9d19e2B \
   --environment sepolia \
   --verifiable \
   --repo https://github.com/thisyearnofear/gitsplits \
   --commit <FULL_40_CHAR_SHA> \
   --build-context agent \
   --build-dockerfile Dockerfile.eigen \
-  --build-caddyfile agent/Caddyfile \
+  --build-caddyfile Caddyfile \
   --env-file /opt/gitsplits/repo/agent/.env \
   --instance-type g1-standard-4t \
   --log-visibility private \
@@ -126,13 +121,13 @@ curl https://agent.gitsplits.thisyearnofear.com/health
 ssh snel-bot "cd /opt/gitsplits/repo/agent && git pull && npm run build && pm2 restart gitsplits-agent --update-env"
 ```
 
-### Test Before Production
+### Test Against Fallback
 
 ```bash
 # Point local frontend to staging
 echo "AGENT_BASE_URL=http://157.180.36.156:8443" > .env.local
 
-# Test, then update EigenCompute when ready
+# Test fallback path if Eigen endpoint is degraded
 ```
 
 ## Health Checks

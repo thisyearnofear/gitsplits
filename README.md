@@ -102,12 +102,14 @@ Farcaster/Web → Intent Agent → EigenCompute (TEE) → NEAR + Payments
 - [agent/README.md](./agent/README.md) — Agent setup
 - [agent/DEPLOYMENT.md](./agent/DEPLOYMENT.md) — Deployment guide
 
-## Current Status (February 17, 2026)
+## Current Status (February 18, 2026)
 
-- Agent deployed on EigenCompute (Sepolia testnet)
-- Endpoint: `https://agent.gitsplits.thisyearnofear.com`
-- Health: `https://agent.gitsplits.thisyearnofear.com/health`
-- Farcaster temporarily disabled pending Neynar configuration
+- ✅ Agent deployed on EigenCompute with TEE attestation
+- ✅ Production endpoint: `https://agent.gitsplits.thisyearnofear.com`
+- ✅ Health: `https://agent.gitsplits.thisyearnofear.com/health`
+- ✅ Staging: Hetzner server (for testing before EigenCompute deploys)
+- ✅ Web UI: `https://gitsplits.vercel.app`
+- 🔄 Farcaster temporarily disabled pending Neynar configuration
 
 ## Development
 
@@ -132,18 +134,23 @@ npm install
 npm run dev
 ```
 
-Web app expects these in `.env.local`:
-```
-AGENT_BASE_URL=http://localhost:3000
-# Optional if agent /process is protected:
-AGENT_API_KEY=...
-# Or deployed endpoint:
-# AGENT_BASE_URL=https://agent.gitsplits.thisyearnofear.com
+### Environment Configuration
+
+**Web app (`.env.local`):**
+```bash
+# Production (EigenCompute)
+AGENT_BASE_URL=https://agent.gitsplits.thisyearnofear.com
+
+# Or local development
+# AGENT_BASE_URL=http://localhost:3000
+
+# Required for wallet connect
+NEXT_PUBLIC_PROJECT_ID=<from https://cloud.reown.com>
 ```
 
-Agent server expects:
-```
-# Optional process endpoint protection key:
+**Agent server (`.env`):**
+```bash
+# Optional process endpoint protection
 AGENT_SERVER_API_KEY=...
 ```
 

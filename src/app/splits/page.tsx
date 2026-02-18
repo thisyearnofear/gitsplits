@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, CheckCircle2, GitBranch, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, GitBranch, Loader2, Mail, Megaphone, MessageSquare } from "lucide-react";
 import { trackUxEvent } from "@/lib/services/ux-events";
 import { utils } from "near-api-js";
 
@@ -167,6 +167,11 @@ export default function SplitsPage() {
   const [copiedState, setCopiedState] = useState("");
   const [paymentTxs, setPaymentTxs] = useState<Array<{ recipient: string; txHash: string }>>([]);
   const [allocationDraft, setAllocationDraft] = useState<Record<string, ContributorAllocation>>({});
+  const [showOutreach, setShowOutreach] = useState(false);
+  const [showAllocation, setShowAllocation] = useState(false);
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   const walletIdentity = useMemo(() => {
     if (nearAccountId && nearAccountId !== "Unknown NEAR Account") return nearAccountId;
@@ -241,6 +246,15 @@ export default function SplitsPage() {
     }
     setAllocationDraft(next);
   }, [contributors]);
+
+  useEffect(() => {
+    const unverifiedCount = coverageStats
+      ? Math.max(coverageStats.total - coverageStats.verified, 0)
+      : 0;
+    if (unverifiedCount > 0) {
+      setShowOutreach(true);
+    }
+  }, [coverageStats]);
 
   const setContributorIncluded = (username: string, included: boolean) => {
     setAllocationDraft((prev) => ({
@@ -726,6 +740,12 @@ export default function SplitsPage() {
     isNearConnected &&
     payToken.toUpperCase() === "NEAR" &&
     livePayoutPreview.length > 0;
+  const unverifiedContributorCount = coverageStats
+    ? Math.max(coverageStats.total - coverageStats.verified, 0)
+    : 0;
+  const verificationLink = repoPath
+    ? `/verify?repo=${encodeURIComponent(repoPath)}${selectedContributor ? `&user=${encodeURIComponent(selectedContributor)}` : ""}`
+    : "/verify";
 
   const nextAction = useMemo(() => {
     if (!hasRepoInput) {
@@ -867,63 +887,85 @@ export default function SplitsPage() {
               />
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={analyzeRepo} disabled={status === "loading"}>
-                {status === "loading" ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing
-                  </>
-                ) : (
-                  "Analyze Contributions"
-                )}
-              </Button>
-              <Button variant="outline" onClick={createSplit} disabled={status === "loading" || !canCreateSplitNow}>
-                Create Split
-              </Button>
-              <Button variant="outline" onClick={repairSplit} disabled={status === "loading" || !hasRepoInput}>
-                Repair Split
-              </Button>
-              <Button variant="outline" onClick={checkPendingClaims} disabled={status === "loading" || !hasRepoInput}>
-                Check Pending
-              </Button>
-              <div className="flex items-center gap-2 rounded border bg-card px-2 py-1">
-                <Input
-                  value={payAmount}
-                  onChange={(e) => setPayAmount(e.target.value)}
-                  className="h-8 w-20 text-xs"
-                  placeholder="1"
-                />
-                <Input
-                  value={payToken}
-                  onChange={(e) => setPayToken(e.target.value.toUpperCase())}
-                  className="h-8 w-20 text-xs"
-                  placeholder="NEAR"
-                />
-                <Button variant="secondary" type="button" onClick={payNow} disabled={status === "loading" || !canPayFromWalletNow}>
-                  Pay from Wallet
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={analyzeRepo} disabled={status === "loading"}>
+                  {status === "loading" ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing
+                    </>
+                  ) : (
+                    "Analyze Contributions"
+                  )}
+                </Button>
+                <Button variant="outline" onClick={createSplit} disabled={status === "loading" || !canCreateSplitNow}>
+                  Create or Refresh Split
+                </Button>
+                <div className="flex items-center gap-2 rounded border bg-card px-2 py-1">
+                  <Input
+                    value={payAmount}
+                    onChange={(e) => setPayAmount(e.target.value)}
+                    className="h-8 w-20 text-xs"
+                    placeholder="1"
+                  />
+                  <Input
+                    value={payToken}
+                    onChange={(e) => setPayToken(e.target.value.toUpperCase())}
+                    className="h-8 w-20 text-xs"
+                    placeholder="NEAR"
+                  />
+                  <Button variant="secondary" type="button" onClick={payNow} disabled={status === "loading" || !canPayFromWalletNow}>
+                    Pay from Wallet
+                  </Button>
+                </div>
+                <Button
+                  variant="ghost"
+                  type="button"
+                  className="text-xs"
+                  onClick={() => setShowMoreOptions((prev) => !prev)}
+                >
+                  {showMoreOptions ? (
+                    <>
+                      Hide options <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                    </>
+                  ) : (
+                    <>
+                      More options <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                    </>
+                  )}
                 </Button>
               </div>
-              <div className="flex items-center gap-1 rounded border bg-card px-2 py-1">
-                {[1, 5, 10, 25].map((preset) => (
-                  <Button
-                    key={preset}
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="h-7 px-2 text-xs"
-                    onClick={() => setPayAmount(String(preset))}
-                  >
-                    {preset}
+              {showMoreOptions && (
+                <div className="flex flex-wrap gap-2 rounded-md border bg-muted/30 p-2">
+                  <Button variant="outline" onClick={repairSplit} disabled={status === "loading" || !hasRepoInput}>
+                    Repair Split
                   </Button>
-                ))}
-              </div>
-              {repoInput.trim() && (
-                <Link
-                  href={`/agent?command=${encodeURIComponent(`pay ${payAmount || "1"} ${payToken || "NEAR"} to ${normalizeRepoUrl(repoInput)}`)}`}
-                >
-                  <Button variant="outline" type="button">Open in Agent Chat</Button>
-                </Link>
+                  <Button variant="outline" onClick={checkPendingClaims} disabled={status === "loading" || !hasRepoInput}>
+                    Check Pending
+                  </Button>
+                  <div className="flex items-center gap-1 rounded border bg-card px-2 py-1">
+                    {[1, 5, 10, 25].map((preset) => (
+                      <Button
+                        key={preset}
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setPayAmount(String(preset))}
+                      >
+                        {preset}
+                      </Button>
+                    ))}
+                  </div>
+                  {repoInput.trim() && (
+                    <Link
+                      href={`/agent?command=${encodeURIComponent(`pay ${payAmount || "1"} ${payToken || "NEAR"} to ${normalizeRepoUrl(repoInput)}`)}`}
+                    >
+                      <Button variant="outline" type="button">Open in Agent Chat</Button>
+                    </Link>
+                  )}
+                </div>
               )}
             </div>
             {recentRepos.length > 0 && (
@@ -952,7 +994,7 @@ export default function SplitsPage() {
                 <AlertDescription>
                   {`${coverageStats.total - coverageStats.verified} contributor(s) still need verification. `}
                   <Link
-                    href={`/verify?repo=${encodeURIComponent(repoPath)}${selectedContributor ? `&user=${encodeURIComponent(selectedContributor)}` : ""}`}
+                    href={verificationLink}
                     className="underline"
                   >
                     Send them to verification
@@ -974,16 +1016,43 @@ export default function SplitsPage() {
               <div className="rounded-md border bg-card p-3">
                 <p className="text-sm font-medium">Next Best Action</p>
                 {coverageStats && coverageStats.verified === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Start verification outreach before paying.
-                    {" "}
-                    <Link
-                      href={`/verify?repo=${encodeURIComponent(repoPath)}${selectedContributor ? `&user=${encodeURIComponent(selectedContributor)}` : ""}`}
-                      className="underline text-blue-700 dark:text-blue-400"
-                    >
-                      Open verification
-                    </Link>
-                  </p>
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      Start verification outreach before paying.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Link href={verificationLink}>
+                        <Button size="sm" type="button">Open Verification Hub</Button>
+                      </Link>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        type="button"
+                        onClick={() => copyText("Verification link", `${typeof window !== "undefined" ? window.location.origin : "https://gitsplits.vercel.app"}${verificationLink}`)}
+                      >
+                        <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
+                        Copy Invite Link
+                      </Button>
+                      <a
+                        href={`mailto:?subject=${encodeURIComponent(`Verify for ${repoPath} contributor payouts`)}&body=${encodeURIComponent(`Please verify your GitHub + NEAR identity to receive payouts: ${typeof window !== "undefined" ? window.location.origin : "https://gitsplits.vercel.app"}${verificationLink}`)}`}
+                      >
+                        <Button size="sm" variant="outline" type="button">
+                          <Mail className="h-3.5 w-3.5 mr-1.5" />
+                          Email Draft
+                        </Button>
+                      </a>
+                      <a
+                        href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Contributors for ${repoPath}: verify to receive payouts ${typeof window !== "undefined" ? window.location.origin : "https://gitsplits.vercel.app"}${verificationLink}`)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <Button size="sm" variant="outline" type="button">
+                          <Megaphone className="h-3.5 w-3.5 mr-1.5" />
+                          Social Post
+                        </Button>
+                      </a>
+                    </div>
+                  </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
                     Contributors are payout-eligible.
@@ -1028,11 +1097,18 @@ export default function SplitsPage() {
             )}
 
             <div className="rounded-md border bg-card">
-              <div className="flex items-center gap-2 border-b border-border p-3 font-medium">
-                <GitBranch className="h-4 w-4" />
-                Contributor Allocation
-              </div>
-              {contributors.length > 0 && (
+              <button
+                type="button"
+                className="w-full flex items-center justify-between gap-2 border-b border-border p-3 font-medium text-left"
+                onClick={() => setShowAllocation((prev) => !prev)}
+              >
+                <span className="flex items-center gap-2">
+                  <GitBranch className="h-4 w-4" />
+                  Contributor Allocation
+                </span>
+                {showAllocation ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+              {showAllocation && contributors.length > 0 && (
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2 text-xs">
                   <div className="text-muted-foreground">
                     Included: {includedCount}/{contributors.length} · Payable now: {payableNowCount}
@@ -1053,7 +1129,7 @@ export default function SplitsPage() {
                   </div>
                 </div>
               )}
-              {contributors.length === 0 ? (
+              {showAllocation && (contributors.length === 0 ? (
                 status === "loading" ? (
                   <div className="space-y-2 p-4">
                     <Skeleton className="h-10 w-full" />
@@ -1183,7 +1259,7 @@ export default function SplitsPage() {
                     })}
                   </div>
                 </>
-              )}
+              ))}
             </div>
 
             {contributors.length > 0 && (
@@ -1210,91 +1286,134 @@ export default function SplitsPage() {
 
             {contributors.length > 0 && (
               <div className="rounded-md border bg-card p-4 space-y-3">
-                <p className="text-sm font-medium">Proactive Outreach Toolkit</p>
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between text-left"
+                  onClick={() => setShowOutreach((prev) => !prev)}
+                >
+                  <span className="text-sm font-medium">Verification Outreach Toolkit</span>
+                  {showOutreach ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
                 <p className="text-xs text-muted-foreground">
-                  Generate one-click outreach artifacts for verification and payouts.
+                  Send targeted invites via link, email, social, issue, or DM copy.
                 </p>
 
-                <div className="space-y-2">
-                  <Label htmlFor="outreachUser">Contributor</Label>
-                  <select
-                    id="outreachUser"
-                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                    value={selectedContributor}
-                    onChange={(e) => setSelectedContributor(e.target.value)}
-                  >
-                    {contributors.map((c) => (
-                      <option key={c.githubUsername} value={c.githubUsername}>
-                        {c.githubUsername}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {showOutreach && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="outreachUser">Contributor</Label>
+                      <select
+                        id="outreachUser"
+                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                        value={selectedContributor}
+                        onChange={(e) => setSelectedContributor(e.target.value)}
+                      >
+                        {contributors.map((c) => (
+                          <option key={c.githubUsername} value={c.githubUsername}>
+                            {c.githubUsername}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                {outreach && (
-                  <div className="space-y-3">
-                    <div className="rounded border bg-muted p-3 text-xs break-all">
-                      Verification URL: {outreach.verifyUrl}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Link href={outreach.verifyUrl}>
-                        <Button type="button" size="sm">Open Verify Link</Button>
-                      </Link>
-                      {outreach.githubIssueUrl && (
-                        <a href={outreach.githubIssueUrl} target="_blank" rel="noreferrer">
-                          <Button type="button" variant="outline" size="sm">GitHub Issue Draft</Button>
-                        </a>
-                      )}
-                      <a
-                        href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(outreach.tweetText)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <Button type="button" variant="outline" size="sm">Tweet Draft</Button>
-                      </a>
-                      <a
-                        href={`https://warpcast.com/~/compose?text=${encodeURIComponent(outreach.castText)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <Button type="button" variant="outline" size="sm">Farcaster Draft</Button>
-                      </a>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => copyText("DM text", outreach.dmText)}
-                      >
-                        Copy DM Text
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => copyText("PR comment", outreach.prCommentTemplate)}
-                      >
-                        Copy PR Comment Template
-                      </Button>
-                    </div>
-                    {copiedState && <p className="text-xs text-green-700 dark:text-green-400">{copiedState}</p>}
-                  </div>
+                    {outreach && (
+                      <div className="space-y-3">
+                        <div className="rounded border bg-muted p-3 text-xs break-all">
+                          Verification URL: {outreach.verifyUrl}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Link href={outreach.verifyUrl}>
+                            <Button type="button" size="sm">Open Verify Link</Button>
+                          </Link>
+                          <a href={`mailto:?subject=${encodeURIComponent(`Verification needed for ${repoPath || "repository"} payouts`)}&body=${encodeURIComponent(outreach.dmText)}`}>
+                            <Button type="button" variant="outline" size="sm">Email Draft</Button>
+                          </a>
+                          {outreach.githubIssueUrl && (
+                            <a href={outreach.githubIssueUrl} target="_blank" rel="noreferrer">
+                              <Button type="button" variant="outline" size="sm">GitHub Issue Draft</Button>
+                            </a>
+                          )}
+                          <a
+                            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(outreach.tweetText)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <Button type="button" variant="outline" size="sm">Tweet Draft</Button>
+                          </a>
+                          <a
+                            href={`https://warpcast.com/~/compose?text=${encodeURIComponent(outreach.castText)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <Button type="button" variant="outline" size="sm">Farcaster Draft</Button>
+                          </a>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => copyText("DM text", outreach.dmText)}
+                          >
+                            Copy DM Text
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => copyText("PR comment", outreach.prCommentTemplate)}
+                          >
+                            Copy PR Comment Template
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => copyText("Invite package", `${outreach.dmText}\n\n${outreach.prCommentTemplate}`)}
+                          >
+                            Copy Invite Package
+                          </Button>
+                        </div>
+                        {copiedState && <p className="text-xs text-green-700 dark:text-green-400">{copiedState}</p>}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
 
-            {analyzeResponse && (
-              <div className="rounded-md border bg-muted p-3 text-sm whitespace-pre-wrap">
-                <p className="mb-2 font-medium">Analyze Response</p>
-                {analyzeResponse}
-              </div>
-            )}
-
-            {createResponse && (
-              <div className="rounded-md border bg-muted p-3 text-sm whitespace-pre-wrap">
-                <p className="mb-2 font-medium">Create Response</p>
-                {createResponse}
+            {(analyzeResponse || createResponse || pendingClaimsOutput) && (
+              <div className="rounded-md border bg-card p-3 space-y-3">
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between text-left"
+                  onClick={() => setShowTechnicalDetails((prev) => !prev)}
+                >
+                  <span className="text-sm font-medium">Advanced Details</span>
+                  {showTechnicalDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                {showTechnicalDetails && (
+                  <div className="space-y-3">
+                    {analyzeResponse && (
+                      <div className="rounded-md border bg-muted p-3 text-sm whitespace-pre-wrap break-all">
+                        <p className="mb-2 font-medium">Analysis Details</p>
+                        {analyzeResponse}
+                      </div>
+                    )}
+                    {createResponse && (
+                      <div className="rounded-md border bg-muted p-3 text-sm whitespace-pre-wrap break-all">
+                        <p className="mb-2 font-medium">Split Details</p>
+                        {createResponse}
+                      </div>
+                    )}
+                    {pendingClaimsOutput && (
+                      <div className="rounded-md border bg-muted p-3 text-sm whitespace-pre-wrap break-all">
+                        <p className="mb-2 font-medium">Pending Claims</p>
+                        {pendingClaimsOutput}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
             {payResponse && (
@@ -1340,43 +1459,47 @@ export default function SplitsPage() {
                     </Link>
                   )}
                 </div>
-                <div className="rounded border bg-muted p-2 whitespace-pre-wrap">{payResponse}</div>
+                <div className="rounded border bg-muted p-2 whitespace-pre-wrap break-all">{payResponse}</div>
               </div>
             )}
-            {pendingClaimsOutput && (
-              <div className="rounded-md border bg-muted p-3 text-sm whitespace-pre-wrap">
-                <p className="mb-2 font-medium">Pending Claims</p>
-                {pendingClaimsOutput}
-              </div>
-            )}
-
             <div className="rounded-md border bg-card p-4 space-y-2 text-sm">
-              <p className="font-medium">Need Help?</p>
-              <p>
-                GitHub app/analysis issues:
-                {" "}
-                <Link href="/agent" className="underline text-blue-700 dark:text-blue-400">open agent chat</Link>
-                {" "}
-                and run <code>analyze owner/repo</code>.
-              </p>
-              <p>
-                Contributor not receiving payout:
-                {" "}
-                <Link
-                  href={`/verify${repoPath ? `?repo=${encodeURIComponent(repoPath)}${selectedContributor ? `&user=${encodeURIComponent(selectedContributor)}` : ""}` : ""}`}
-                  className="underline text-blue-700 dark:text-blue-400"
-                >
-                  open verification link
-                </Link>
-                .
-              </p>
-              <p>
-                Timeout/retry:
-                {" "}
-                <Button type="button" variant="outline" size="sm" onClick={analyzeRepo}>
-                  Retry analyze
-                </Button>
-              </p>
+              <button
+                type="button"
+                className="w-full flex items-center justify-between text-left font-medium"
+                onClick={() => setShowHelp((prev) => !prev)}
+              >
+                <span>Need Help?</span>
+                {showHelp ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+              {showHelp && (
+                <>
+                  <p>
+                    GitHub app/analysis issues:
+                    {" "}
+                    <Link href="/agent" className="underline text-blue-700 dark:text-blue-400">open agent chat</Link>
+                    {" "}
+                    and run <code>analyze owner/repo</code>.
+                  </p>
+                  <p>
+                    Contributor not receiving payout:
+                    {" "}
+                    <Link
+                      href={verificationLink}
+                      className="underline text-blue-700 dark:text-blue-400"
+                    >
+                      open verification link
+                    </Link>
+                    .
+                  </p>
+                  <p>
+                    Timeout/retry:
+                    {" "}
+                    <Button type="button" variant="outline" size="sm" onClick={analyzeRepo}>
+                      Retry analyze
+                    </Button>
+                  </p>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>

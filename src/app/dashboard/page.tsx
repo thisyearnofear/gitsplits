@@ -11,6 +11,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, CheckCircle2, Circle, HelpCircle, Loader2, ArrowRight, Github, Shield, Bot, Wallet } from "lucide-react";
 import { motion } from "framer-motion";
 import Badge from "@/components/ui/badge";
+import { trackUxEvent } from "@/lib/services/ux-events";
+import { useRouter } from "next/navigation";
 
 type AgentStatus = "idle" | "ok" | "degraded" | "error";
 
@@ -39,6 +41,7 @@ function normalizeRepoPath(input: string): string {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [status, setStatus] = useState<AgentStatus>("idle");
   const [message, setMessage] = useState("Checking live agent connection...");
   const [repoInput, setRepoInput] = useState("");
@@ -235,7 +238,7 @@ export default function DashboardPage() {
                 {status === "ok" ? (
                   <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-0 font-black px-3 py-1">AGENT ONLINE</Badge>
                 ) : (
-                  <Badge variant="destructive" className="font-black px-3 py-1">AGENT OFFLINE</Badge>
+                  <Badge variant="secondary" className="bg-red-100 text-red-700 hover:bg-red-100 border-0 font-black px-3 py-1">AGENT OFFLINE</Badge>
                 )}
               </div>
             </CardHeader>

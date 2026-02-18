@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import Header from "@/components/shared/Header";
 import { HomeProps, LandingPageProps } from "@/types";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 
 const LandingPage = dynamic(() => import("@/components/landing/LandingPage"), {
   ssr: false,
@@ -34,6 +35,7 @@ const Home: React.FC<HomeProps> = () => {
   return (
     <TooltipProvider>
       <Header />
+      <OnboardingFlow />
       <Suspense fallback={<div>Loading...</div>}>
         <LandingPage {...landingPageProps} />
       </Suspense>

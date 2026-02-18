@@ -72,7 +72,7 @@ export const analyzeIntent: Intent = {
         verificationCoverage =
           `\n\n✅ Verification coverage (top ${sample.length}): ` +
           `${verifiedInSample}/${sample.length} verified` +
-          `\nInvite unverified contributors: https://gitsplits.xyz/verify`;
+          `\nInvite unverified contributors: https://gitsplits.vercel.app/verify`;
       } catch (err: any) {
         console.log('[Analyze] Verification coverage skipped:', err.message);
       }

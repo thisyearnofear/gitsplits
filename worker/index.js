@@ -416,7 +416,7 @@ async function processXCommand(command) {
             "- @gitsplits splits <repo>: View active splits for a repository\n" +
             "- @gitsplits split <split_id>: View split details\n" +
             "- @gitsplits help: Show this help message\n\n" +
-            "For more information, visit: https://gitsplits.xyz",
+            "For more information, visit: https://gitsplits.vercel.app",
         };
 
       default:
@@ -905,7 +905,7 @@ async function handleVerifyCommand(command) {
     message:
       `🔐 GitHub Verification:\n\n` +
       `To verify your GitHub identity (${command.github_username}), please visit:\n` +
-      `https://gitsplits.xyz/verify\n\n` +
+      `https://gitsplits.vercel.app/verify\n\n` +
       `This will allow you to claim your portion of any splits you're included in.`,
   };
 }

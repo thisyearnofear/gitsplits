@@ -175,7 +175,7 @@ const EnhancedAttribution: React.FC<EnhancedAttributionProps> = ({
               <div className="relative">
                 <pre className="bg-gray-50 p-4 rounded-lg overflow-x-auto">
                   <code className="text-sm">
-                    {`<script src="https://gitsplits.xyz/embed.js"></script>
+                    {`<script src="https://gitsplits.vercel.app/embed.js"></script>
 <div 
   class="gitsplits-attribution" 
   data-repo="username/repo"

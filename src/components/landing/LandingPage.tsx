@@ -466,7 +466,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                           <p className="text-amber-700 dark:text-amber-300">
                             Found {analysisResult.contributors} contributors. Payments only go to verified wallets. 
                             <a 
-                              href="https://gitsplits.xyz/verify" 
+                              href="https://gitsplits.vercel.app/verify" 
                               target="_blank" 
                               rel="noopener noreferrer"
                               className="underline hover:text-amber-900 dark:hover:text-amber-100 ml-1"

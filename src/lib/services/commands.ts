@@ -150,7 +150,7 @@ function getHelpMessage(): string {
 5️⃣ Get version info:
    @gitsplits version
 
-Learn more at https://gitsplits.xyz`;
+Learn more at https://gitsplits.vercel.app`;
 }
 
 /**

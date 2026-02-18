@@ -93,12 +93,20 @@ function parseContributorsFromAnalyzeResponse(response: string): ParsedContribut
     .split("\n")
     .map((line) => line.trim())
     .map((line) => {
-      const match = line.match(/^[^a-zA-Z0-9]*([a-zA-Z0-9_.-]+):.*\((\d+)%\)/);
-      if (!match) return null;
-      return {
-        githubUsername: match[1],
-        percentage: Number(match[2]),
-      };
+      const patterns = [
+        /^[^a-zA-Z0-9@]*@?([a-zA-Z0-9_.-]+):.*\((\d+(?:\.\d+)?)%\)/,
+        /^[^a-zA-Z0-9@]*@?([a-zA-Z0-9_.-]+)\s*[-–—]\s*(\d+(?:\.\d+)?)%/,
+      ];
+      for (const pattern of patterns) {
+        const match = line.match(pattern);
+        if (match) {
+          return {
+            githubUsername: match[1],
+            percentage: Number(match[2]),
+          };
+        }
+      }
+      return null;
     })
     .filter((item): item is ParsedContributor => !!item);
 }
@@ -172,6 +180,7 @@ export default function SplitsPage() {
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const paySectionId = "fund-pay-step";
 
   const walletIdentity = useMemo(() => {
     if (nearAccountId && nearAccountId !== "Unknown NEAR Account") return nearAccountId;
@@ -391,6 +400,14 @@ export default function SplitsPage() {
       setTimeout(() => setCopiedState(""), 1800);
     } catch {
       setCopiedState("Copy failed");
+    }
+  };
+
+  const focusPayStep = () => {
+    if (typeof window === "undefined") return;
+    const el = document.getElementById(paySectionId);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
 
@@ -902,23 +919,6 @@ export default function SplitsPage() {
                 <Button variant="outline" onClick={createSplit} disabled={status === "loading" || !canCreateSplitNow}>
                   Create or Refresh Split
                 </Button>
-                <div className="flex items-center gap-2 rounded border bg-card px-2 py-1">
-                  <Input
-                    value={payAmount}
-                    onChange={(e) => setPayAmount(e.target.value)}
-                    className="h-8 w-20 text-xs"
-                    placeholder="1"
-                  />
-                  <Input
-                    value={payToken}
-                    onChange={(e) => setPayToken(e.target.value.toUpperCase())}
-                    className="h-8 w-20 text-xs"
-                    placeholder="NEAR"
-                  />
-                  <Button variant="secondary" type="button" onClick={payNow} disabled={status === "loading" || !canPayFromWalletNow}>
-                    Pay from Wallet
-                  </Button>
-                </div>
                 <Button
                   variant="ghost"
                   type="button"
@@ -936,14 +936,24 @@ export default function SplitsPage() {
                   )}
                 </Button>
               </div>
-              {showMoreOptions && (
-                <div className="flex flex-wrap gap-2 rounded-md border bg-muted/30 p-2">
-                  <Button variant="outline" onClick={repairSplit} disabled={status === "loading" || !hasRepoInput}>
-                    Repair Split
-                  </Button>
-                  <Button variant="outline" onClick={checkPendingClaims} disabled={status === "loading" || !hasRepoInput}>
-                    Check Pending
-                  </Button>
+              <div id={paySectionId} className="rounded-md border bg-card p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium">Step 3: Fund & Pay (on this page)</p>
+                  <p className="text-xs text-muted-foreground">No chat redirect needed</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    value={payAmount}
+                    onChange={(e) => setPayAmount(e.target.value)}
+                    className="h-9 w-24 text-sm"
+                    placeholder="1"
+                  />
+                  <Input
+                    value={payToken}
+                    onChange={(e) => setPayToken(e.target.value.toUpperCase())}
+                    className="h-9 w-24 text-sm"
+                    placeholder="NEAR"
+                  />
                   <div className="flex items-center gap-1 rounded border bg-card px-2 py-1">
                     {[1, 5, 10, 25].map((preset) => (
                       <Button
@@ -958,13 +968,27 @@ export default function SplitsPage() {
                       </Button>
                     ))}
                   </div>
-                  {repoInput.trim() && (
-                    <Link
-                      href={`/agent?command=${encodeURIComponent(`pay ${payAmount || "1"} ${payToken || "NEAR"} to ${normalizeRepoUrl(repoInput)}`)}`}
-                    >
-                      <Button variant="outline" type="button">Open in Agent Chat</Button>
-                    </Link>
-                  )}
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    onClick={payNow}
+                    disabled={status === "loading" || !canPayFromWalletNow}
+                  >
+                    Pay from Wallet
+                  </Button>
+                </div>
+              </div>
+              {showMoreOptions && (
+                <div className="flex flex-wrap gap-2 rounded-md border bg-muted/30 p-2">
+                  <Button variant="outline" onClick={repairSplit} disabled={status === "loading" || !hasRepoInput}>
+                    Repair Split
+                  </Button>
+                  <Button variant="outline" onClick={checkPendingClaims} disabled={status === "loading" || !hasRepoInput}>
+                    Check Pending
+                  </Button>
+                  <Link href="/agent">
+                    <Button variant="outline" type="button">Open Agent (optional)</Button>
+                  </Link>
                 </div>
               )}
             </div>
@@ -1054,16 +1078,32 @@ export default function SplitsPage() {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Contributors are payout-eligible.
-                    {" "}
-                    <Link
-                      href={`/agent?command=${encodeURIComponent(`pay 1 NEAR to github.com/${repoPath}`)}`}
-                      className="underline text-blue-700 dark:text-blue-400"
-                    >
-                      Open pay command
-                    </Link>
-                  </p>
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      Contributors are payout-eligible. Continue directly in Step 3 on this page.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => {
+                          focusPayStep();
+                          payNow();
+                        }}
+                        disabled={status === "loading" || !canPayFromWalletNow}
+                      >
+                        Pay from Wallet
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setShowAllocation(true)}
+                      >
+                        Review Allocation
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
             )}
@@ -1518,9 +1558,9 @@ export default function SplitsPage() {
               type="button"
               className="flex-1"
               onClick={payNow}
-              disabled={status === "loading" || !repoInput.trim()}
+              disabled={status === "loading" || !canPayFromWalletNow}
             >
-              Pay
+              Pay NEAR
             </Button>
           </div>
         </div>

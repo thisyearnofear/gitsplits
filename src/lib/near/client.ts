@@ -340,7 +340,7 @@ async function handleVerifyCommand(
   if (!githubUsername) {
     return {
       success: false,
-      message: '❌ Missing GitHub username. DM @gitsplits "verify your-github-username" or visit https://gitsplits.xyz/verify',
+      message: '❌ Missing GitHub username. DM @gitsplits "verify your-github-username" or visit https://gitsplits.vercel.app/verify',
     };
   }
 

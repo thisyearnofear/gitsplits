@@ -164,9 +164,9 @@ GitSplits understands varied phrasing. You don't need exact syntax.
 
 Some actions are easier on the web:
 
-- **Web Agent**: https://gitsplits.xyz/agent (Interactive chat interface)
-- **Verify identity**: https://gitsplits.xyz/verify
-- **View splits**: https://gitsplits.xyz/splits
-- **Manage settings**: https://gitsplits.xyz/dashboard
+- **Web Agent**: https://gitsplits.vercel.app/agent (Interactive chat interface)
+- **Verify identity**: https://gitsplits.vercel.app/verify
+- **View splits**: https://gitsplits.vercel.app/splits
+- **Manage settings**: https://gitsplits.vercel.app/dashboard
 
 The web interface and Farcaster agent share the same state.

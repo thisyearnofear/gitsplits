@@ -45,7 +45,7 @@ export default function AgentPage() {
   const [messages, setMessages] = useState<Message[]>([
     { 
       role: 'agent', 
-      text: 'Hello! I\'m GitSplits Agent. I can help you:\n\n• Analyze repository contributions\n• Create payment splits\n• Send payouts to verified contributors\n• Verify GitHub/X identities\n\n⚠️ Important: Contributors must verify their wallets at gitsplits.xyz/verify before they can receive payments.\n\nTry one of the example commands below or type your own!',
+      text: 'Hello! I\'m GitSplits Agent. I can help you:\n\n• Analyze repository contributions\n• Create payment splits\n• Send payouts to verified contributors\n• Verify GitHub/X identities\n\n⚠️ Important: Contributors must verify their wallets at gitsplits.vercel.app/verify before they can receive payments.\n\nTry one of the example commands below or type your own!',
       timestamp: new Date()
     },
   ]);

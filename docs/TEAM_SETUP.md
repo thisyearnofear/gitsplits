@@ -17,8 +17,8 @@ Create at: https://github.com/settings/apps/new
 
 **Settings:**
 - Name: `gitsplits`
-- Homepage: `https://gitsplits.xyz`
-- Callback: `https://gitsplits.xyz/api/github/callback`
+- Homepage: `https://gitsplits.vercel.app`
+- Callback: `https://gitsplits.vercel.app/api/github/callback`
 - Webhook: Disabled
 - Permissions:
   - Repository contents: Read-only

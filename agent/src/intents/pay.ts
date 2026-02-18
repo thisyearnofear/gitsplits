@@ -77,7 +77,7 @@ export const payIntent: Intent = {
           response:
             `❌ Strict mode enabled: payment blocked because ${unverified.length} contributors are unverified.\n\n` +
             `Unverified: ${unverified.map((c: any) => c.github_username).join(', ')}\n` +
-            `Ask them to verify at https://gitsplits.xyz/verify`,
+            `Ask them to verify at https://gitsplits.vercel.app/verify`,
           context,
         };
       }
@@ -86,7 +86,7 @@ export const payIntent: Intent = {
         return {
           response:
             `❌ No verified contributors found for ${repoUrl}. Nothing can be paid yet.\n\n` +
-            `Ask contributors to verify at https://gitsplits.xyz/verify`,
+            `Ask contributors to verify at https://gitsplits.vercel.app/verify`,
           context,
         };
       }
@@ -167,7 +167,7 @@ export const payIntent: Intent = {
             pendingClaims
               .map((c) => `- ${c.github_username}: ${c.amount.toFixed(4)} ${c.token} (claim id: ${c.id})`)
               .join('\n') +
-            `\n\nInvite them to verify: https://gitsplits.xyz/verify`
+            `\n\nInvite them to verify: https://gitsplits.vercel.app/verify`
           : '';
       
       return {

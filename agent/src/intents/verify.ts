@@ -79,7 +79,7 @@ export const verifyIntent: Intent = {
       });
       
       return {
-        response: `🔐 Verification initiated for @${githubUsername}\n\nTo complete:\n1. Create a public GitHub gist\n2. Paste this code: ${code}\n3. Reply here with the gist URL\n\nOr verify at: https://gitsplits.xyz/verify?github=${githubUsername}&code=${code}`,
+        response: `🔐 Verification initiated for @${githubUsername}\n\nTo complete:\n1. Create a public GitHub gist\n2. Paste this code: ${code}\n3. Reply here with the gist URL\n\nOr verify at: https://gitsplits.vercel.app/verify?github=${githubUsername}&code=${code}`,
         context: {
           ...context,
           pendingVerification: {

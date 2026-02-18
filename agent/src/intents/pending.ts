@@ -73,7 +73,7 @@ export const pendingIntent: Intent = {
             `Contributors with pending claims: ${pendingByUser.length}\n` +
             `Total pending claim entries: ${totalClaims}\n\n` +
             `${lines}\n\n` +
-            `Ask contributors to verify at https://gitsplits.xyz/verify`,
+            `Ask contributors to verify at https://gitsplits.vercel.app/verify`,
           context,
         };
       }

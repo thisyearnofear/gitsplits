@@ -16,7 +16,7 @@ The agent analyzes the repository, calculates fair splits based on contribution 
 - **No Setup**: Contributors verify once, then auto-receive payments
 - **Cross-Chain**: Contributors receive funds on their preferred chain
 - **Cryptographic Transparency**: Optional attestations via EigenCompute TEE
-- **Web UI**: Interactive chat interface at https://gitsplits.xyz/agent
+- **Web UI**: Interactive chat interface at https://gitsplits.vercel.app/agent
 
 ## Why EigenCompute?
 
@@ -80,10 +80,10 @@ Farcaster/Web → Intent Agent → EigenCompute (TEE) → NEAR + Payments
 
 ## Web Interface
 
-- **Agent**: https://gitsplits.xyz/agent
-- **Verify**: https://gitsplits.xyz/verify
-- **Splits**: https://gitsplits.xyz/splits
-- **Dashboard**: https://gitsplits.xyz/dashboard
+- **Agent**: https://gitsplits.vercel.app/agent
+- **Verify**: https://gitsplits.vercel.app/verify
+- **Splits**: https://gitsplits.vercel.app/splits
+- **Dashboard**: https://gitsplits.vercel.app/dashboard
 
 ### Web-First Status (February 17, 2026)
 

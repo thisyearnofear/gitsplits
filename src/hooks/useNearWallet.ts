@@ -11,7 +11,7 @@ export interface NearWalletState {
 }
 
 export function useNearWallet() {
-  const { selector, modal, accounts, accountId } = useBitteWallet();
+  const { selector, modal, accounts } = useBitteWallet();
   const [state, setState] = useState<NearWalletState>({
     isConnected: false,
     accountId: null,
@@ -28,16 +28,17 @@ export function useNearWallet() {
         let extractedAccountId = null;
         if (accounts && accounts.length > 0) {
           // Try to get the account ID from the first account in the array
-          if (accounts[0].accountId) {
-            extractedAccountId = accounts[0].accountId;
+          const firstAccount = accounts[0] as any;
+          if (firstAccount.accountId) {
+            extractedAccountId = firstAccount.accountId;
           } else {
             // If accountId is not directly available, try to access it through account_id or id
-            extractedAccountId = accounts[0].account_id || accounts[0].id;
+            extractedAccountId = (firstAccount as any).account_id || (firstAccount as any).id;
           }
         }
 
-        // Use either the extracted account ID or the one from the hook
-        const finalAccountId = accountId || extractedAccountId;
+        // Use the extracted account ID from accounts
+        const finalAccountId = extractedAccountId;
 
         if (accounts && accounts.length > 0 && finalAccountId) {
           setState({
@@ -81,25 +82,26 @@ export function useNearWallet() {
     return () => {
       clearInterval(intervalId);
     };
-  }, [accounts, accountId]);
+  }, [accounts]);
 
   const connect = useCallback(async () => {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
 
       // Show the modal
-      modal.show();
+      modal?.show();
 
       // Add a listener for when the modal is closed
       const checkConnectionAfterModalClose = () => {
-        // If we have accounts but no connection, force a connection check
+        // If we have accounts but no connection, we force a connection check
         if (accounts && accounts.length > 0) {
           // Extract account ID from accounts array if available
+          const firstAccount = accounts[0] as any;
           let extractedAccountId = null;
-          if (accounts[0].accountId) {
-            extractedAccountId = accounts[0].accountId;
+          if (firstAccount.accountId) {
+            extractedAccountId = firstAccount.accountId;
           } else {
-            extractedAccountId = accounts[0].account_id || accounts[0].id;
+            extractedAccountId = (firstAccount as any).account_id || (firstAccount as any).id;
           }
 
           if (extractedAccountId) {
@@ -150,7 +152,7 @@ export function useNearWallet() {
 
   const signAndSendTransaction = useCallback(async (receiverId: string, actions: any[]) => {
     try {
-      if (!accountId) {
+      if (!state.accountId) {
         throw new Error('Wallet not connected');
       }
 
@@ -163,7 +165,7 @@ export function useNearWallet() {
       console.error('Error signing transaction:', error);
       throw error;
     }
-  }, [selector, accountId]);
+  }, [selector, state.accountId]);
 
   return {
     ...state,

@@ -1,6 +1,6 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import { getAuth, type Auth } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 
 // Your Firebase configuration
 // Replace with your actual Firebase config
@@ -14,9 +14,9 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-let app;
-let auth;
-let db;
+let app: FirebaseApp | null;
+let auth: Auth | null;
+let db: Firestore | null;
 
 if (firebaseConfig.apiKey && firebaseConfig.apiKey !== 'your-api-key') {
   app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);

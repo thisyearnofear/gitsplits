@@ -1,4 +1,4 @@
-import { callChangeMethod } from './near';
+import { callChangeMethod } from './client';
 import crypto from 'crypto';
 
 // Supported chains

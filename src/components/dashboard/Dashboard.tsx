@@ -5,7 +5,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Shield, Command, FileCode, BarChart3, LineChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DashboardProps } from "@/types";
 import { useAccount } from "wagmi";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -25,10 +24,7 @@ const TABS = [
   { value: "overview", label: "Overview", icon: BarChart3 },
 ];
 
-const Dashboard: React.FC<DashboardProps> = ({
-  isGitHubConnected,
-  setIsGitHubConnected,
-}) => {
+const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState("verification");
   const { address } = useAccount();
   const router = useRouter();
@@ -107,11 +103,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <VerificationCenter
-                  isGitHubConnected={isGitHubConnected}
-                  setIsGitHubConnected={setIsGitHubConnected}
-                  walletAddress={address}
-                />
+                <VerificationCenter walletAddress={address} />
               </motion.div>
             </TabsContent>
 

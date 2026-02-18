@@ -17,7 +17,7 @@ export const networks = [mainnet, arbitrum];
 export const wagmiAdapter = new WagmiAdapter({
   storage: createStorage({
     storage: cookieStorage,
-  }),
+  }) as any, // Type assertion to work around wagmi Storage type compatibility issue
   ssr: true,
   projectId,
   networks,

@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useNearWallet } from "@/hooks/useNearWallet";
 import WalletStatusBar from "@/components/shared/WalletStatusBar";
+import FlowStatusStrip from "@/components/shared/FlowStatusStrip";
 import { trackUxEvent } from "@/lib/services/ux-events";
 
 function toHex(value: unknown): string {
@@ -64,6 +65,21 @@ function createNearNonce(): Buffer {
   return Buffer.from(nonce);
 }
 
+function toUserFacingError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error || "Unknown error");
+  const lower = raw.toLowerCase();
+  if (lower.includes("invalid nonce") || lower.includes("buffer with a length of 32 bytes")) {
+    return "NEAR wallet signing failed. Please reconnect your NEAR wallet and try again.";
+  }
+  if (lower.includes("network") || lower.includes("fetch")) {
+    return "Network issue while verifying. Please retry in a few seconds.";
+  }
+  if (lower.includes("gist")) {
+    return "We could not validate that gist. Ensure it is public and contains the exact verification code.";
+  }
+  return raw;
+}
+
 export default function VerifyPage() {
   const searchParams = useSearchParams();
   const { open } = useAppKit();
@@ -96,6 +112,10 @@ export default function VerifyPage() {
   }, [prefillUser, githubUsername]);
 
   useEffect(() => {
+    trackUxEvent("funnel_verify_opened", { repo: prefillRepo || undefined });
+  }, [prefillRepo]);
+
+  useEffect(() => {
     const dismissed = localStorage.getItem("gitsplits_verify_onboarding_dismissed");
     setShowOnboarding(!dismissed);
   }, []);
@@ -113,6 +133,17 @@ export default function VerifyPage() {
     if (verificationCode) return "Partially verified - gist required";
     return "Not verified";
   }, [githubGistId, githubUsername, isVerified, verificationCode, walletAddress]);
+
+  const flowSteps = useMemo(
+    () => [
+      { id: "analyze", label: "Analyze", href: "/agent", complete: true },
+      { id: "verify", label: "Verify", href: "/verify", complete: isVerified, current: !isVerified },
+      { id: "split", label: "Create Split", href: "/splits", complete: false },
+      { id: "pay", label: "Pay", href: "/splits", complete: false },
+      { id: "claim", label: "Claim", href: "/splits", complete: false },
+    ],
+    [isVerified]
+  );
 
   const generateCode = async () => {
     if (!walletAddress) {
@@ -148,7 +179,7 @@ export default function VerifyPage() {
       trackUxEvent("verify_generate_code_success");
     } catch (error) {
       setMode("error");
-      setMessage(error instanceof Error ? error.message : "Failed to generate code.");
+      setMessage(toUserFacingError(error));
       trackUxEvent("verify_generate_code_failed");
     } finally {
       setIsLoading(false);
@@ -219,7 +250,7 @@ export default function VerifyPage() {
       trackUxEvent("verify_submit_success", { contractSynced: data.contractSynced });
     } catch (error) {
       setMode("error");
-      setMessage(error instanceof Error ? error.message : "Verification failed.");
+      setMessage(toUserFacingError(error));
       trackUxEvent("verify_submit_failed");
     } finally {
       setIsLoading(false);
@@ -240,8 +271,11 @@ export default function VerifyPage() {
     <div className="min-h-screen bg-gradient-to-br from-gentle-blue via-gentle-purple to-gentle-orange py-10">
       <div className="container mx-auto max-w-3xl px-4">
         <WalletStatusBar />
+        <div className="mb-4">
+          <FlowStatusStrip steps={flowSteps} title="Contributor Payout Journey" />
+        </div>
 
-        <Card>
+        <Card className="mb-20 md:mb-0">
           <CardHeader>
             <CardTitle>Contributor Verification</CardTitle>
             <CardDescription>
@@ -308,7 +342,14 @@ export default function VerifyPage() {
                     disabled={!mounted}
                     className={isEvmConnected ? "bg-green-600 hover:bg-green-700 text-white" : ""}
                   >
-                    {isEvmConnected ? "EVM Connected ✓" : "Connect EVM"}
+                    {isEvmConnected ? (
+                      <>
+                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                        EVM Connected
+                      </>
+                    ) : (
+                      "Connect EVM"
+                    )}
                   </Button>
                   <Button 
                     type="button"
@@ -317,7 +358,14 @@ export default function VerifyPage() {
                     disabled={!mounted}
                     className={isNearConnected ? "bg-green-600 hover:bg-green-700 text-white" : ""}
                   >
-                    {isNearConnected ? "NEAR Connected ✓" : "Connect NEAR"}
+                    {isNearConnected ? (
+                      <>
+                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                        NEAR Connected
+                      </>
+                    ) : (
+                      "Connect NEAR"
+                    )}
                   </Button>
                 </div>
               </div>
@@ -400,6 +448,26 @@ export default function VerifyPage() {
             )}
           </CardContent>
         </Card>
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t p-3">
+          <div className="max-w-3xl mx-auto flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={generateCode}
+              disabled={isLoading || !walletAddress || !githubUsername.trim()}
+            >
+              Generate
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={verifyContributor}
+              disabled={isLoading || !walletAddress || !githubUsername.trim() || !githubGistId.trim()}
+            >
+              Verify
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

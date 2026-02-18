@@ -10,6 +10,7 @@
  */
 
 import { Intent } from '../core/agent';
+import { getVerifyBaseUrl } from '../config';
 
 export const createIntent: Intent = {
   name: 'create',
@@ -51,6 +52,7 @@ export const createIntent: Intent = {
     
     try {
       const repoUrl = normalizeRepoUrl(repo);
+      const verifyBaseUrl = getVerifyBaseUrl();
       
       // Check if split already exists
       const existing = await tools.near.getSplit(repoUrl);
@@ -113,6 +115,24 @@ export const createIntent: Intent = {
         .slice(0, 5)
         .map((c: any) => `- ${c.github_username}: ${c.percentage}%`)
         .join('\n');
+
+      const eligible = contributors.filter((c: any) => !isSystemContributor(c.github_username));
+      const wallets = await Promise.all(
+        eligible.map((c: any) => tools.near.getVerifiedWallet(c.github_username))
+      );
+      const verifiedCount = wallets.filter(Boolean).length;
+      const unverified = eligible
+        .map((c: any) => c.github_username)
+        .filter((_: string, i: number) => !wallets[i]);
+      const skippedBots = contributors.length - eligible.length;
+
+      const coverageLine =
+        `Verification coverage: ${verifiedCount}/${eligible.length} verified` +
+        (skippedBots > 0 ? ` (${skippedBots} bot/system skipped)` : '');
+      const unverifiedLine = unverified.length
+        ? `\nNeed verification: ${unverified.slice(0, 5).map((u: string) => `@${u}`).join(', ')}${unverified.length > 5 ? `, +${unverified.length - 5} more` : ''}` +
+          `\nInvite link: ${verifyBaseUrl}?repo=${encodeURIComponent(repoUrl.replace(/^github\.com\//, ''))}`
+        : '';
       
       return {
         response:
@@ -120,6 +140,7 @@ export const createIntent: Intent = {
           `🤖 Powered by GitHub App Automation\n📜 Split ID: ${split.id}\n\n` +
           `Top contributors (verified via Git history):\n${topContributors}` +
           `${contributors.length > 5 ? `\n...and ${contributors.length - 5} more` : ''}\n\n` +
+          `${coverageLine}${unverifiedLine}\n\n` +
           `To pay them: "@gitsplits pay 100 USDC to ${repoUrl}"`,
         context: {
           ...context,
@@ -172,4 +193,9 @@ function normalizeRepoUrl(input: string): string {
     .trim();
   
   return `github.com/${cleaned}`;
+}
+
+function isSystemContributor(username: string): boolean {
+  const normalized = String(username || '').toLowerCase();
+  return normalized.includes('[bot]') || normalized.endsWith('-bot');
 }

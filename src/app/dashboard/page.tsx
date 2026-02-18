@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import WalletStatusBar from "@/components/shared/WalletStatusBar";
+import FlowStatusStrip from "@/components/shared/FlowStatusStrip";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -38,6 +39,15 @@ function normalizeRepoPath(input: string): string {
     .trim()
     .replace(/^(https?:\/\/)?(www\.)?github\.com\//i, "")
     .replace(/\/+$/, "");
+}
+
+function toUserFacingError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error || "Unknown error");
+  const lower = raw.toLowerCase();
+  if (lower.includes("timed out")) return "The agent timed out. Retry in a few seconds.";
+  if (lower.includes("not installed")) return "GitHub App is not installed on that repository.";
+  if (lower.includes("fetch") || lower.includes("network")) return "Network issue while contacting backend. Please retry.";
+  return raw;
 }
 
 export default function DashboardPage() {
@@ -93,6 +103,18 @@ export default function DashboardPage() {
       },
     ];
   }, [coverageStats, normalizedRepoPath, pendingOutput]);
+
+  const stripSteps = useMemo(
+    () =>
+      flowSteps.map((step, idx) => ({
+        id: step.id,
+        label: step.label.replace(" repository", ""),
+        href: step.actionHref,
+        complete: step.complete,
+        current: !step.complete && flowSteps.findIndex((s) => !s.complete) === idx,
+      })),
+    [flowSteps]
+  );
 
   useEffect(() => {
     try {
@@ -152,7 +174,7 @@ export default function DashboardPage() {
       pushTimeline({ action: "agent_readiness", status: "failed" });
     } catch (error) {
       setStatus("error");
-      setMessage(error instanceof Error ? error.message : "Failed to check agent readiness.");
+      setMessage(toUserFacingError(error));
       trackUxEvent("dashboard_agent_error");
       pushTimeline({ action: "agent_readiness", status: "failed" });
     }
@@ -211,7 +233,7 @@ export default function DashboardPage() {
       trackUxEvent("dashboard_analyze_success", { repo: normalizedRepoPath });
       pushTimeline({ action: "analyze", status: "success", repo: normalizedRepoPath });
     } catch (error) {
-      setPendingOutput(error instanceof Error ? error.message : "Failed to load repo verification insights.");
+      setPendingOutput(toUserFacingError(error));
       trackUxEvent("dashboard_analyze_failed", { repo: normalizedRepoPath });
       pushTimeline({ action: "analyze", status: "failed", repo: normalizedRepoPath });
     } finally {
@@ -223,6 +245,7 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gradient-to-br from-gentle-blue via-gentle-purple to-gentle-orange py-6 md:py-10">
       <div className="container mx-auto max-w-5xl px-4 space-y-8">
         <WalletStatusBar />
+        <FlowStatusStrip steps={stripSteps} title="Contributor Payout Journey" />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="md:col-span-2 border-0 shadow-2xl bg-white/80 backdrop-blur-xl overflow-hidden">

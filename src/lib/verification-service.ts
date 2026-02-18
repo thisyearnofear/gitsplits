@@ -9,6 +9,7 @@ import {
   getDocs,
   Timestamp,
   addDoc,
+  type Firestore,
 } from "firebase/firestore";
 import axios from "axios";
 import { ethers } from "ethers";
@@ -31,6 +32,10 @@ export async function generateVerificationCode(
   platform: "github" | "twitter",
   username: string
 ): Promise<string> {
+  if (!db) {
+    throw new Error("Firebase not configured");
+  }
+
   try {
     // Create a unique verification code
     const timestamp = Date.now();
@@ -83,6 +88,11 @@ export async function verifyGitHub(
   githubUsername: string,
   gistId: string
 ): Promise<boolean> {
+  if (!db) {
+    console.error("Firebase not configured");
+    return false;
+  }
+
   try {
     const verificationCodesRef = collection(db, VERIFICATION_CODES_COLLECTION);
     const q = query(
@@ -179,6 +189,11 @@ export async function verifyTwitter(
   twitterHandle: string,
   tweetUrl: string
 ): Promise<boolean> {
+  if (!db) {
+    console.error("Firebase not configured");
+    return false;
+  }
+
   try {
     const verificationCodesRef = collection(db, VERIFICATION_CODES_COLLECTION);
     const q = query(
@@ -272,6 +287,15 @@ export async function getVerificationStatus(walletAddress: string): Promise<{
   evmAddress?: string;
   nearAccountId?: string;
 }> {
+  if (!db) {
+    return {
+      githubVerified: false,
+      twitterVerified: false,
+      evmVerified: false,
+      nearVerified: false,
+    };
+  }
+
   try {
     const verificationDoc = await getDoc(
       doc(db, VERIFICATIONS_COLLECTION, walletAddress)

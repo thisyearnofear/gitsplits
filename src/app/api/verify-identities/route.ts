@@ -5,7 +5,7 @@ import {
   verifyEvmSignature,
   verifyNearSignature,
 } from "@/lib/verification-service";
-import { setDoc, doc, Timestamp } from "firebase/firestore";
+import { setDoc, doc, Timestamp, Firestore } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 const REQUEST_TIMEOUT_MS = 20_000;
@@ -63,6 +63,13 @@ async function syncVerificationToContract(params: {
 }
 
 export async function POST(request: NextRequest) {
+  if (!db) {
+    return NextResponse.json(
+      { success: false, error: "Firebase not configured" },
+      { status: 503 }
+    );
+  }
+
   try {
     const body = await request.json();
     const {

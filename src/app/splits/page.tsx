@@ -23,6 +23,11 @@ type ParsedContributor = {
   percentage: number;
 };
 
+type ContributorAllocation = {
+  included: boolean;
+  share: number;
+};
+
 type AgentApiResponse = {
   success?: boolean;
   response?: string;
@@ -161,6 +166,7 @@ export default function SplitsPage() {
   const [selectedContributor, setSelectedContributor] = useState("");
   const [copiedState, setCopiedState] = useState("");
   const [paymentTxs, setPaymentTxs] = useState<Array<{ recipient: string; txHash: string }>>([]);
+  const [allocationDraft, setAllocationDraft] = useState<Record<string, ContributorAllocation>>({});
 
   const walletIdentity = useMemo(() => {
     if (nearAccountId && nearAccountId !== "Unknown NEAR Account") return nearAccountId;
@@ -188,6 +194,7 @@ export default function SplitsPage() {
     [pendingClaimsOutput]
   );
   const payReceipt = useMemo(() => parsePayReceipt(payResponse), [payResponse]);
+  const payoutAmountNumber = useMemo(() => Number(payAmount), [payAmount]);
   const flowSteps = useMemo(
     () => [
       { id: "analyze", label: "Analyze", href: "/agent", complete: contributors.length > 0, current: contributors.length === 0 },
@@ -222,6 +229,108 @@ export default function SplitsPage() {
     if (amount) setPayAmount(amount);
     if (token) setPayToken(token.toUpperCase());
   }, [searchParams]);
+
+  useEffect(() => {
+    const next: Record<string, ContributorAllocation> = {};
+    for (const contributor of contributors) {
+      const isBot = isSystemContributor(contributor.githubUsername);
+      next[contributor.githubUsername] = {
+        included: !isBot,
+        share: contributor.percentage,
+      };
+    }
+    setAllocationDraft(next);
+  }, [contributors]);
+
+  const setContributorIncluded = (username: string, included: boolean) => {
+    setAllocationDraft((prev) => ({
+      ...prev,
+      [username]: {
+        included,
+        share: prev[username]?.share ?? contributors.find((c) => c.githubUsername === username)?.percentage ?? 0,
+      },
+    }));
+  };
+
+  const setContributorShare = (username: string, share: number) => {
+    const safeShare = Number.isFinite(share) ? Math.max(0, share) : 0;
+    setAllocationDraft((prev) => ({
+      ...prev,
+      [username]: {
+        included: prev[username]?.included ?? true,
+        share: safeShare,
+      },
+    }));
+  };
+
+  const setIncludeMode = (mode: "all" | "verified" | "none") => {
+    setAllocationDraft((prev) => {
+      const next: Record<string, ContributorAllocation> = { ...prev };
+      for (const contributor of contributors) {
+        const isBot = isSystemContributor(contributor.githubUsername);
+        const status = contributorStatuses[contributor.githubUsername];
+        const isVerified = Boolean(status?.verified);
+        const current = prev[contributor.githubUsername];
+        next[contributor.githubUsername] = {
+          included:
+            mode === "none"
+              ? false
+              : mode === "verified"
+              ? !isBot && isVerified
+              : !isBot,
+          share: current?.share ?? contributor.percentage,
+        };
+      }
+      return next;
+    });
+  };
+
+  const resetAllocationToGitHistory = () => {
+    setAllocationDraft(() => {
+      const next: Record<string, ContributorAllocation> = {};
+      for (const contributor of contributors) {
+        const isBot = isSystemContributor(contributor.githubUsername);
+        next[contributor.githubUsername] = {
+          included: !isBot,
+          share: contributor.percentage,
+        };
+      }
+      return next;
+    });
+  };
+
+  const allocationCandidates = useMemo(() => {
+    return contributors.map((contributor) => {
+      const draft = allocationDraft[contributor.githubUsername];
+      const share = draft?.share ?? contributor.percentage;
+      const included = draft?.included ?? !isSystemContributor(contributor.githubUsername);
+      const status = contributorStatuses[contributor.githubUsername];
+      const verified = Boolean(status?.verified);
+      return {
+        githubUsername: contributor.githubUsername,
+        share,
+        included,
+        verified,
+        walletAddress: status?.walletAddress || null,
+        isBot: isSystemContributor(contributor.githubUsername),
+      };
+    });
+  }, [allocationDraft, contributorStatuses, contributors]);
+
+  const livePayoutPreview = useMemo(() => {
+    const valid = allocationCandidates.filter(
+      (c) => c.included && c.verified && c.walletAddress && /\.near$|\.testnet$/i.test(c.walletAddress)
+    );
+    const shareTotal = valid.reduce((sum, c) => sum + c.share, 0);
+    const amount = Number.isFinite(payoutAmountNumber) ? payoutAmountNumber : 0;
+    return valid.map((item) => ({
+      ...item,
+      payoutAmount: shareTotal > 0 ? (amount * item.share) / shareTotal : 0,
+    }));
+  }, [allocationCandidates, payoutAmountNumber]);
+
+  const includedCount = allocationCandidates.filter((c) => c.included).length;
+  const payableNowCount = livePayoutPreview.length;
 
   const outreach = useMemo<OutreachBundle | null>(() => {
     if (!selectedContributor || !repoPath) return null;
@@ -524,28 +633,20 @@ export default function SplitsPage() {
         return;
       }
 
-      const payoutCandidates = contributors
-        .map((contributor) => {
-          const liveStatus = contributorStatuses[contributor.githubUsername];
-          return {
-            githubUsername: contributor.githubUsername,
-            percentage: contributor.percentage,
-            verified: Boolean(liveStatus?.verified),
-            walletAddress: liveStatus?.walletAddress || null,
-          };
-        })
+      const payoutCandidates = allocationCandidates
+        .filter((item) => item.included)
         .filter((item) => item.verified && item.walletAddress && /\.near$|\.testnet$/i.test(item.walletAddress));
 
       if (!payoutCandidates.length) {
         setStatus("error");
-        setMessage("No verified NEAR recipients are available for direct payout.");
+        setMessage("No included verified NEAR recipients are available for direct payout.");
         return;
       }
 
-      const verifiedPercentage = payoutCandidates.reduce((sum, item) => sum + item.percentage, 0);
+      const verifiedPercentage = payoutCandidates.reduce((sum, item) => sum + item.share, 0);
       const payouts = payoutCandidates
         .map((item) => {
-          const payoutAmount = verifiedPercentage > 0 ? (amount * item.percentage) / verifiedPercentage : 0;
+          const payoutAmount = verifiedPercentage > 0 ? (amount * item.share) / verifiedPercentage : 0;
           return {
             ...item,
             payoutAmount,
@@ -554,9 +655,9 @@ export default function SplitsPage() {
         .filter((item) => item.payoutAmount > 0);
 
       const totalVerifiedCount = payoutCandidates.length;
-      const totalContributors = contributors.length;
+      const totalContributors = allocationCandidates.filter((c) => c.included).length;
       const proceed = window.confirm(
-        `Confirm direct payout from your NEAR wallet:\n\nRepo: ${normalized}\nAmount: ${amount} NEAR\nVerified recipients: ${totalVerifiedCount}/${totalContributors}\nSender wallet: ${nearAccountId}\n\nOnly verified NEAR recipients will be paid in this transaction set.`
+        `Confirm direct payout from your NEAR wallet:\n\nRepo: ${normalized}\nAmount: ${amount} NEAR\nSelected contributors: ${totalContributors}\nPayable now: ${totalVerifiedCount}/${totalContributors}\nSender wallet: ${nearAccountId}\n\nOnly included + verified NEAR recipients will be paid in this run.`
       );
       if (!proceed) {
         setStatus("idle");
@@ -614,6 +715,88 @@ export default function SplitsPage() {
     }
   };
 
+  const hasRepoInput = repoInput.trim().length > 0;
+  const hasAnalyzed = contributors.length > 0;
+  const hasSplitContext = createResponse.trim().length > 0;
+  const hasPaid = payResponse.trim().length > 0;
+  const canCreateSplitNow = hasRepoInput && hasAnalyzed;
+  const canPayFromWalletNow =
+    hasRepoInput &&
+    hasAnalyzed &&
+    isNearConnected &&
+    payToken.toUpperCase() === "NEAR" &&
+    livePayoutPreview.length > 0;
+
+  const nextAction = useMemo(() => {
+    if (!hasRepoInput) {
+      return {
+        label: "Enter a Repository",
+        hint: "Start by pasting owner/repo or a GitHub URL.",
+        onClick: () => {},
+        disabled: true,
+      };
+    }
+    if (!hasAnalyzed) {
+      return {
+        label: "Analyze Contributions",
+        hint: "Discover contributors and default split percentages.",
+        onClick: analyzeRepo,
+        disabled: status === "loading",
+      };
+    }
+    if (!hasSplitContext) {
+      return {
+        label: "Create or Refresh Split",
+        hint: "Create a payout split before funding.",
+        onClick: createSplit,
+        disabled: status === "loading",
+      };
+    }
+    if (!isNearConnected) {
+      return {
+        label: "Connect NEAR Wallet",
+        hint: "Direct payouts require your NEAR wallet signature.",
+        onClick: connectNear,
+        disabled: status === "loading",
+      };
+    }
+    if (!canPayFromWalletNow) {
+      return {
+        label: "Adjust Recipients or Amount",
+        hint: "Include verified NEAR recipients and set a valid amount.",
+        onClick: () => {},
+        disabled: true,
+      };
+    }
+    if (!hasPaid) {
+      return {
+        label: "Pay from Wallet",
+        hint: "Sign transactions and distribute funds now.",
+        onClick: payNow,
+        disabled: status === "loading",
+      };
+    }
+    return {
+      label: "Review Pending Claims",
+      hint: "Track contributors still waiting for verification.",
+      onClick: checkPendingClaims,
+      disabled: status === "loading",
+    };
+  }, [
+    canPayFromWalletNow,
+    connectNear,
+    createSplit,
+    hasAnalyzed,
+    hasPaid,
+    hasRepoInput,
+    hasSplitContext,
+    isNearConnected,
+    payNow,
+    status,
+    checkPendingClaims,
+    analyzeRepo,
+  ]);
+
   return (
     <div className="min-h-screen page-gradient py-10">
       <div className="container mx-auto max-w-4xl px-4">
@@ -630,6 +813,35 @@ export default function SplitsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
+            <div className="rounded-md border bg-card p-4 space-y-3">
+              <p className="text-sm font-semibold">Guided Flow</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                <div className={`rounded px-2 py-1 border ${hasAnalyzed ? "border-green-300 bg-green-50 text-green-800" : "border-border bg-muted text-muted-foreground"}`}>
+                  {hasAnalyzed ? "✓" : "1."} Analyze
+                </div>
+                <div className={`rounded px-2 py-1 border ${hasSplitContext ? "border-green-300 bg-green-50 text-green-800" : "border-border bg-muted text-muted-foreground"}`}>
+                  {hasSplitContext ? "✓" : "2."} Split
+                </div>
+                <div className={`rounded px-2 py-1 border ${hasPaid ? "border-green-300 bg-green-50 text-green-800" : "border-border bg-muted text-muted-foreground"}`}>
+                  {hasPaid ? "✓" : "3."} Fund & Pay
+                </div>
+                <div className={`rounded px-2 py-1 border ${pendingClaimsOutput ? "border-green-300 bg-green-50 text-green-800" : "border-border bg-muted text-muted-foreground"}`}>
+                  {pendingClaimsOutput ? "✓" : "4."} Claims
+                </div>
+              </div>
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                <p className="text-xs text-muted-foreground">{nextAction.hint}</p>
+                <Button
+                  type="button"
+                  onClick={nextAction.onClick}
+                  disabled={nextAction.disabled}
+                  className="md:min-w-48"
+                >
+                  {nextAction.label}
+                </Button>
+              </div>
+            </div>
+
             {status === "success" && message && (
               <Alert className="bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800">
                 <CheckCircle2 className="h-4 w-4 text-green-700 dark:text-green-400" />
@@ -666,20 +878,20 @@ export default function SplitsPage() {
                   "Analyze Contributions"
                 )}
               </Button>
-              <Button variant="outline" onClick={createSplit} disabled={status === "loading"}>
+              <Button variant="outline" onClick={createSplit} disabled={status === "loading" || !canCreateSplitNow}>
                 Create Split
               </Button>
-              <Button variant="outline" onClick={repairSplit} disabled={status === "loading"}>
+              <Button variant="outline" onClick={repairSplit} disabled={status === "loading" || !hasRepoInput}>
                 Repair Split
               </Button>
-              <Button variant="outline" onClick={checkPendingClaims} disabled={status === "loading"}>
+              <Button variant="outline" onClick={checkPendingClaims} disabled={status === "loading" || !hasRepoInput}>
                 Check Pending
               </Button>
               <div className="flex items-center gap-2 rounded border bg-card px-2 py-1">
                 <Input
                   value={payAmount}
                   onChange={(e) => setPayAmount(e.target.value)}
-                  className="h-8 w-16 text-xs"
+                  className="h-8 w-20 text-xs"
                   placeholder="1"
                 />
                 <Input
@@ -688,9 +900,23 @@ export default function SplitsPage() {
                   className="h-8 w-20 text-xs"
                   placeholder="NEAR"
                 />
-                <Button variant="secondary" type="button" onClick={payNow} disabled={status === "loading"}>
+                <Button variant="secondary" type="button" onClick={payNow} disabled={status === "loading" || !canPayFromWalletNow}>
                   Pay from Wallet
                 </Button>
+              </div>
+              <div className="flex items-center gap-1 rounded border bg-card px-2 py-1">
+                {[1, 5, 10, 25].map((preset) => (
+                  <Button
+                    key={preset}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => setPayAmount(String(preset))}
+                  >
+                    {preset}
+                  </Button>
+                ))}
               </div>
               {repoInput.trim() && (
                 <Link
@@ -774,12 +1000,15 @@ export default function SplitsPage() {
             )}
             {coverageStats && (
               <div className="rounded-md border bg-card p-3 text-sm">
-                <p className="font-medium">Payout Preview (1 NEAR)</p>
+                <p className="font-medium">Flow Snapshot</p>
                 <p className="text-muted-foreground">
-                  Immediate payout: {(coverageStats.verified / Math.max(coverageStats.total, 1)).toFixed(2)} NEAR
+                  Verified now: {coverageStats.verified}/{coverageStats.total} contributors
                 </p>
                 <p className="text-muted-foreground">
-                  Deferred until verification: {((coverageStats.total - coverageStats.verified) / Math.max(coverageStats.total, 1)).toFixed(2)} NEAR
+                  Included in payout draft: {includedCount}
+                </p>
+                <p className="text-muted-foreground">
+                  Payable immediately: {payableNowCount}
                 </p>
               </div>
             )}
@@ -803,6 +1032,27 @@ export default function SplitsPage() {
                 <GitBranch className="h-4 w-4" />
                 Contributor Allocation
               </div>
+              {contributors.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2 text-xs">
+                  <div className="text-muted-foreground">
+                    Included: {includedCount}/{contributors.length} · Payable now: {payableNowCount}
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => setIncludeMode("all")}>
+                      Include All
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => setIncludeMode("verified")}>
+                      Verified Only
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={resetAllocationToGitHistory}>
+                      Reset Shares
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => setIncludeMode("none")}>
+                      Clear
+                    </Button>
+                  </div>
+                </div>
+              )}
               {contributors.length === 0 ? (
                 status === "loading" ? (
                   <div className="space-y-2 p-4">
@@ -819,6 +1069,7 @@ export default function SplitsPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead>Include</TableHead>
                           <TableHead>GitHub User</TableHead>
                           <TableHead>Share (%)</TableHead>
                           <TableHead>Status</TableHead>
@@ -837,13 +1088,31 @@ export default function SplitsPage() {
                             : "Unknown";
                           const verifyHref = `/verify?repo=${encodeURIComponent(repoPath || "")}&user=${encodeURIComponent(contributor.githubUsername)}`;
                           const isBot = isSystemContributor(contributor.githubUsername);
+                          const draft = allocationDraft[contributor.githubUsername];
+                          const included = draft?.included ?? !isBot;
+                          const share = draft?.share ?? contributor.percentage;
                           return (
                             <TableRow key={contributor.githubUsername}>
+                              <TableCell>
+                                <input
+                                  type="checkbox"
+                                  checked={included}
+                                  disabled={isBot}
+                                  onChange={(e) => setContributorIncluded(contributor.githubUsername, e.target.checked)}
+                                />
+                              </TableCell>
                               <TableCell>
                                 {contributor.githubUsername}
                                 {isBot ? " (bot/system)" : ""}
                               </TableCell>
-                              <TableCell>{contributor.percentage.toFixed(2)}</TableCell>
+                              <TableCell>
+                                <Input
+                                  value={String(Number(share.toFixed(2)))}
+                                  onChange={(e) => setContributorShare(contributor.githubUsername, Number(e.target.value))}
+                                  disabled={!included || isBot}
+                                  className="h-8 w-24 text-xs"
+                                />
+                              </TableCell>
                               <TableCell>
                                 {isBot ? "Non-payout account" : statusLabel}
                                 {liveStatus?.walletAddress ? ` (${liveStatus.walletAddress})` : ""}
@@ -875,10 +1144,32 @@ export default function SplitsPage() {
                         : "Unknown";
                       const verifyHref = `/verify?repo=${encodeURIComponent(repoPath || "")}&user=${encodeURIComponent(contributor.githubUsername)}`;
                       const isBot = isSystemContributor(contributor.githubUsername);
+                      const draft = allocationDraft[contributor.githubUsername];
+                      const included = draft?.included ?? !isBot;
+                      const share = draft?.share ?? contributor.percentage;
                       return (
                         <div key={contributor.githubUsername} className="rounded border bg-muted p-3">
-                          <p className="font-medium">{contributor.githubUsername}{isBot ? " (bot/system)" : ""}</p>
-                          <p className="text-sm text-muted-foreground">{contributor.percentage.toFixed(2)}% share</p>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-medium">{contributor.githubUsername}{isBot ? " (bot/system)" : ""}</p>
+                            <label className="text-xs flex items-center gap-1">
+                              <input
+                                type="checkbox"
+                                checked={included}
+                                disabled={isBot}
+                                onChange={(e) => setContributorIncluded(contributor.githubUsername, e.target.checked)}
+                              />
+                              Include
+                            </label>
+                          </div>
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">Share %</span>
+                            <Input
+                              value={String(Number(share.toFixed(2)))}
+                              onChange={(e) => setContributorShare(contributor.githubUsername, Number(e.target.value))}
+                              disabled={!included || isBot}
+                              className="h-8 w-24 text-xs"
+                            />
+                          </div>
                           <p className="text-sm text-muted-foreground">
                             Status: {isBot ? "Non-payout account" : statusLabel}{liveStatus?.walletAddress ? ` (${liveStatus.walletAddress})` : ""}
                           </p>
@@ -894,6 +1185,28 @@ export default function SplitsPage() {
                 </>
               )}
             </div>
+
+            {contributors.length > 0 && (
+              <div className="rounded-md border bg-card p-4 space-y-2 text-sm">
+                <p className="font-medium">Live Payout Preview ({Number.isFinite(payoutAmountNumber) ? payoutAmountNumber : 0} NEAR)</p>
+                {livePayoutPreview.length === 0 ? (
+                  <p className="text-muted-foreground text-xs">
+                    No included + verified NEAR recipients yet. Adjust inclusion or complete verification.
+                  </p>
+                ) : (
+                  <div className="space-y-1">
+                    {livePayoutPreview.map((item) => (
+                      <p key={item.githubUsername} className="text-xs">
+                        @{item.githubUsername}: {item.payoutAmount.toFixed(4)} NEAR
+                      </p>
+                    ))}
+                    <p className="text-xs pt-1 text-muted-foreground">
+                      Total now: {livePayoutPreview.reduce((sum, item) => sum + item.payoutAmount, 0).toFixed(4)} NEAR
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {contributors.length > 0 && (
               <div className="rounded-md border bg-card p-4 space-y-3">

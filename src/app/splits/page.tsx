@@ -180,6 +180,7 @@ export default function SplitsPage() {
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<"verified_now" | "hold_all">("verified_now");
   const paySectionId = "fund-pay-step";
 
   const walletIdentity = useMemo(() => {
@@ -409,6 +410,14 @@ export default function SplitsPage() {
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
+  };
+
+  const getVerificationInviteUrl = (githubUsername: string) => {
+    const base =
+      typeof window !== "undefined" ? window.location.origin : "https://gitsplits.vercel.app";
+    const repoQuery = repoPath ? `?repo=${encodeURIComponent(repoPath)}` : "?";
+    const sep = repoQuery.includes("?") && repoQuery.length > 1 ? "&" : "";
+    return `${base}/verify${repoQuery}${sep}user=${encodeURIComponent(githubUsername)}`;
   };
 
   const rememberRepo = (repo: string) => {
@@ -687,8 +696,19 @@ export default function SplitsPage() {
 
       const totalVerifiedCount = payoutCandidates.length;
       const totalContributors = allocationCandidates.filter((c) => c.included).length;
+      if (paymentMode === "hold_all" && totalVerifiedCount !== totalContributors) {
+        setStatus("error");
+        setMessage("Hold mode requires every included contributor to be verified before payout.");
+        return;
+      }
       const proceed = window.confirm(
-        `Confirm direct payout from your NEAR wallet:\n\nRepo: ${normalized}\nAmount: ${amount} NEAR\nSelected contributors: ${totalContributors}\nPayable now: ${totalVerifiedCount}/${totalContributors}\nSender wallet: ${nearAccountId}\n\nOnly included + verified NEAR recipients will be paid in this run.`
+        `Confirm direct payout from your NEAR wallet:\n\nRepo: ${normalized}\nAmount: ${amount} NEAR\nSelected contributors: ${totalContributors}\nPayable now: ${totalVerifiedCount}/${totalContributors}\nMode: ${
+          paymentMode === "verified_now" ? "Pay verified now" : "Hold until all verified"
+        }\nSender wallet: ${nearAccountId}\n\n${
+          paymentMode === "verified_now"
+            ? "Only included + verified NEAR recipients will be paid in this run."
+            : "Payout proceeds only when every included contributor is verified."
+        }`
       );
       if (!proceed) {
         setStatus("idle");
@@ -751,12 +771,42 @@ export default function SplitsPage() {
   const hasSplitContext = createResponse.trim().length > 0;
   const hasPaid = payResponse.trim().length > 0;
   const canCreateSplitNow = hasRepoInput && hasAnalyzed;
-  const canPayFromWalletNow =
-    hasRepoInput &&
-    hasAnalyzed &&
-    isNearConnected &&
-    payToken.toUpperCase() === "NEAR" &&
-    livePayoutPreview.length > 0;
+  const parsedPayAmount = Number(payAmount);
+  const hasValidPayAmount = Number.isFinite(parsedPayAmount) && parsedPayAmount > 0;
+  const includedContributors = allocationCandidates.filter((c) => c.included);
+  const includedVerifiedCount = includedContributors.filter((c) => c.verified && c.walletAddress && /\.near$|\.testnet$/i.test(c.walletAddress || "")).length;
+  const preflightChecks = useMemo(
+    () => [
+      { id: "repo", label: "Repository selected", ok: hasRepoInput },
+      { id: "analyze", label: "Contributors analyzed", ok: hasAnalyzed },
+      { id: "split", label: "Split created/refreshed", ok: hasSplitContext },
+      { id: "wallet", label: "NEAR wallet connected", ok: isNearConnected && Boolean(nearAccountId) },
+      { id: "amount", label: "Valid amount", ok: hasValidPayAmount },
+      { id: "token", label: "Token supported (NEAR)", ok: payToken.toUpperCase() === "NEAR" },
+      { id: "eligible", label: "At least one payable recipient", ok: livePayoutPreview.length > 0 },
+      {
+        id: "mode",
+        label: paymentMode === "hold_all" ? "Hold mode: all included verified" : "Mode: pay verified now",
+        ok: paymentMode === "verified_now" || (includedContributors.length > 0 && includedVerifiedCount === includedContributors.length),
+      },
+    ],
+    [
+      hasAnalyzed,
+      hasRepoInput,
+      hasSplitContext,
+      hasValidPayAmount,
+      includedContributors.length,
+      includedVerifiedCount,
+      isNearConnected,
+      livePayoutPreview.length,
+      nearAccountId,
+      payToken,
+      paymentMode,
+    ]
+  );
+  const preflightFailed = preflightChecks.filter((item) => !item.ok);
+  const canPayFromWalletNow = preflightFailed.length === 0;
+  const payDisabledReason = preflightFailed[0]?.label ?? "";
   const unverifiedContributorCount = coverageStats
     ? Math.max(coverageStats.total - coverageStats.verified, 0)
     : 0;
@@ -800,7 +850,7 @@ export default function SplitsPage() {
     if (!canPayFromWalletNow) {
       return {
         label: "Adjust Recipients or Amount",
-        hint: "Include verified NEAR recipients and set a valid amount.",
+        hint: `Payment blocked: ${payDisabledReason || "Complete preflight checks."}`,
         onClick: () => {},
         disabled: true,
       };
@@ -821,6 +871,7 @@ export default function SplitsPage() {
     };
   }, [
     canPayFromWalletNow,
+    payDisabledReason,
     connectNear,
     createSplit,
     hasAnalyzed,
@@ -936,10 +987,20 @@ export default function SplitsPage() {
                   )}
                 </Button>
               </div>
-              <div id={paySectionId} className="rounded-md border bg-card p-3">
+              <div id={paySectionId} className="rounded-md border bg-card p-3 md:sticky md:top-20">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-sm font-medium">Step 3: Fund & Pay (on this page)</p>
                   <p className="text-xs text-muted-foreground">No chat redirect needed</p>
+                </div>
+                <div className="mb-3 rounded border bg-muted/40 p-2">
+                  <p className="text-xs font-medium">Preflight checklist</p>
+                  <div className="mt-2 grid gap-1 md:grid-cols-2">
+                    {preflightChecks.map((check) => (
+                      <p key={check.id} className={`text-xs ${check.ok ? "text-green-700 dark:text-green-400" : "text-amber-700 dark:text-amber-400"}`}>
+                        {check.ok ? "✓" : "•"} {check.label}
+                      </p>
+                    ))}
+                  </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Input
@@ -977,6 +1038,37 @@ export default function SplitsPage() {
                     Pay from Wallet
                   </Button>
                 </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant={paymentMode === "verified_now" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setPaymentMode("verified_now")}
+                  >
+                    Pay verified now
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={paymentMode === "hold_all" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setPaymentMode("hold_all")}
+                  >
+                    Hold until all verified
+                  </Button>
+                </div>
+                <div className="mt-3 rounded border bg-muted/40 p-2 text-xs">
+                  <p>
+                    You pay: {hasValidPayAmount ? parsedPayAmount.toFixed(4) : "0.0000"} {payToken.toUpperCase()}
+                  </p>
+                  <p>Recipients now: {livePayoutPreview.length}</p>
+                  <p>Included contributors: {includedContributors.length}</p>
+                  <p>Unverified excluded now: {Math.max(includedContributors.length - includedVerifiedCount, 0)}</p>
+                </div>
+                {!canPayFromWalletNow && payDisabledReason && (
+                  <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+                    Payment blocked: {payDisabledReason}
+                  </p>
+                )}
               </div>
               {showMoreOptions && (
                 <div className="flex flex-wrap gap-2 rounded-md border bg-muted/30 p-2">
@@ -1086,13 +1178,9 @@ export default function SplitsPage() {
                       <Button
                         type="button"
                         size="sm"
-                        onClick={() => {
-                          focusPayStep();
-                          payNow();
-                        }}
-                        disabled={status === "loading" || !canPayFromWalletNow}
+                        onClick={focusPayStep}
                       >
-                        Pay from Wallet
+                        Go to Fund & Pay
                       </Button>
                       <Button
                         type="button"
@@ -1237,9 +1325,20 @@ export default function SplitsPage() {
                                 {isBot ? (
                                   <span className="text-xs text-muted-foreground">N/A</span>
                                 ) : (
-                                  <Link href={verifyHref} className="underline text-blue-700 dark:text-blue-400">
-                                    Verify
-                                  </Link>
+                                  <div className="flex flex-wrap gap-2">
+                                    <Link href={verifyHref} className="underline text-blue-700 dark:text-blue-400">
+                                      Verify
+                                    </Link>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 text-xs"
+                                      onClick={() => copyText("Invite link", getVerificationInviteUrl(contributor.githubUsername))}
+                                    >
+                                      Invite
+                                    </Button>
+                                  </div>
                                 )}
                               </TableCell>
                             </TableRow>
@@ -1290,9 +1389,20 @@ export default function SplitsPage() {
                             Status: {isBot ? "Non-payout account" : statusLabel}{liveStatus?.walletAddress ? ` (${liveStatus.walletAddress})` : ""}
                           </p>
                           {!isBot && (
-                            <Link href={verifyHref} className="text-sm text-blue-700 dark:text-blue-400 underline">
-                              Verify contributor
-                            </Link>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <Link href={verifyHref} className="text-sm text-blue-700 dark:text-blue-400 underline">
+                                Verify contributor
+                              </Link>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs"
+                                onClick={() => copyText("Invite link", getVerificationInviteUrl(contributor.githubUsername))}
+                              >
+                                Copy invite
+                              </Button>
+                            </div>
                           )}
                         </div>
                       );
@@ -1467,7 +1577,21 @@ export default function SplitsPage() {
                     : "n/a"}
                 </p>
                 <p>Protocol: {payReceipt.protocol || "n/a"}</p>
-                <p>Transaction: {payReceipt.transactionRef || "n/a"}</p>
+                <p>
+                  Transaction:{" "}
+                  {payReceipt.transactionRef && payReceipt.transactionRef !== "n/a" ? (
+                    <a
+                      className="underline text-blue-700 dark:text-blue-400 break-all"
+                      href={`https://nearblocks.io/txns/${payReceipt.transactionRef}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {payReceipt.transactionRef}
+                    </a>
+                  ) : (
+                    "n/a"
+                  )}
+                </p>
                 <p>Split: {payReceipt.splitId || "n/a"}</p>
                 <p>Pending claims created: {payReceipt.pendingCount ?? 0}</p>
                 <p>Timestamp: {payReceipt.at ? new Date(payReceipt.at).toLocaleString() : "n/a"}</p>
@@ -1493,13 +1617,22 @@ export default function SplitsPage() {
                   <Button type="button" variant="outline" size="sm" onClick={checkPendingClaims}>
                     View Pending Claims
                   </Button>
+                  {payReceipt.transactionRef && payReceipt.transactionRef !== "n/a" && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyText("Transaction hash", payReceipt.transactionRef || "")}
+                    >
+                      Copy Transaction Hash
+                    </Button>
+                  )}
                   {repoPath && (
                     <Link href={`/agent?command=${encodeURIComponent(`pending github.com/${repoPath}`)}`}>
                       <Button type="button" variant="outline" size="sm">Open Claim View</Button>
                     </Link>
                   )}
                 </div>
-                <div className="rounded border bg-muted p-2 whitespace-pre-wrap break-all">{payResponse}</div>
               </div>
             )}
             <div className="rounded-md border bg-card p-4 space-y-2 text-sm">
@@ -1563,6 +1696,11 @@ export default function SplitsPage() {
               Pay NEAR
             </Button>
           </div>
+          {!canPayFromWalletNow && payDisabledReason && (
+            <p className="max-w-4xl mx-auto mt-2 text-[11px] text-amber-700 dark:text-amber-400">
+              Payment blocked: {payDisabledReason}
+            </p>
+          )}
         </div>
       </div>
     </div>

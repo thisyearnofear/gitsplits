@@ -104,10 +104,9 @@ Farcaster/Web → Intent Agent → EigenCompute (TEE) → NEAR + Payments
 
 ## Current Status (February 18, 2026)
 
-- ✅ Agent deployed on EigenCompute with TEE attestation
-- ✅ Production endpoint: `https://agent.gitsplits.thisyearnofear.com`
-- ✅ Health: `https://agent.gitsplits.thisyearnofear.com/health`
-- ✅ Staging: Hetzner server (for testing before EigenCompute deploys)
+- ⚠️ EigenCompute verifiable build is passing, but app deployment is currently blocked by a Sepolia on-chain deploy revert (`EstimateGasExecutionError`)
+- ⚠️ Production endpoint `https://agent.gitsplits.thisyearnofear.com` is reserved but not yet serving live agent traffic
+- ✅ Staging/active backend: Hetzner server (current live agent host)
 - ✅ Web UI: `https://gitsplits.vercel.app`
 - 🔄 Farcaster temporarily disabled pending Neynar configuration
 

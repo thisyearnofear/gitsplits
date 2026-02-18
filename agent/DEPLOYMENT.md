@@ -3,11 +3,10 @@
 ## Current Status (February 18, 2026)
 
 ### Production
-- **EigenCompute deployment**: Live with TEE attestation
-- **URL**: `https://agent.gitsplits.thisyearnofear.com`
-- **Health**: `GET /health` ✓
-- **Ready**: `GET /ready` ✓
-- **TEE Status**: Active (hardware-secure computation)
+- **EigenCompute deployment**: In progress (verifiable build passes, app deployment currently blocked)
+- **Blocker**: `EstimateGasExecutionError` on Sepolia app creation transaction in `ecloud compute app deploy`
+- **Build status**: ✅ Verifiable image + provenance signature generated
+- **TEE status**: Pending successful app deployment
 
 ### Staging
 - **Hetzner Server**: `http://157.180.36.156:8443`
@@ -16,7 +15,7 @@
 
 ### Web Frontend
 - **Vercel**: `https://gitsplits.vercel.app`
-- **Agent Config**: `AGENT_BASE_URL=https://agent.gitsplits.thisyearnofear.com`
+- **Agent Config**: `AGENT_BASE_URL=https://agent.gitsplits.thisyearnofear.com` (domain reserved; app not yet live)
 
 ## Quick Start
 
@@ -78,6 +77,16 @@ ecloud auth login
 cd agent/deploy
 ./deploy.sh
 ```
+
+### Current Known Blocker
+
+```bash
+# Build succeeds, app creation reverts on Sepolia:
+ecloud compute app deploy --environment sepolia ...
+# -> EstimateGasExecutionError: execution reverted
+```
+
+Workaround while this is unresolved: keep the Hetzner agent live behind `AGENT_BASE_URL`.
 
 ### Upgrade Production (Verifiable)
 

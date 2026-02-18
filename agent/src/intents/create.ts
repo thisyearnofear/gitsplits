@@ -56,14 +56,6 @@ export const createIntent: Intent = {
       
       // Check if split already exists
       const existing = await tools.near.getSplit(repoUrl);
-      const existingHasContributors =
-        existing && Array.isArray(existing.contributors) && existing.contributors.length > 0;
-      if (existingHasContributors) {
-        return {
-          response: `A split already exists for ${repoUrl}. View it with: "@gitsplits splits ${repoUrl}"`,
-          context,
-        };
-      }
       
       // Analyze GitHub repository
       const analysis = await tools.github.analyze(repoUrl);
@@ -136,12 +128,17 @@ export const createIntent: Intent = {
       
       return {
         response:
-          `${existing && existing.id ? `✅ Split repaired for ${repoUrl}!` : `✅ Split created for ${repoUrl}!`}\n\n` +
+          `${
+            existing && existing.id
+              ? `✅ Split updated for ${repoUrl}!`
+              : `✅ Split created for ${repoUrl}!`
+          }\n\n` +
           `🤖 Powered by GitHub App Automation\n📜 Split ID: ${split.id}\n\n` +
           `Top contributors (verified via Git history):\n${topContributors}` +
           `${contributors.length > 5 ? `\n...and ${contributors.length - 5} more` : ''}\n\n` +
           `${coverageLine}${unverifiedLine}\n\n` +
-          `To pay them: "@gitsplits pay 100 USDC to ${repoUrl}"`,
+          `To pay them: "@gitsplits pay 100 USDC to ${repoUrl}"` +
+          `${existing && existing.id ? `\n\nThis split was refreshed with the latest contributors.` : ''}`,
         context: {
           ...context,
           lastSplit: {

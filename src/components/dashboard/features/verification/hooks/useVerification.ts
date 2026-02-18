@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAppKitAccount } from "@reown/appkit/react";
 import { useNearWallet } from "@/hooks/useNearWallet";
 import { useSignMessage } from "wagmi";
+import { Buffer } from "buffer";
 
 export type VerificationStep = "input" | "signature" | "verify";
 export type VerificationLevel = 1 | 2 | 3 | 4;
@@ -24,6 +25,27 @@ export interface PendingDistribution {
   token: string;
 }
 
+function createNearNonce(): Buffer {
+  const nonce = new Uint8Array(32);
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    crypto.getRandomValues(nonce);
+    return Buffer.from(nonce);
+  }
+  nonce.fill(1);
+  return Buffer.from(nonce);
+}
+
+function normalizeNearSignature(value: unknown): string {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (value instanceof Uint8Array) return Buffer.from(value).toString("base64");
+  if (Array.isArray(value)) return Buffer.from(value).toString("base64");
+  if (typeof value === "object" && value !== null) {
+    return normalizeNearSignature((value as { signature?: unknown }).signature);
+  }
+  return String(value);
+}
+
 export function useVerification(externalWalletAddress?: string) {
   const [verificationLevel, setVerificationLevel] = useState<VerificationLevel>(1);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -40,6 +62,7 @@ export function useVerification(externalWalletAddress?: string) {
   const [twitterSignature, setTwitterSignature] = useState("");
   const [evmSig, setEvmSig] = useState("");
   const [nearSig, setNearSig] = useState("");
+  const [nearMessageToVerify, setNearMessageToVerify] = useState("");
   
   // Verification status
   const [isGithubVerified, setIsGithubVerified] = useState(false);
@@ -208,14 +231,15 @@ export function useVerification(externalWalletAddress?: string) {
       
       const message = `Sign this message to verify your NEAR address for GitSplits: ${nearAccountId}`;
       const wallet = await selector.wallet();
-      const params: any = { message, recipient: nearAccountId, nonce: Date.now().toString() };
+      const params: any = { message, recipient: nearAccountId, nonce: createNearNonce() };
       
       const signed: any = await wallet.signMessage(params);
-      const signature = signed?.signature || signed;
+      const signature = normalizeNearSignature(signed);
       
       if (!signature) throw new Error("No signature returned");
       
       setNearSig(signature);
+      setNearMessageToVerify(message);
       setStatusMessage("NEAR signature generated. Click 'Verify Identities' to complete.");
     } catch (err: any) {
       setStatusMessage("Failed to sign NEAR message: " + err.message);
@@ -242,6 +266,8 @@ export function useVerification(externalWalletAddress?: string) {
           tweetUrl,
           evmSignature: evmSig,
           nearSignature: nearSig,
+          nearMessage: nearMessageToVerify,
+          nearAccountId,
         }),
       });
 
@@ -262,7 +288,7 @@ export function useVerification(externalWalletAddress?: string) {
     } finally {
       setIsLoading(false);
     }
-  }, [resolvedWalletAddress, githubUsername, twitterHandle, githubSignature, twitterSignature, tweetUrl, evmSig, nearSig, isGithubVerified, isTwitterVerified, isEvmVerified, isNearVerified]);
+  }, [resolvedWalletAddress, githubUsername, twitterHandle, githubSignature, twitterSignature, tweetUrl, evmSig, nearSig, nearMessageToVerify, nearAccountId, isGithubVerified, isTwitterVerified, isEvmVerified, isNearVerified]);
 
   // Copy to clipboard
   const copyToClipboard = useCallback((text: string, type: "github" | "twitter") => {

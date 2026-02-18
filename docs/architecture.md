@@ -2,119 +2,158 @@
 
 ## Overview
 
-GitSplits is an autonomous agent that compensates open source contributors via natural language commands.
+GitSplits compensates open source contributors through an intent agent, verification mapping on NEAR, and direct payout flows from user wallets.
 
 ```
-User (Farcaster/Web) → Intent Agent → EigenCompute (TEE) → NEAR + Payments
+Web/Farcaster -> Intent Agent -> EigenCompute (TEE) -> GitHub + NEAR + Payments
 ```
 
 ## Components
 
 ### 1. Intent Agent (`/agent/src/`)
 
-Custom lightweight framework for natural language processing:
+- Intent parsing: `analyze`, `create`, `pay`, `verify`, `splits`, `pending`
+- Tool orchestration: GitHub, NEAR, Ping Pay/HOT, EigenAI
+- Production readiness checks and preflight validations
 
-- **Intent Recognition**: Pattern-based parsing
-- **Tool Registry**: GitHub API, NEAR contract, payments
-- **Context Management**: Per-user conversation state
+### 2. Contract Layer (`/contracts/near`)
 
-### 2. Intents
+- Split registry: `create_split`, `update_split`, `get_split_by_repo`
+- Public verification map: `github_username <-> near wallet`
+- Pagination/search helpers for frontend mapping explorer
+- Pending distribution records for unverified recipients
 
-| Intent | Description | Example |
-|--------|-------------|---------|
-| `pay` | Distribute funds | "pay 100 USDC to near-sdk-rs" |
-| `create` | Create split | "create split for near-sdk-rs" |
-| `analyze` | Show contributions | "analyze near-sdk-rs" |
-| `verify` | Link GitHub to wallet | "verify my-github-username" |
+### 3. Web UI (`/src/app/`)
 
-### 3. Tools
-
-| Tool | Purpose |
+| Path | Purpose |
 |------|---------|
-| `github` | Repo analysis via GitHub App |
-| `near` | Smart contract interactions |
-| `pingpay` | Cross-chain payments |
-| `hotpay` | Fiat & NEAR payments |
+| `/dashboard` | Status, activity, recovery actions |
+| `/verify` | GitHub gist + wallet verification flow |
+| `/splits` | Guided analyze -> split -> pay experience |
+| `/agent` | Natural language assistant |
+| `/api/*` | Proxy + read endpoints |
 
-### 4. EigenCompute
+### 4. Compute and Runtime
 
-Agent runs in a TEE container:
+- **Primary:** EigenCompute (verifiable app upgrades)
+- **Fallback:** Hetzner runtime for staging/recovery
 
-- **Verifiable Execution**: Cryptographic attestation
-- **Chain Signatures**: Cross-chain transaction signing
-- **AVS Backing**: Actively Validated Service
+---
 
-### 5. Web UI (`/src/app/`)
+## System Flow
 
-- **Agent Chat** (`/agent`): Natural language interface
-- **API** (`/api/agent`): Proxies to agent service
-- **Verify** (`/verify`): Identity linking
-- **Dashboard** (`/dashboard`): Split management
+1. User analyzes repository (`analyze owner/repo`)
+2. Agent returns contributors + verification coverage + AI insight
+3. User creates or refreshes split (`create split for owner/repo`)
+4. User funds payouts from connected wallet (NEAR first-class)
+5. Verified contributors receive direct distributions
+6. Unverified contributors routed to verification + pending flows
+
+---
+
+## Data Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      USER (Web/Farcaster)                    │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    INTENT AGENT                              │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  Intent Parser  │  Tool Registry  │  Context Manager  │  │
+│  └───────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                 EIGENCOMPUTE (TEE + AVS)                     │
+│  - Attested execution    - Chain signatures                 │
+│  - Hardware isolation    - Verifiable builds                │
+└─────────────────────────────────────────────────────────────┘
+                            │
+            ┌───────────────┼───────────────┐
+            ▼               ▼               ▼
+     ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+     │   GitHub    │ │    NEAR     │ │  Payments   │
+     │   (Commits) │ │  (Splits)   │ │(Ping/HOT)   │
+     └─────────────┘ └─────────────┘ └─────────────┘
+```
+
+---
+
+## Environment Model
+
+### Agent Runtime
+
+```bash
+AGENT_MODE=production
+GITHUB_APP_ID=...
+GITHUB_PRIVATE_KEY=...
+GITHUB_TOKEN=...            # Optional fallback
+NEAR_ACCOUNT_ID=...
+NEAR_PRIVATE_KEY=...
+NEAR_CONTRACT_ID=lhkor_marty.near
+PING_PAY_API_KEY=...
+HOT_PAY_JWT=...
+EIGENAI_WALLET_PRIVATE_KEY=0x...
+EIGENAI_WALLET_ADDRESS=0x...
+```
+
+### Web Runtime
+
+```bash
+AGENT_BASE_URL=https://agent.gitsplits.thisyearnofear.com
+NEXT_PUBLIC_PROJECT_ID=...
+NEXT_PUBLIC_CONTRACT_ID=lhkor_marty.near
+```
+
+---
+
+## Readiness Contract
+
+| Endpoint | Purpose |
+|----------|---------|
+| `/ready` | Fails when production dependencies invalid |
+| `/health` | Service-level status |
+
+**`/ready` validates:**
+- GitHub App credentials (or PAT fallback)
+- NEAR signer + contract config
+- Ping/HOT payment auth
+- EigenAI grant wallet configuration
+
+---
 
 ## File Structure
 
 ```
-/
-├── agent/                 # Intent agent (EigenCompute)
-│   ├── src/intents/      # Pay, create, analyze, verify
-│   ├── src/tools/        # GitHub, NEAR, payments
-│   └── deploy/           # EigenCompute deployment
-├── contracts/near/       # NEAR smart contract
-├── src/app/              # Web UI (Next.js)
-│   ├── agent/           # Chat interface
-│   ├── api/agent/       # API proxy
-│   ├── verify/          # Verification flow
-│   └── dashboard/       # Split management
-└── docs/                # Documentation
+gitsplits/
+├── agent/
+│   ├── src/
+│   │   ├── index.ts        # Entry point
+│   │   ├── intents/        # pay, create, analyze, verify...
+│   │   ├── tools/          # github, near, pingpay, hot
+│   │   └── context/        # User state management
+│   ├── deploy/             # EigenCompute deployment
+│   ├── Dockerfile.eigen    # TEE container
+│   └── .env                # Server env vars
+├── contracts/near/
+│   └── src/                # Rust smart contract
+├── src/app/                # Next.js web UI
+│   ├── agent/
+│   ├── verify/
+│   ├── splits/
+│   ├── dashboard/
+│   └── api/
+└── docs/                   # Documentation
 ```
 
-## Environment Variables
+---
 
-```bash
-# GitHub App
-GITHUB_APP_ID=123456
-GITHUB_PRIVATE_KEY="..."
+## Deployment Notes
 
-# NEAR
-NEAR_ACCOUNT_ID=gitsplits.near
-NEAR_PRIVATE_KEY=ed25519:...
-NEAR_CONTRACT_ID=gitsplits.near
-
-# Payments
-PING_PAY_API_KEY=...
-HOT_PAY_JWT=...
-
-# EigenCompute
-EIGENAI_WALLET_PRIVATE_KEY=0x...
-EIGENAI_WALLET_ADDRESS=0x...
-
-# Farcaster (optional)
-NEYNAR_API_KEY=...
-NEYNAR_SIGNER_UUID=...
-```
-
-## Deployment
-
-```bash
-# Build agent
-cd agent
-npm run build
-docker build -t gitsplits-agent -f Dockerfile.eigen .
-
-# Deploy to EigenCompute
-cd deploy
-./deploy.sh
-```
-
-## Status
-
-| Component | Status |
-|-----------|--------|
-| Agent framework | ✅ Complete |
-| Farcaster client | ✅ Complete |
-| GitHub tool | ✅ Complete |
-| NEAR tool | ✅ Live (mainnet) |
-| Ping Pay | ✅ Complete |
-| HOT Pay | ✅ Live |
-| Web UI | ✅ Complete |
-| EigenCompute | ✅ Deployed |
+- **Contract:** Dockerized cargo-near on Hetzner (avoids wasm validation issues)
+- **Agent:** EigenCompute `ecloud app upgrade` flow
+- **Frontend:** Vercel, points to `AGENT_BASE_URL`

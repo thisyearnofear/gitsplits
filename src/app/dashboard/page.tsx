@@ -242,13 +242,13 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gentle-blue via-gentle-purple to-gentle-orange py-6 md:py-10">
+    <div className="min-h-screen page-gradient py-6 md:py-10">
       <div className="container mx-auto max-w-5xl px-4 space-y-8">
         <WalletStatusBar />
         <FlowStatusStrip steps={stripSteps} title="Contributor Payout Journey" />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="md:col-span-2 border-0 shadow-2xl bg-white/80 backdrop-blur-xl overflow-hidden">
+          <Card className="md:col-span-2 border-0 shadow-2xl glass overflow-hidden">
             <div className="h-2 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600"></div>
             <CardHeader className="pb-2">
               <div className="flex justify-between items-start">
@@ -259,9 +259,9 @@ export default function DashboardPage() {
                   </CardDescription>
                 </div>
                 {status === "ok" ? (
-                  <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-0 font-black px-3 py-1">AGENT ONLINE</Badge>
+                  <Badge className="bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-900/50 dark:text-green-400 border-0 font-black px-3 py-1">AGENT ONLINE</Badge>
                 ) : (
-                  <Badge variant="secondary" className="bg-red-100 text-red-700 hover:bg-red-100 border-0 font-black px-3 py-1">AGENT OFFLINE</Badge>
+                  <Badge variant="secondary" className="bg-red-100 text-red-700 hover:bg-red-100 dark:bg-red-900/50 dark:text-red-400 border-0 font-black px-3 py-1">AGENT OFFLINE</Badge>
                 )}
               </div>
             </CardHeader>
@@ -273,13 +273,13 @@ export default function DashboardPage() {
                     href={step.actionHref || "#"} 
                     className={`group relative p-4 rounded-2xl border-2 transition-all ${
                       step.complete 
-                        ? "bg-green-50/50 border-green-100 hover:border-green-200" 
-                        : "bg-white border-gray-100 hover:border-blue-200 hover:shadow-lg"
+                        ? "bg-green-50/50 dark:bg-green-900/20 border-green-100 dark:border-green-800 hover:border-green-200 dark:hover:border-green-700" 
+                        : "bg-card border-border hover:border-primary/50 hover:shadow-lg"
                     }`}
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                        step.complete ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-400 group-hover:bg-blue-100 group-hover:text-blue-600"
+                        step.complete ? "bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400" : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"
                       }`}>
                         {step.id === "analyze" && <Github className="w-4 h-4" />}
                         {step.id === "verify" && <Shield className="w-4 h-4" />}
@@ -287,12 +287,12 @@ export default function DashboardPage() {
                         {step.id === "pay" && <Wallet className="w-4 h-4" />}
                         {step.id === "pending" && <AlertCircle className="w-4 h-4" />}
                       </div>
-                      {step.complete && <CheckCircle2 className="w-4 h-4 text-green-600" />}
+                      {step.complete && <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />}
                     </div>
-                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Step {index + 1}</p>
-                    <p className="font-bold text-gray-900 leading-tight">{step.label}</p>
+                    <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-1">Step {index + 1}</p>
+                    <p className="font-bold text-card-foreground leading-tight">{step.label}</p>
                     {!step.complete && (
-                      <div className="mt-3 flex items-center text-[10px] font-black text-blue-600 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="mt-3 flex items-center text-[10px] font-black text-primary uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">
                         GO TO STEP <ArrowRight className="w-3 h-3 ml-1" />
                       </div>
                     )}
@@ -303,7 +303,7 @@ export default function DashboardPage() {
               <div className="flex gap-3 pt-2">
                 <Button 
                   onClick={() => router.push("/agent")}
-                  className="flex-1 bg-black text-white hover:bg-gray-900 h-14 rounded-xl font-black text-lg shadow-xl shadow-gray-200"
+                  className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 h-14 rounded-xl font-black text-lg shadow-xl shadow-primary/20"
                 >
                   <Bot className="w-5 h-5 mr-2" />
                   OPEN AGENT CHAT
@@ -351,25 +351,25 @@ export default function DashboardPage() {
               <CardContent>
                 {timeline.length === 0 ? (
                   <div className="py-8 text-center">
-                    <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <Circle className="w-4 h-4 text-gray-200" />
+                    <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
+                      <Circle className="w-4 h-4 text-muted-foreground/30" />
                     </div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">No activity yet</p>
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">No activity yet</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {timeline.slice(0, 3).map((item, index) => (
-                      <div key={`${item.at}-${index}`} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
+                      <div key={`${item.at}-${index}`} className="flex items-center gap-3 p-3 rounded-xl bg-muted border border-border">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                          item.status === "success" ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"
+                          item.status === "success" ? "bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400" : "bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400"
                         }`}>
                           {item.status === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-gray-900 truncate uppercase tracking-tight">
+                          <p className="text-sm font-bold text-card-foreground truncate uppercase tracking-tight">
                             {item.action.replaceAll("_", " ")}
                           </p>
-                          <p className="text-[10px] font-bold text-gray-500">{new Date(item.at).toLocaleTimeString()}</p>
+                          <p className="text-[10px] font-bold text-muted-foreground">{new Date(item.at).toLocaleTimeString()}</p>
                         </div>
                       </div>
                     ))}
@@ -384,22 +384,22 @@ export default function DashboardPage() {
         {normalizedRepoPath && (coverageOutput || pendingOutput) && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <Card className="border-0 shadow-2xl overflow-hidden">
-              <div className="bg-gray-900 text-white px-6 py-4 flex items-center justify-between">
+              <div className="bg-card border-b border-border px-6 py-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Github className="w-5 h-5" />
-                  <span className="font-black uppercase tracking-widest text-sm">{normalizedRepoPath}</span>
+                  <Github className="w-5 h-5 text-card-foreground" />
+                  <span className="font-black uppercase tracking-widest text-sm text-card-foreground">{normalizedRepoPath}</span>
                 </div>
                 {coverageStats && (
-                  <Badge className="bg-blue-500 text-white border-0 font-black">
+                  <Badge className="bg-primary text-primary-foreground border-0 font-black">
                     {coverageStats.verified}/{coverageStats.total} VERIFIED
                   </Badge>
                 )}
               </div>
               <CardContent className="p-6 grid md:grid-cols-2 gap-6">
                 <div className="space-y-4">
-                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Verification Status</h4>
+                  <h4 className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em]">Verification Status</h4>
                   {coverageOutput ? (
-                    <div className="p-4 rounded-xl bg-blue-50 border border-blue-100 text-blue-900 text-sm font-medium">
+                    <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 text-card-foreground text-sm font-medium">
                       {coverageOutput}
                     </div>
                   ) : <Skeleton className="h-20 w-full rounded-xl" />}
@@ -413,14 +413,14 @@ export default function DashboardPage() {
                   )}
                 </div>
                 <div className="space-y-4">
-                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Pending Claims</h4>
+                  <h4 className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em]">Pending Claims</h4>
                   {pendingOutput ? (
-                    <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 text-gray-700 text-sm font-mono whitespace-pre-wrap leading-relaxed">
+                    <div className="p-4 rounded-xl bg-muted border border-border text-card-foreground text-sm font-mono whitespace-pre-wrap leading-relaxed">
                       {pendingOutput}
                     </div>
                   ) : <Skeleton className="h-20 w-full rounded-xl" />}
                   
-                  <Button asChild className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 font-black">
+                  <Button asChild className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 font-black">
                     <Link href={`/agent?command=${encodeURIComponent(`pay 1 USDC to github.com/${normalizedRepoPath}`)}`}>
                       EXECUTE PAYOUT
                     </Link>

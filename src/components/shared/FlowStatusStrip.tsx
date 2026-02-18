@@ -21,18 +21,18 @@ export default function FlowStatusStrip({
   title = "Flow Status",
 }: FlowStatusStripProps) {
   return (
-    <div className="rounded-xl border bg-white/80 backdrop-blur-sm p-3 space-y-2">
-      <p className="text-xs font-bold tracking-wide text-gray-700 uppercase">{title}</p>
+    <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm p-3 space-y-2">
+      <p className="text-xs font-bold tracking-wide text-muted-foreground uppercase">{title}</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
         {steps.map((step) => {
           const content = (
             <div
               className={`rounded-md border px-2.5 py-2 text-xs font-semibold flex items-center gap-2 ${
                 step.complete
-                  ? "border-green-200 text-green-800 bg-green-50"
+                  ? "border-green-500/30 text-green-700 dark:text-green-400 bg-green-500/10"
                   : step.current
-                  ? "border-blue-200 text-blue-800 bg-blue-50"
-                  : "border-gray-200 text-gray-600 bg-white"
+                  ? "border-primary/30 text-primary bg-primary/10"
+                  : "border-border text-muted-foreground bg-muted/50"
               }`}
             >
               {step.complete ? (

@@ -33,6 +33,15 @@ function toHex(value: unknown): string {
   return "";
 }
 
+function normalizeRepoInput(value: string): string {
+  const cleaned = value
+    .trim()
+    .replace(/^(https?:\/\/)?(www\.)?github\.com\//i, "")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+  return cleaned;
+}
+
 function extractGistId(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) return "";
@@ -107,6 +116,16 @@ export default function VerifyPage() {
   const [mappingNextCursor, setMappingNextCursor] = useState<string | null>(null);
   const [mappingCursorHistory, setMappingCursorHistory] = useState<string[]>([]);
   const [mappingTotal, setMappingTotal] = useState(0);
+  const [repoLookup, setRepoLookup] = useState("");
+  const [repoLoading, setRepoLoading] = useState(false);
+  const [repoError, setRepoError] = useState("");
+  const [repoStatus, setRepoStatus] = useState<{
+    split_id: string;
+    repo_url: string;
+    total_contributors: number;
+    verified: Array<{ github_username: string; wallet_address: string; x_username?: string | null }>;
+    unverified: string[];
+  } | null>(null);
   const mappingLimit = 10;
 
   const prefillUser = searchParams.get("user") || "";
@@ -121,6 +140,12 @@ export default function VerifyPage() {
       setGithubUsername(prefillUser.replace(/^@/, ""));
     }
   }, [prefillUser, githubUsername]);
+
+  useEffect(() => {
+    if (prefillRepo) {
+      setRepoLookup(normalizeRepoInput(prefillRepo));
+    }
+  }, [prefillRepo]);
 
   useEffect(() => {
     trackUxEvent("funnel_verify_opened", { repo: prefillRepo || undefined });
@@ -154,9 +179,42 @@ export default function VerifyPage() {
     }
   };
 
+  const loadRepoStatus = async (repoCandidate: string) => {
+    const normalized = normalizeRepoInput(repoCandidate);
+    if (!normalized.includes("/")) {
+      setRepoError("Enter a repository like owner/repo.");
+      setRepoStatus(null);
+      return;
+    }
+    try {
+      setRepoLoading(true);
+      setRepoError("");
+      const response = await fetch(
+        `/api/verification-mapping?repo=${encodeURIComponent(normalized)}`
+      );
+      const data = await response.json();
+      if (!response.ok || !data.success || !data.status) {
+        throw new Error(data.error || "Failed to load repository verification status");
+      }
+      setRepoStatus(data.status);
+      trackUxEvent("verification_mapping_repo_status_loaded", { repo: normalized });
+    } catch (error) {
+      setRepoError(error instanceof Error ? error.message : "Failed to load repository status");
+      setRepoStatus(null);
+    } finally {
+      setRepoLoading(false);
+    }
+  };
+
   useEffect(() => {
     void loadMapping(null, "");
   }, []);
+
+  useEffect(() => {
+    if (prefillRepo) {
+      void loadRepoStatus(prefillRepo);
+    }
+  }, [prefillRepo]);
 
   useEffect(() => {
     const dismissed = localStorage.getItem("gitsplits_verify_onboarding_dismissed");
@@ -500,6 +558,84 @@ export default function VerifyPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="rounded-md border p-3 space-y-3">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Input
+                  value={repoLookup}
+                  onChange={(e) => setRepoLookup(e.target.value)}
+                  placeholder="owner/repo"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={repoLoading}
+                  onClick={() => void loadRepoStatus(repoLookup)}
+                >
+                  {repoLoading ? "Loading..." : "Check Repo Coverage"}
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {["thisyearnofear/gitsplits", "openclaw/openclaw"].map((repo) => (
+                  <Button
+                    key={repo}
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => {
+                      setRepoLookup(repo);
+                      void loadRepoStatus(repo);
+                    }}
+                  >
+                    {repo}
+                  </Button>
+                ))}
+              </div>
+              {repoError && <p className="text-xs text-red-600">{repoError}</p>}
+              {repoStatus && (
+                <div className="text-sm space-y-2">
+                  <p>
+                    <span className="font-semibold">Coverage:</span>{" "}
+                    {repoStatus.verified.length}/{repoStatus.total_contributors} verified
+                  </p>
+                  <p className="text-xs text-gray-600 break-all">
+                    Repo: {repoStatus.repo_url} · Split: {repoStatus.split_id}
+                  </p>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <div className="rounded border p-2">
+                      <p className="text-xs font-semibold mb-1">Verified</p>
+                      {repoStatus.verified.length === 0 ? (
+                        <p className="text-xs text-gray-500">None</p>
+                      ) : (
+                        <ul className="space-y-1">
+                          {repoStatus.verified.map((entry) => (
+                            <li key={`${entry.github_username}-${entry.wallet_address}`} className="text-xs">
+                              @{entry.github_username} →{" "}
+                              <span className="font-mono">{entry.wallet_address}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                    <div className="rounded border p-2">
+                      <p className="text-xs font-semibold mb-1">Unverified</p>
+                      {repoStatus.unverified.length === 0 ? (
+                        <p className="text-xs text-green-700">All contributors verified</p>
+                      ) : (
+                        <ul className="space-y-1">
+                          {repoStatus.unverified.map((user) => (
+                            <li key={user} className="text-xs">
+                              @{user}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="flex flex-col sm:flex-row gap-2">
               <Input
                 value={mappingQuery}
@@ -553,8 +689,22 @@ export default function VerifyPage() {
                 <div className="divide-y">
                   {mappingEntries.map((entry) => (
                     <div key={`${entry.github_username}-${entry.wallet_address}`} className="grid grid-cols-2 gap-2 px-3 py-2 text-sm">
-                      <span className="font-medium">@{entry.github_username}</span>
-                      <span className="font-mono text-xs break-all">{entry.wallet_address}</span>
+                      <a
+                        className="font-medium underline-offset-2 hover:underline"
+                        href={`https://github.com/${entry.github_username}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        @{entry.github_username}
+                      </a>
+                      <a
+                        className="font-mono text-xs break-all underline-offset-2 hover:underline"
+                        href={`https://nearblocks.io/address/${entry.wallet_address}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {entry.wallet_address}
+                      </a>
                     </div>
                   ))}
                 </div>

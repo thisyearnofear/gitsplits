@@ -105,6 +105,18 @@ Farcaster/Web → Intent Agent → EigenCompute (TEE) → NEAR + Payments
 - Add optional ERC-8004 registry checks for agent identity signals before classifying an agent as payout-eligible.
 - Preserve one-click user override for every recommendation and show final payout consequences before submit.
 
+### Verification Mapping (Public Data)
+
+- Canonical mapping is stored on-chain in the NEAR contract (`github_username -> near_account_id`).
+- Web explorer endpoint: `/api/verification-mapping`
+  - `GET /api/verification-mapping?q=<github-or-wallet>` for search
+  - `GET /api/verification-mapping?offset=0&limit=25` for pagination
+- Note: pagination views require the latest contract build with:
+  - `get_verification_count`
+  - `get_verified_wallets_page` (offset)
+  - `get_verified_wallets_cursor` (stable cursor pagination)
+  - `get_repo_verification_status`
+
 ## Documentation
 
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) — System design

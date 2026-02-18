@@ -42,6 +42,11 @@ function extractCoverage(text: string): { verified: number; total: number } | nu
   };
 }
 
+function extractSplitId(text: string): string | null {
+  const match = text.match(/\b(split-\d+)\b/i);
+  return match?.[1] || null;
+}
+
 // Typing indicator component
 const TypingIndicator = () => (
   <div className="flex gap-1 items-center px-1">
@@ -240,7 +245,12 @@ export default function AgentPage() {
       // Helper to detect message type from text
       const detectType = (text: string) => {
         if (text.includes('📊 Analysis for')) return 'analysis';
-        if (text.includes('✅ Split created') || text.includes('Split created')) return 'split_created';
+        if (
+          text.includes('✅ Split created') ||
+          text.includes('Split created') ||
+          text.toLowerCase().includes('split already exists') ||
+          text.toLowerCase().includes('already exists for github.com/')
+        ) return 'split_created';
         if (
           text.includes('💸 Payment sent') ||
           text.includes('Payment successfully sent') ||
@@ -436,7 +446,7 @@ export default function AgentPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Card className="border-purple-200 dark:border-purple-800 hover:border-purple-300 dark:hover:border-purple-700 hover:bg-purple-50/30 dark:hover:bg-purple-950/20 transition-all cursor-pointer group shadow-sm overflow-hidden" onClick={() => sendMessage(`create split for ${repoName || 'this repo'}`)}>
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-center justify-between">
@@ -479,6 +489,31 @@ export default function AgentPage() {
                   </Button>
                 </CardContent>
               </Card>
+
+              <Card
+                className="border-emerald-200 dark:border-emerald-800 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 transition-all cursor-pointer group shadow-sm overflow-hidden"
+                onClick={() => router.push(`/splits?repo=${encodeURIComponent(repoName || '')}`)}
+              >
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="p-2 bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300 rounded-lg group-hover:scale-110 transition-transform">
+                      <Wallet className="w-4 h-4" />
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-emerald-300 dark:text-emerald-700 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-foreground">Open Funding Workspace</h4>
+                    <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">View split details, funding progress, and pay from your wallet</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 hover:bg-card h-8 text-xs font-bold rounded-lg"
+                  >
+                    Open Workspace
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
           </div>
           
@@ -500,7 +535,10 @@ export default function AgentPage() {
       const deTerminalLink = msg.text.match(/https:\/\/determinal\.eigenarcade\.com\/verify\/[a-zA-Z0-9]+/)?.[0];
       const repoUrl = extractRepoUrlFromText(msg.text);
       const repoName = repoUrl?.replace('github.com/', '');
+      const repoCommandTarget = repoName ? `github.com/${repoName}` : 'this repo';
       const coverage = extractCoverage(msg.text);
+      const splitId = extractSplitId(msg.text);
+      const splitExists = msg.text.toLowerCase().includes('already exists');
       const hasCoverageGap = !!coverage && coverage.total > 0 && coverage.verified < coverage.total;
       
       return (
@@ -517,6 +555,48 @@ export default function AgentPage() {
             <div className="whitespace-pre-wrap text-sm text-foreground bg-muted/50 p-4 rounded-xl border border-border italic shadow-inner leading-relaxed">
               {msg.text.split('🔗')[0]}
             </div>
+
+            {splitExists && (
+              <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 p-4 space-y-3">
+                <p className="text-[11px] font-black text-blue-900 dark:text-blue-300 uppercase tracking-wide">Manage Existing Distribution</p>
+                <p className="text-xs text-blue-900 dark:text-blue-200">
+                  This repo already has an active distribution{splitId ? ` (${splitId})` : ''}. Continue from here:
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <Button
+                    size="sm"
+                    className="h-9 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={() => router.push(`/splits?repo=${encodeURIComponent(repoName || '')}`)}
+                  >
+                    Open Distribution Details
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-9 text-xs font-bold"
+                    onClick={() => router.push(`/splits?repo=${encodeURIComponent(repoName || '')}&amount=10&token=NEAR`)}
+                  >
+                    Contribute Funds
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-9 text-xs font-bold"
+                    onClick={() => sendMessage(`pending ${repoCommandTarget}`)}
+                  >
+                    View Payment History
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-9 text-xs font-bold"
+                    onClick={() => sendMessage(`verify contributors for ${repoCommandTarget}`)}
+                  >
+                    Check Recipient Verification
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {deTerminalLink && (
               <div className="bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 space-y-3 relative overflow-hidden group">
@@ -636,23 +716,23 @@ export default function AgentPage() {
             <div className="p-1.5 bg-card rounded-md shadow-sm">
               <DollarSign className="w-4 h-4 text-green-700 dark:text-green-400" />
             </div>
-            <span className="text-xs font-bold text-green-800 dark:text-green-400 uppercase tracking-tight">Payment Executed</span>
+            <span className="text-xs font-bold text-green-800 dark:text-green-400 uppercase tracking-tight">Distribution Completed</span>
           </div>
           <div className="p-4 space-y-3">
             <p className="text-xs text-green-900 dark:text-green-300 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-md p-2 font-medium">
               {isDirectWalletMode
                 ? 'Payment mode: direct NEAR wallet signing.'
-                : 'Live payout request was executed by the backend agent infrastructure.'}
+                : 'Distribution request executed through the configured payout rails.'}
             </p>
             {!isDirectWalletMode && (
               <p className="text-xs text-blue-900 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md p-2 font-medium">
-                Payment source: backend treasury rails (HOT/Ping). It does not currently debit your connected browser wallet directly.
+                Funding source: configured payout rails (HOT/Ping). It does not currently debit your connected browser wallet directly.
               </p>
             )}
             <div className="rounded-md border border-border bg-card p-3 text-xs text-foreground space-y-1">
-              <p><strong>Distributed now:</strong> {distributed || 'n/a'}</p>
-              <p><strong>Verified recipients:</strong> {verifiedCount !== null && totalCount !== null ? `${verifiedCount}/${totalCount}` : 'n/a'}</p>
-              <p><strong>Unverified recipients:</strong> {unverifiedCount !== null ? unverifiedCount : 'n/a'}</p>
+              <p><strong>Amount distributed:</strong> {distributed || 'n/a'}</p>
+              <p><strong>Coverage:</strong> {verifiedCount !== null && totalCount !== null ? `${verifiedCount}/${totalCount} recipients verified` : 'n/a'}</p>
+              <p><strong>Recipients pending verification:</strong> {unverifiedCount !== null ? unverifiedCount : 'n/a'}</p>
               <p><strong>Pending claims created:</strong> {pendingCount}</p>
               {pendingCount > 0 && (
                 <p className="text-amber-700 dark:text-amber-400">

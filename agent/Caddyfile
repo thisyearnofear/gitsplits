@@ -3,8 +3,8 @@
     # Use certs provisioned by compute-source-env
     tls /run/tls/fullchain.pem /run/tls/privkey.pem
 
-    # In TEE deployments the app listens on 8443 by default
-    reverse_proxy 127.0.0.1:{$APP_PORT:8443} {
+    # Agent server runs on 8443 in EigenCompute runtime
+    reverse_proxy 127.0.0.1:8443 {
         health_uri /health
         health_interval 30s
         health_timeout 5s

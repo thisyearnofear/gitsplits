@@ -24,10 +24,10 @@ if (!projectId) {
 
 // Set up metadata
 const metadata = {
-  name: "GitHubSplits",
-  description: "AppKit Example",
-  url: "https://reown.com/appkit", // origin must match your domain & subdomain
-  icons: ["https://assets.reown.com/reown-profile-pic.png"],
+  name: "GitSplits",
+  description: "Reward open source contributors fairly",
+  url: "https://gitsplits.vercel.app", // origin must match your domain & subdomain
+  icons: ["https://gitsplits.vercel.app/logo.png"],
 };
 
 // Create the modal

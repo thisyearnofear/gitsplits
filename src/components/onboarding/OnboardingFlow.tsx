@@ -12,6 +12,7 @@ import {
   Sparkles,
   CheckCircle2,
   ArrowRight,
+  Shield,
 } from "lucide-react";
 import Badge from "@/components/ui/badge";
 import { useRouter } from "next/navigation";

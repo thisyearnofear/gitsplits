@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAppKitAccount } from "@reown/appkit/react";
 import { useNearWallet } from "@/hooks/useNearWallet";
 import WalletStatusBar from "@/components/shared/WalletStatusBar";
+import FlowStatusStrip from "@/components/shared/FlowStatusStrip";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +56,7 @@ type PayReceipt = {
   transactionRef?: string;
   splitId?: string;
   pendingCount?: number;
+  at?: string;
 };
 
 function normalizeRepoUrl(input: string): string {
@@ -63,6 +65,20 @@ function normalizeRepoUrl(input: string): string {
     .replace(/^(https?:\/\/)?(www\.)?github\.com\//i, "")
     .replace(/\/+$/, "");
   return `github.com/${cleaned}`;
+}
+
+function toUserFacingError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error || "Unknown error");
+  const lower = raw.toLowerCase();
+  if (lower.includes("timed out")) return "The agent timed out. Please retry in a few seconds.";
+  if (lower.includes("not installed")) return "GitHub App is not installed on this repository yet.";
+  if (lower.includes("fetch") || lower.includes("network")) return "Network issue while contacting the agent. Please retry.";
+  return raw;
+}
+
+function isSystemContributor(username: string): boolean {
+  const normalized = String(username || "").toLowerCase();
+  return normalized.includes("[bot]") || normalized.endsWith("-bot");
 }
 
 function parseContributorsFromAnalyzeResponse(response: string): ParsedContributor[] {
@@ -113,6 +129,7 @@ function parsePayReceipt(response: string): PayReceipt {
     transactionRef: tx?.[1]?.trim(),
     splitId: split?.[1]?.trim(),
     pendingCount: pending ? Number(pending[1]) : undefined,
+    at: new Date().toISOString(),
   };
 }
 
@@ -162,6 +179,22 @@ export default function SplitsPage() {
     [pendingClaimsOutput]
   );
   const payReceipt = useMemo(() => parsePayReceipt(payResponse), [payResponse]);
+  const flowSteps = useMemo(
+    () => [
+      { id: "analyze", label: "Analyze", href: "/agent", complete: contributors.length > 0, current: contributors.length === 0 },
+      {
+        id: "verify",
+        label: "Verify",
+        href: repoPath ? `/verify?repo=${encodeURIComponent(repoPath)}` : "/verify",
+        complete: !!coverageStats && coverageStats.verified === coverageStats.total,
+        current: !!coverageStats && coverageStats.verified < coverageStats.total,
+      },
+      { id: "split", label: "Create Split", href: "/splits", complete: !!createResponse, current: !createResponse && contributors.length > 0 },
+      { id: "pay", label: "Pay", href: "/splits", complete: !!payResponse, current: !!createResponse && !payResponse },
+      { id: "claim", label: "Claim", href: "/splits", complete: !!pendingClaimsOutput, current: !!payResponse && !pendingClaimsOutput },
+    ],
+    [contributors.length, coverageStats, repoPath, createResponse, payResponse, pendingClaimsOutput]
+  );
 
   useEffect(() => {
     try {
@@ -364,10 +397,18 @@ export default function SplitsPage() {
       setCreateResponse(response);
       setStatus("success");
       setMessage("Split creation flow completed.");
+      const coverageLine = response
+        .split("\n")
+        .find((line) => line.toLowerCase().includes("verification coverage"));
+      if (coverageLine) {
+        const match = coverageLine.match(/(\d+)\s*\/\s*(\d+)\s+verified/i);
+        if (match) setCoverageStats({ verified: Number(match[1]), total: Number(match[2]) });
+      }
+      trackUxEvent("funnel_split_created", { repo: normalizedRepo });
       trackUxEvent("splits_create_success", { repo: normalizedRepo });
     } catch (error) {
       setStatus("error");
-      setMessage(error instanceof Error ? error.message : "Failed to create split.");
+      setMessage(toUserFacingError(error));
       trackUxEvent("splits_create_failed", { repo: normalizedRepo });
     }
   };
@@ -394,7 +435,7 @@ export default function SplitsPage() {
       trackUxEvent("splits_repair_success", { repo: normalizedRepo });
     } catch (error) {
       setStatus("error");
-      setMessage(error instanceof Error ? error.message : "Failed to repair split.");
+      setMessage(toUserFacingError(error));
       trackUxEvent("splits_repair_failed", { repo: normalizedRepo });
     }
   };
@@ -447,15 +488,25 @@ export default function SplitsPage() {
     trackUxEvent("splits_pay_start", { repo: normalized, amount, token: payToken });
 
     try {
+      trackUxEvent("funnel_pay_submitted", { repo: normalized, amount, token: payToken });
+      const proceed = window.confirm(
+        `Confirm payout:\n\nRepo: ${normalized}\nAmount: ${amount} ${payToken}\nCoverage: ${coverageStats ? `${coverageStats.verified}/${coverageStats.total} verified` : "unknown"}\n\nUnverified contributors will be routed to pending claims.`
+      );
+      if (!proceed) {
+        setStatus("idle");
+        setMessage("Payout cancelled.");
+        return;
+      }
       const response = await callAgent(`pay ${amount} ${payToken} to ${normalized}`);
       setPayResponse(response);
       setStatus("success");
       setMessage("Payout request completed.");
+      trackUxEvent("funnel_pay_success", { repo: normalized, amount, token: payToken });
       trackUxEvent("splits_pay_success", { repo: normalized, amount, token: payToken });
       await checkPendingClaims();
     } catch (error) {
       setStatus("error");
-      setMessage(error instanceof Error ? error.message : "Failed to submit payout.");
+      setMessage(toUserFacingError(error));
       trackUxEvent("splits_pay_failed", { repo: normalized, amount, token: payToken });
     }
   };
@@ -464,8 +515,11 @@ export default function SplitsPage() {
     <div className="min-h-screen bg-gradient-to-br from-gentle-blue via-gentle-purple to-gentle-orange py-10">
       <div className="container mx-auto max-w-4xl px-4">
         <WalletStatusBar />
+        <div className="mb-4">
+          <FlowStatusStrip steps={flowSteps} title="Contributor Payout Journey" />
+        </div>
 
-        <Card>
+        <Card className="mb-24 md:mb-0">
           <CardHeader>
             <CardTitle>Splits</CardTitle>
             <CardDescription>
@@ -671,15 +725,26 @@ export default function SplitsPage() {
                             ? "Unverified"
                             : "Unknown";
                           const verifyHref = `/verify?repo=${encodeURIComponent(repoPath || "")}&user=${encodeURIComponent(contributor.githubUsername)}`;
+                          const isBot = isSystemContributor(contributor.githubUsername);
                           return (
                             <TableRow key={contributor.githubUsername}>
-                              <TableCell>{contributor.githubUsername}</TableCell>
-                              <TableCell>{contributor.percentage.toFixed(2)}</TableCell>
-                              <TableCell>{statusLabel}{liveStatus?.walletAddress ? ` (${liveStatus.walletAddress})` : ""}</TableCell>
                               <TableCell>
-                                <Link href={verifyHref} className="underline text-blue-700">
-                                  Verify
-                                </Link>
+                                {contributor.githubUsername}
+                                {isBot ? " (bot/system)" : ""}
+                              </TableCell>
+                              <TableCell>{contributor.percentage.toFixed(2)}</TableCell>
+                              <TableCell>
+                                {isBot ? "Non-payout account" : statusLabel}
+                                {liveStatus?.walletAddress ? ` (${liveStatus.walletAddress})` : ""}
+                              </TableCell>
+                              <TableCell>
+                                {isBot ? (
+                                  <span className="text-xs text-gray-500">N/A</span>
+                                ) : (
+                                  <Link href={verifyHref} className="underline text-blue-700">
+                                    Verify
+                                  </Link>
+                                )}
                               </TableCell>
                             </TableRow>
                           );
@@ -698,16 +763,19 @@ export default function SplitsPage() {
                         ? "Unverified"
                         : "Unknown";
                       const verifyHref = `/verify?repo=${encodeURIComponent(repoPath || "")}&user=${encodeURIComponent(contributor.githubUsername)}`;
+                      const isBot = isSystemContributor(contributor.githubUsername);
                       return (
                         <div key={contributor.githubUsername} className="rounded border bg-gray-50 p-3">
-                          <p className="font-medium">{contributor.githubUsername}</p>
+                          <p className="font-medium">{contributor.githubUsername}{isBot ? " (bot/system)" : ""}</p>
                           <p className="text-sm text-gray-600">{contributor.percentage.toFixed(2)}% share</p>
                           <p className="text-sm text-gray-600">
-                            Status: {statusLabel}{liveStatus?.walletAddress ? ` (${liveStatus.walletAddress})` : ""}
+                            Status: {isBot ? "Non-payout account" : statusLabel}{liveStatus?.walletAddress ? ` (${liveStatus.walletAddress})` : ""}
                           </p>
-                          <Link href={verifyHref} className="text-sm text-blue-700 underline">
-                            Verify contributor
-                          </Link>
+                          {!isBot && (
+                            <Link href={verifyHref} className="text-sm text-blue-700 underline">
+                              Verify contributor
+                            </Link>
+                          )}
                         </div>
                       );
                     })}
@@ -819,6 +887,17 @@ export default function SplitsPage() {
                 <p>Transaction: {payReceipt.transactionRef || "n/a"}</p>
                 <p>Split: {payReceipt.splitId || "n/a"}</p>
                 <p>Pending claims created: {payReceipt.pendingCount ?? 0}</p>
+                <p>Timestamp: {payReceipt.at ? new Date(payReceipt.at).toLocaleString() : "n/a"}</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={checkPendingClaims}>
+                    View Pending Claims
+                  </Button>
+                  {repoPath && (
+                    <Link href={`/agent?command=${encodeURIComponent(`pending github.com/${repoPath}`)}`}>
+                      <Button type="button" variant="outline" size="sm">Open Claim View</Button>
+                    </Link>
+                  )}
+                </div>
                 <div className="rounded border bg-gray-50 p-2 whitespace-pre-wrap">{payResponse}</div>
               </div>
             )}
@@ -859,6 +938,27 @@ export default function SplitsPage() {
             </div>
           </CardContent>
         </Card>
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t p-3">
+          <div className="max-w-4xl mx-auto flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={analyzeRepo}
+              disabled={status === "loading"}
+            >
+              Analyze
+            </Button>
+            <Button
+              type="button"
+              className="flex-1"
+              onClick={payNow}
+              disabled={status === "loading" || !repoInput.trim()}
+            >
+              Pay
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

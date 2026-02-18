@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useAppKitAccount, useAppKit } from "@reown/appkit/react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/shared/Header";
-import { HomeProps, LandingPageProps } from "@/types";
+import { LandingPageProps } from "@/types";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 
@@ -13,7 +13,7 @@ const LandingPage = dynamic(() => import("@/components/landing/LandingPage"), {
   ssr: false,
 });
 
-const Home: React.FC<HomeProps> = () => {
+const Home = () => {
   const { isConnected: isEvmConnected } = useAppKitAccount();
   const { open } = useAppKit();
   const router = useRouter();

@@ -1,4 +1,6 @@
 import { KeyPair, keyStores, connect, utils, Account } from 'near-api-js';
+import type { KeyPairString } from 'near-api-js/lib/utils/key_pair';
+import type { FinalExecutionOutcome } from 'near-api-js/lib/providers';
 import { twitterClient } from '../services/twitter';
 
 // Interface for contract connection
@@ -28,8 +30,9 @@ export async function connectToNear(): Promise<ContractConnection> {
 
   // In a real TEE implementation, this key would be generated within the TEE
   // and would never leave the secure enclave
-  const keyPair = process.env.NEXT_PUBLIC_secretKey
-    ? KeyPair.fromString(process.env.NEXT_PUBLIC_secretKey)
+  const secretKey = process.env.NEXT_PUBLIC_secretKey;
+  const keyPair = secretKey
+    ? KeyPair.fromString(secretKey as KeyPairString)
     : KeyPair.fromRandom('ed25519');
 
   // Connect to NEAR
@@ -79,16 +82,17 @@ export async function callChangeMethod(methodName: string, args: any = {}, gas: 
     contractId,
     methodName,
     args,
-    gas,
-    attachedDeposit: '0',
-  });
+    gas: BigInt(gas),
+    attachedDeposit: BigInt(0),
+  }) as FinalExecutionOutcome;
 
-  // Parse the result
-  if (result.status.SuccessValue) {
+  // Parse the result - check if status is a SuccessValue type
+  const status = result.status as any;
+  if (status && typeof status === 'object' && 'SuccessValue' in status && status.SuccessValue) {
     try {
-      return JSON.parse(Buffer.from(result.status.SuccessValue, 'base64').toString());
+      return JSON.parse(Buffer.from(status.SuccessValue, 'base64').toString());
     } catch (e) {
-      return Buffer.from(result.status.SuccessValue, 'base64').toString();
+      return Buffer.from(status.SuccessValue, 'base64').toString();
     }
   }
 
@@ -149,7 +153,7 @@ async function handleCreateCommand(repoUrl: string, sender: string, tweetId: str
 
   try {
     // Check if a split already exists for this repo
-    const existingSplit = await callViewMethod('get_split_by_repo', { repo_url: repoUrl });
+    const existingSplit = await callViewMethod<Record<string, any>>('get_split_by_repo', { repo_url: repoUrl });
 
     if (existingSplit) {
       return {
@@ -197,7 +201,7 @@ async function handleInfoCommand(repoUrl: string, tweetId: string): Promise<{
 
   try {
     // Get the split
-    const split = await callViewMethod('get_split_by_repo', { repo_url: repoUrl });
+    const split = await callViewMethod<Record<string, any>>('get_split_by_repo', { repo_url: repoUrl });
 
     if (!split) {
       return {
@@ -207,18 +211,18 @@ async function handleInfoCommand(repoUrl: string, tweetId: string): Promise<{
     }
 
     // Get distribution history
-    const distributionIds = await callViewMethod<string[]>('get_distribution_history', { split_id: split.id });
+    const distributionIds = await callViewMethod<string[]>('get_distribution_history', { split_id: String(split.id) });
 
     // Format the message
     let message = `📊 Split info for ${repoUrl}:\n`;
     message += `Split ID: ${split.id}\n`;
 
-    if (split.contributors && split.contributors.length > 0) {
+    if (split.contributors && Array.isArray(split.contributors) && split.contributors.length > 0) {
       message += `\nTop contributors:\n`;
 
       // Sort contributors by percentage
-      const sortedContributors = [...split.contributors].sort((a, b) =>
-        BigInt(b.percentage) - BigInt(a.percentage)
+      const sortedContributors = [...split.contributors].sort((a: any, b: any) =>
+        Number(BigInt(b.percentage) - BigInt(a.percentage))
       );
 
       // Take top 3 contributors
@@ -284,7 +288,7 @@ async function handleDistributeCommand(
 
   try {
     // Get the split
-    const split = await callViewMethod('get_split_by_repo', { repo_url: repoUrl });
+    const split = await callViewMethod<Record<string, any>>('get_split_by_repo', { repo_url: repoUrl });
 
     if (!split) {
       return {
@@ -294,7 +298,7 @@ async function handleDistributeCommand(
     }
 
     // Check if there are contributors
-    if (!split.contributors || split.contributors.length === 0) {
+    if (!split.contributors || !Array.isArray(split.contributors) || split.contributors.length === 0) {
       return {
         success: false,
         message: `❌ No contributors found for ${repoUrl}. The split needs to be updated with contributors first.`,
@@ -302,11 +306,11 @@ async function handleDistributeCommand(
     }
 
     // Convert amount to yoctoNEAR format
-    const amountInYocto = (BigInt(amount) * BigInt(10) ** BigInt(24)).toString();
+    const amountInYocto = (BigInt(amount) * BigInt("1000000000000000000000000")).toString();
 
     // Distribute funds
     const distributionId = await callChangeMethod('distribute_funds', {
-      split_id: split.id,
+      split_id: String(split.id),
       amount: amountInYocto,
       token_id: token === 'NEAR' ? null : token,
     });

@@ -38,7 +38,7 @@ export interface FilterState {
 
 export interface SearchableItem {
   id: string;
-  [key: string]: unknown;
+  [key: string]: any;
 }
 
 interface SearchAndFilterProps<T extends SearchableItem> {
@@ -167,7 +167,7 @@ export function SearchAndFilter<T extends SearchableItem>({
     setSearchQuery("");
   }, []);
 
-  const updateFilter = useCallback((key: string, value: unknown) => {
+  const updateFilter = useCallback((key: string, value: string | number | boolean | Date | undefined) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   }, []);
 
@@ -243,7 +243,7 @@ export function SearchAndFilter<T extends SearchableItem>({
                       type="number"
                       placeholder="Min"
                       className="w-20"
-                      value={filters[option.id] || ""}
+                      value={String(filters[option.id] || "")}
                       onChange={(e) => updateFilter(option.id, Number(e.target.value))}
                     />
                     <span className="text-gray-400">-</span>
@@ -251,7 +251,7 @@ export function SearchAndFilter<T extends SearchableItem>({
                       type="number"
                       placeholder="Max"
                       className="w-20"
-                      value={filters[`${option.id}Max`] || ""}
+                      value={String(filters[`${option.id}Max`] || "")}
                       onChange={(e) => updateFilter(`${option.id}Max`, Number(e.target.value))}
                     />
                   </div>

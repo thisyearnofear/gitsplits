@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import Badge from '@/components/ui/badge';
 import Header from '@/components/shared/Header';
+import FlowStatusStrip from '@/components/shared/FlowStatusStrip';
 import { Search, Plus, DollarSign, Shield, Send, Loader2, Bot, Sparkles, ChevronRight, Github, ExternalLink, CheckCircle2, AlertCircle, RefreshCcw, Wallet, Info } from 'lucide-react';
 import { trackUxEvent } from '@/lib/services/ux-events';
 
@@ -25,6 +26,20 @@ interface CommandExample {
   description: string;
   icon: React.ReactNode;
   category: 'analyze' | 'create' | 'pay' | 'verify';
+}
+
+function extractRepoUrlFromText(text: string): string | null {
+  const match = text.match(/github\.com\/[a-zA-Z0-9-._/]+/);
+  return match?.[0] || null;
+}
+
+function extractCoverage(text: string): { verified: number; total: number } | null {
+  const match = text.match(/Verification coverage:\s*(\d+)\s*\/\s*(\d+)\s*verified/i);
+  if (!match) return null;
+  return {
+    verified: Number(match[1]),
+    total: Number(match[2]),
+  };
 }
 
 // Typing indicator component
@@ -55,6 +70,21 @@ export default function AgentPage() {
   const [loading, setLoading] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [lastCommand, setLastCommand] = useState('');
+
+  const flowSteps = useMemo(() => {
+    const hasAnalysis = messages.some((m) => m.type === 'analysis');
+    const hasVerification = messages.some((m) => String(m.text || '').includes('Verification status'));
+    const hasSplit = messages.some((m) => m.type === 'split_created' || String(m.text || '').includes('Split created'));
+    const hasPayment = messages.some((m) => m.type === 'payment_sent' || String(m.text || '').includes('Distributed '));
+    const hasClaims = messages.some((m) => String(m.text || '').includes('Pending claims'));
+    return [
+      { id: 'analyze', label: 'Analyze', href: '/agent', complete: hasAnalysis, current: !hasAnalysis },
+      { id: 'verify', label: 'Verify', href: '/verify', complete: hasVerification, current: hasAnalysis && !hasVerification },
+      { id: 'split', label: 'Create Split', href: '/splits', complete: hasSplit, current: hasVerification && !hasSplit },
+      { id: 'pay', label: 'Pay', href: '/splits', complete: hasPayment, current: hasSplit && !hasPayment },
+      { id: 'claim', label: 'Claim', href: '/splits', complete: hasClaims, current: hasPayment && !hasClaims },
+    ];
+  }, [messages]);
 
   // Auto-scroll to bottom
   const scrollToBottom = () => {
@@ -96,14 +126,50 @@ export default function AgentPage() {
       category: 'analyze',
     },
     {
+      command: 'analyze thisyearnofear/gitsplits',
+      description: 'Analyze contributors for GitSplits',
+      icon: <Search className="w-4 h-4" />,
+      category: 'analyze',
+    },
+    {
+      command: 'analyze openclaw/openclaw',
+      description: 'Analyze contributors for OpenClaw',
+      icon: <Search className="w-4 h-4" />,
+      category: 'analyze',
+    },
+    {
       command: 'create split for facebook/react',
       description: 'Set up contributor splits',
       icon: <Plus className="w-4 h-4" />,
       category: 'create',
     },
     {
+      command: 'create split for thisyearnofear/gitsplits',
+      description: 'Create a split for GitSplits',
+      icon: <Plus className="w-4 h-4" />,
+      category: 'create',
+    },
+    {
+      command: 'create split for openclaw/openclaw',
+      description: 'Create a split for OpenClaw',
+      icon: <Plus className="w-4 h-4" />,
+      category: 'create',
+    },
+    {
       command: 'pay 100 USDC to near/near-sdk-rs',
       description: 'Distribute payments automatically',
+      icon: <DollarSign className="w-4 h-4" />,
+      category: 'pay',
+    },
+    {
+      command: 'pay 10 USDC to thisyearnofear/gitsplits',
+      description: 'Pay contributors on the GitSplits split',
+      icon: <DollarSign className="w-4 h-4" />,
+      category: 'pay',
+    },
+    {
+      command: 'pay 10 USDC to openclaw/openclaw',
+      description: 'Pay contributors on the OpenClaw split',
       icon: <DollarSign className="w-4 h-4" />,
       category: 'pay',
     },
@@ -131,6 +197,11 @@ export default function AgentPage() {
 
     setHasInteracted(true);
     const userMessage = textToSend.trim();
+    const cmd = userMessage.toLowerCase();
+    if (cmd.startsWith('analyze')) trackUxEvent('funnel_analyze_started');
+    if (cmd.startsWith('verify')) trackUxEvent('funnel_verify_started');
+    if (cmd.startsWith('create')) trackUxEvent('funnel_split_create_started');
+    if (cmd.startsWith('pay')) trackUxEvent('funnel_pay_submitted');
     setLastCommand(userMessage);
     
     if (!messageText) {
@@ -177,6 +248,8 @@ export default function AgentPage() {
         const withoutTyping = prev.filter(m => !m.isTyping);
       if (data.success) {
           trackUxEvent('agent_command_success');
+          if (userMessage.toLowerCase().startsWith('create')) trackUxEvent('funnel_split_created');
+          if (userMessage.toLowerCase().startsWith('pay')) trackUxEvent('funnel_pay_success');
           const type = detectType(data.response);
           return [...withoutTyping, { 
             role: 'agent', 
@@ -201,7 +274,7 @@ export default function AgentPage() {
         const human =
           error?.message?.toLowerCase()?.includes('timed out')
             ? 'The agent took too long to respond. Please retry.'
-            : error.message;
+            : toUserFacingError(error?.message || 'Failed to contact agent');
         return [...withoutTyping, { 
           role: 'agent', 
           text: `❌ Error: ${human}`, 
@@ -301,10 +374,10 @@ export default function AgentPage() {
 
   // Special handling for analysis response
   if (msg.type === 'analysis') {
-    const lines = msg.text.split('\n');
-    const repoLine = lines.find(l => l.includes('github.com/'));
-    const repoUrl = repoLine ? repoLine.match(/github\.com\/[a-zA-Z0-9-._/]+/)?.[0] : null;
+    const repoUrl = extractRepoUrlFromText(msg.text);
     const repoName = repoUrl?.replace('github.com/', '');
+    const hasCoverage = msg.text.includes('Verification coverage');
+    const hasCreateHint = msg.text.includes('Create a split');
 
     return (
       <div className="max-w-[90%] bg-white rounded-2xl rounded-bl-md border border-gray-200 shadow-lg overflow-hidden transition-all hover:shadow-xl">
@@ -336,6 +409,24 @@ export default function AgentPage() {
               <div className="h-px flex-1 bg-gray-100"></div>
               <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Next Steps</span>
               <div className="h-px flex-1 bg-gray-100"></div>
+            </div>
+
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3 space-y-2">
+              <p className="text-[11px] font-bold text-emerald-900 uppercase tracking-wide">Happy Path</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div className="rounded-md bg-white border border-emerald-100 px-2.5 py-2 text-emerald-800 font-semibold">
+                  ✅ 1. Analyze repo
+                </div>
+                <div className={`rounded-md bg-white border px-2.5 py-2 font-semibold ${hasCoverage ? 'border-emerald-100 text-emerald-800' : 'border-amber-100 text-amber-800'}`}>
+                  {hasCoverage ? '✅' : '⏳'} 2. Check verification
+                </div>
+                <div className={`rounded-md bg-white border px-2.5 py-2 font-semibold ${hasCreateHint ? 'border-emerald-100 text-emerald-800' : 'border-amber-100 text-amber-800'}`}>
+                  {hasCreateHint ? '✅' : '⏳'} 3. Create split
+                </div>
+                <div className="rounded-md bg-white border border-amber-100 px-2.5 py-2 text-amber-800 font-semibold">
+                  ⏳ 4. Pay contributors
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -400,6 +491,10 @@ export default function AgentPage() {
     // Special handling for split created response
     if (msg.type === 'split_created') {
       const deTerminalLink = msg.text.match(/https:\/\/determinal\.eigenarcade\.com\/verify\/[a-zA-Z0-9]+/)?.[0];
+      const repoUrl = extractRepoUrlFromText(msg.text);
+      const repoName = repoUrl?.replace('github.com/', '');
+      const coverage = extractCoverage(msg.text);
+      const hasCoverageGap = !!coverage && coverage.total > 0 && coverage.verified < coverage.total;
       
       return (
         <div className="max-w-[90%] bg-white rounded-2xl rounded-bl-md border border-purple-200 shadow-lg overflow-hidden transition-all hover:shadow-xl">
@@ -445,42 +540,60 @@ export default function AgentPage() {
             )}
             
             <div className="pt-2 border-t border-gray-100 space-y-4">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2 px-1 mb-1">
-                  <div className="h-px flex-1 bg-gray-100"></div>
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Action Required</span>
-                  <div className="h-px flex-1 bg-gray-100"></div>
+              {hasCoverageGap ? (
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 font-medium">
+                    Payout is paused until all payout-eligible contributors are verified.
+                  </div>
+                  <Button
+                    size="lg"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white h-12 text-sm font-black rounded-xl"
+                    onClick={() => sendMessage(`verify contributors for ${repoName || 'this repo'}`)}
+                  >
+                    <Shield className="w-5 h-5 mr-2" />
+                    Invite Unverified Contributors
+                  </Button>
                 </div>
-                <Button 
-                  size="lg" 
-                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white h-12 text-sm font-black rounded-xl shadow-xl shadow-green-100 border-b-4 border-green-800 active:border-b-0 active:translate-y-1 transition-all"
-                  onClick={() => sendMessage(`pay 10 USDC to this repo`)}
-                >
-                  <DollarSign className="w-5 h-5 mr-2" />
-                  FUND & DISTRIBUTE NOW
-                </Button>
-              </div>
-              
-              <div className="flex gap-3">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="flex-1 h-9 text-xs font-bold border-gray-200 hover:bg-gray-50 rounded-lg"
-                  onClick={() => sendMessage(`show distribution for this repo`)}
-                >
-                  <Search className="w-3.5 h-3.5 mr-1.5 text-gray-400" />
-                  View Shares
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="flex-1 h-9 text-xs font-bold border-gray-200 hover:bg-gray-50 rounded-lg"
-                  onClick={() => sendMessage(`regenerate split for this repo`)}
-                >
-                  <RefreshCcw className="w-3.5 h-3.5 mr-1.5 text-gray-400" />
-                  Recalculate
-                </Button>
-              </div>
+              ) : (
+                <>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2 px-1 mb-1">
+                      <div className="h-px flex-1 bg-gray-100"></div>
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Action Required</span>
+                      <div className="h-px flex-1 bg-gray-100"></div>
+                    </div>
+                    <Button 
+                      size="lg" 
+                      className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white h-12 text-sm font-black rounded-xl shadow-xl shadow-green-100 border-b-4 border-green-800 active:border-b-0 active:translate-y-1 transition-all"
+                      onClick={() => sendMessage(`pay 10 USDC to ${repoName || 'this repo'}`)}
+                    >
+                      <DollarSign className="w-5 h-5 mr-2" />
+                      FUND & DISTRIBUTE NOW
+                    </Button>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="flex-1 h-9 text-xs font-bold border-gray-200 hover:bg-gray-50 rounded-lg"
+                      onClick={() => sendMessage(`show distribution for ${repoName || 'this repo'}`)}
+                    >
+                      <Search className="w-3.5 h-3.5 mr-1.5 text-gray-400" />
+                      View Shares
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="flex-1 h-9 text-xs font-bold border-gray-200 hover:bg-gray-50 rounded-lg"
+                      onClick={() => sendMessage(`regenerate split for ${repoName || 'this repo'}`)}
+                    >
+                      <RefreshCcw className="w-3.5 h-3.5 mr-1.5 text-gray-400" />
+                      Recalculate
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -513,6 +626,10 @@ export default function AgentPage() {
             <p className="text-gray-600">Compensate open source contributors with natural language commands</p>
           </div>
 
+          <div className="mb-4">
+            <FlowStatusStrip steps={flowSteps} title="Contributor Payout Journey" />
+          </div>
+
           {/* Chat Container */}
           <Card className="shadow-xl border-0 overflow-hidden">
             <CardContent className="p-0">
@@ -533,7 +650,7 @@ export default function AgentPage() {
               </div>
 
               {/* Input Area */}
-              <div className="border-t border-gray-200 p-4 bg-gray-50">
+              <div className="border-t border-gray-200 p-4 bg-gray-50 sticky bottom-0 z-10">
                 <div className="flex gap-2">
                   <Input
                     ref={inputRef}
@@ -615,4 +732,12 @@ export default function AgentPage() {
       </div>
     </>
   );
+}
+
+function toUserFacingError(raw: string): string {
+  const lower = String(raw || '').toLowerCase();
+  if (lower.includes('not installed')) return 'GitHub App is not installed on that repo. Try another repo or update app installation.';
+  if (lower.includes('timed out')) return 'The request timed out. Retry in a few seconds.';
+  if (lower.includes('fetch') || lower.includes('network')) return 'Network issue while contacting the agent. Please retry.';
+  return raw;
 }

@@ -67,13 +67,16 @@ export const analyzeIntent: Intent = {
       let verificationCoverage = '';
       try {
         const sample = analysis.contributors.slice(0, 10);
+        const eligible = sample.filter((c: any) => !isSystemContributor(c.username));
+        const skipped = sample.length - eligible.length;
         const walletChecks = await Promise.all(
-          sample.map((c: any) => tools.near.getVerifiedWallet(c.username))
+          eligible.map((c: any) => tools.near.getVerifiedWallet(c.username))
         );
         const verifiedInSample = walletChecks.filter(Boolean).length;
         verificationCoverage =
           `\n\n✅ Verification coverage (top ${sample.length}): ` +
-          `${verifiedInSample}/${sample.length} verified` +
+          `${verifiedInSample}/${eligible.length || 0} verified` +
+          (skipped > 0 ? ` (${skipped} bot/system skipped)` : '') +
           `\nInvite unverified contributors: ${verifyBaseUrl}`;
       } catch (err: any) {
         console.log('[Analyze] Verification coverage skipped:', err.message);
@@ -128,4 +131,9 @@ function normalizeRepoUrl(input: string): string {
     .trim();
   
   return `github.com/${cleaned}`;
+}
+
+function isSystemContributor(username: string): boolean {
+  const normalized = String(username || '').toLowerCase();
+  return normalized.includes('[bot]') || normalized.endsWith('-bot');
 }

@@ -90,9 +90,15 @@ const XCommandsGuide: React.FC = () => {
 
   const naturalLanguageExamples = [
     "@gitsplits github.com/torvalds/linux",
+    "@gitsplits github.com/thisyearnofear/gitsplits",
+    "@gitsplits github.com/openclaw/openclaw",
     "@gitsplits create split github.com/torvalds/linux default",
+    "@gitsplits create split github.com/thisyearnofear/gitsplits default",
+    "@gitsplits create split github.com/openclaw/openclaw default",
     "@gitsplits create split github.com/torvalds/linux 80/10/10",
     "@gitsplits splits github.com/near/near-sdk-rs",
+    "@gitsplits splits github.com/thisyearnofear/gitsplits",
+    "@gitsplits splits github.com/openclaw/openclaw",
   ];
 
   return (

@@ -44,49 +44,51 @@ export default function MessagePage() {
   }, [messageId]);
 
   return (
-    <div className="container max-w-4xl py-12">
-      <Link href="/" className="flex items-center text-sm text-muted-foreground mb-6 hover:text-primary">
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to home
-      </Link>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Message Details</CardTitle>
-          <CardDescription>
-            Full message content from Twitter interaction
-          </CardDescription>
-        </CardHeader>
+    <div className="page-gradient">
+      <div className="container max-w-4xl py-12">
+        <Link href="/" className="flex items-center text-sm text-muted-foreground mb-6 hover:text-primary">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to home
+        </Link>
         
-        <CardContent>
-          {loading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-            </div>
-          ) : error ? (
-            <div className="text-red-500">{error}</div>
-          ) : (
-            <div className="whitespace-pre-wrap">{message}</div>
-          )}
-        </CardContent>
-        
-        <CardFooter className="flex justify-between">
-          <Button variant="outline" asChild>
-            <Link href="/">
-              Home
-            </Link>
-          </Button>
+        <Card>
+          <CardHeader>
+            <CardTitle>Message Details</CardTitle>
+            <CardDescription>
+              Full message content from Twitter interaction
+            </CardDescription>
+          </CardHeader>
           
-          <Button asChild>
-            <a href="https://twitter.com/gitsplits" target="_blank" rel="noopener noreferrer">
-              <Twitter className="mr-2 h-4 w-4" />
-              Follow on Twitter
-            </a>
-          </Button>
-        </CardFooter>
-      </Card>
+          <CardContent>
+            {loading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            ) : error ? (
+              <div className="text-destructive">{error}</div>
+            ) : (
+              <div className="whitespace-pre-wrap">{message}</div>
+            )}
+          </CardContent>
+          
+          <CardFooter className="flex justify-between">
+            <Button variant="outline" asChild>
+              <Link href="/">
+                Home
+              </Link>
+            </Button>
+            
+            <Button asChild>
+              <a href="https://twitter.com/gitsplits" target="_blank" rel="noopener noreferrer">
+                <Twitter className="mr-2 h-4 w-4" />
+                Follow on Twitter
+              </a>
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
     </div>
   );
 }

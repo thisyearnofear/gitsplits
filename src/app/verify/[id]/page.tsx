@@ -113,7 +113,7 @@ export default function VerificationPage() {
         <div className="space-y-2">
           <h4 className="font-medium">Option 1: Add to GitHub Bio</h4>
           <p>Add this code to your GitHub profile bio:</p>
-          <div className="bg-gray-100 p-2 rounded font-mono text-sm break-all">
+          <div className="bg-muted p-2 rounded font-mono text-sm break-all">
             {verificationCode}
           </div>
           <Button 
@@ -129,7 +129,7 @@ export default function VerificationPage() {
         <div className="space-y-2">
           <h4 className="font-medium">Option 2: Create a Repository</h4>
           <p>Create a new repository with this exact name:</p>
-          <div className="bg-gray-100 p-2 rounded font-mono text-sm break-all">
+          <div className="bg-muted p-2 rounded font-mono text-sm break-all">
             {verificationCode}
           </div>
           <Button 
@@ -145,7 +145,7 @@ export default function VerificationPage() {
         <div className="space-y-2">
           <h4 className="font-medium">Option 3: Create a Gist</h4>
           <p>Create a new gist with the verification code as the filename or content:</p>
-          <div className="bg-gray-100 p-2 rounded font-mono text-sm break-all">
+          <div className="bg-muted p-2 rounded font-mono text-sm break-all">
             {verificationCode}
           </div>
           <Button 
@@ -162,7 +162,7 @@ export default function VerificationPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gentle-blue via-gentle-purple to-gentle-orange py-12">
+    <div className="min-h-screen page-gradient py-12">
       <div className="container mx-auto px-4">
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
@@ -172,7 +172,7 @@ export default function VerificationPage() {
             <div className="flex flex-col items-center justify-center space-y-4 py-6">
               {renderStatusIcon()}
               <h2 className="text-xl font-semibold">{renderStatusTitle()}</h2>
-              <p className="text-center text-gray-600">{renderStatusDescription()}</p>
+              <p className="text-center text-muted-foreground">{renderStatusDescription()}</p>
             </div>
 
             {renderVerificationInstructions()}
@@ -198,7 +198,7 @@ export default function VerificationPage() {
             </div>
 
             {status === "completed" && (
-              <Alert className="mt-6 bg-green-50 border-green-200">
+              <Alert className="mt-6 bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
                 <CheckCircle className="h-4 w-4 text-green-500" />
                 <AlertTitle>Verification Successful</AlertTitle>
                 <AlertDescription>
@@ -208,12 +208,12 @@ export default function VerificationPage() {
             )}
 
             {status === "expired" && (
-              <Alert className="mt-6 bg-red-50 border-red-200">
+              <Alert className="mt-6 bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800">
                 <XCircle className="h-4 w-4 text-red-500" />
                 <AlertTitle>Verification Expired</AlertTitle>
                 <AlertDescription>
                   Please initiate a new verification:
-                  <div className="mt-2 bg-gray-100 p-2 rounded font-mono text-sm">
+                  <div className="mt-2 bg-muted p-2 rounded font-mono text-sm">
                     DM @gitsplits verify {githubUsername}
                   </div>
                 </AlertDescription>

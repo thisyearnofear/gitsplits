@@ -615,7 +615,7 @@ export default function SplitsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gentle-blue via-gentle-purple to-gentle-orange py-10">
+    <div className="min-h-screen page-gradient py-10">
       <div className="container mx-auto max-w-4xl px-4">
         <WalletStatusBar />
         <div className="mb-4">
@@ -631,8 +631,8 @@ export default function SplitsPage() {
           </CardHeader>
           <CardContent className="space-y-5">
             {status === "success" && message && (
-              <Alert className="bg-green-50 border-green-200">
-                <CheckCircle2 className="h-4 w-4 text-green-700" />
+              <Alert className="bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800">
+                <CheckCircle2 className="h-4 w-4 text-green-700 dark:text-green-400" />
                 <AlertTitle>Success</AlertTitle>
                 <AlertDescription>{message}</AlertDescription>
               </Alert>
@@ -675,7 +675,7 @@ export default function SplitsPage() {
               <Button variant="outline" onClick={checkPendingClaims} disabled={status === "loading"}>
                 Check Pending
               </Button>
-              <div className="flex items-center gap-2 rounded border bg-white px-2 py-1">
+              <div className="flex items-center gap-2 rounded border bg-card px-2 py-1">
                 <Input
                   value={payAmount}
                   onChange={(e) => setPayAmount(e.target.value)}
@@ -717,7 +717,7 @@ export default function SplitsPage() {
             )}
 
             {verificationHint && (
-              <p className="text-sm text-blue-700">{verificationHint}. Invite contributors at /verify.</p>
+              <p className="text-sm text-blue-700 dark:text-blue-400">{verificationHint}. Invite contributors at /verify.</p>
             )}
             {repoPath && coverageStats && coverageStats.verified < coverageStats.total && (
               <Alert variant="destructive">
@@ -736,8 +736,8 @@ export default function SplitsPage() {
               </Alert>
             )}
             {coverageStats && coverageStats.verified > 0 && (
-              <Alert className="bg-green-50 border-green-200">
-                <CheckCircle2 className="h-4 w-4 text-green-700" />
+              <Alert className="bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800">
+                <CheckCircle2 className="h-4 w-4 text-green-700 dark:text-green-400" />
                 <AlertTitle>Payout Path Is Active</AlertTitle>
                 <AlertDescription>
                   {coverageStats.verified} verified contributor(s) can be paid now from your connected NEAR wallet.
@@ -745,26 +745,26 @@ export default function SplitsPage() {
               </Alert>
             )}
             {repoPath && (
-              <div className="rounded-md border bg-white p-3">
+              <div className="rounded-md border bg-card p-3">
                 <p className="text-sm font-medium">Next Best Action</p>
                 {coverageStats && coverageStats.verified === 0 ? (
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-muted-foreground">
                     Start verification outreach before paying.
                     {" "}
                     <Link
                       href={`/verify?repo=${encodeURIComponent(repoPath)}${selectedContributor ? `&user=${encodeURIComponent(selectedContributor)}` : ""}`}
-                      className="underline text-blue-700"
+                      className="underline text-blue-700 dark:text-blue-400"
                     >
                       Open verification
                     </Link>
                   </p>
                 ) : (
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-muted-foreground">
                     Contributors are payout-eligible.
                     {" "}
                     <Link
                       href={`/agent?command=${encodeURIComponent(`pay 1 NEAR to github.com/${repoPath}`)}`}
-                      className="underline text-blue-700"
+                      className="underline text-blue-700 dark:text-blue-400"
                     >
                       Open pay command
                     </Link>
@@ -773,33 +773,33 @@ export default function SplitsPage() {
               </div>
             )}
             {coverageStats && (
-              <div className="rounded-md border bg-white p-3 text-sm">
+              <div className="rounded-md border bg-card p-3 text-sm">
                 <p className="font-medium">Payout Preview (1 NEAR)</p>
-                <p className="text-gray-600">
+                <p className="text-muted-foreground">
                   Immediate payout: {(coverageStats.verified / Math.max(coverageStats.total, 1)).toFixed(2)} NEAR
                 </p>
-                <p className="text-gray-600">
+                <p className="text-muted-foreground">
                   Deferred until verification: {((coverageStats.total - coverageStats.verified) / Math.max(coverageStats.total, 1)).toFixed(2)} NEAR
                 </p>
               </div>
             )}
 
             {!isNearConnected && !isEvmConnected && (
-              <p className="text-sm text-amber-700">
+              <p className="text-sm text-amber-700 dark:text-amber-400">
                 Connect a wallet for best results. Without a wallet, split ownership falls back to server NEAR account.
               </p>
             )}
             {!isNearConnected && (
-              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 flex items-center justify-between gap-3">
-                <p className="text-sm text-amber-900">Direct payouts require a connected NEAR wallet.</p>
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 flex items-center justify-between gap-3 dark:border-amber-800 dark:bg-amber-950/30">
+                <p className="text-sm text-amber-900 dark:text-amber-200">Direct payouts require a connected NEAR wallet.</p>
                 <Button type="button" size="sm" onClick={connectNear}>
                   Connect NEAR
                 </Button>
               </div>
             )}
 
-            <div className="rounded-md border bg-white">
-              <div className="flex items-center gap-2 border-b p-3 font-medium">
+            <div className="rounded-md border bg-card">
+              <div className="flex items-center gap-2 border-b border-border p-3 font-medium">
                 <GitBranch className="h-4 w-4" />
                 Contributor Allocation
               </div>
@@ -811,7 +811,7 @@ export default function SplitsPage() {
                     <Skeleton className="h-10 w-full" />
                   </div>
                 ) : (
-                  <p className="p-4 text-sm text-gray-600">No contributors parsed yet.</p>
+                  <p className="p-4 text-sm text-muted-foreground">No contributors parsed yet.</p>
                 )
               ) : (
                 <>
@@ -850,9 +850,9 @@ export default function SplitsPage() {
                               </TableCell>
                               <TableCell>
                                 {isBot ? (
-                                  <span className="text-xs text-gray-500">N/A</span>
+                                  <span className="text-xs text-muted-foreground">N/A</span>
                                 ) : (
-                                  <Link href={verifyHref} className="underline text-blue-700">
+                                  <Link href={verifyHref} className="underline text-blue-700 dark:text-blue-400">
                                     Verify
                                   </Link>
                                 )}
@@ -876,14 +876,14 @@ export default function SplitsPage() {
                       const verifyHref = `/verify?repo=${encodeURIComponent(repoPath || "")}&user=${encodeURIComponent(contributor.githubUsername)}`;
                       const isBot = isSystemContributor(contributor.githubUsername);
                       return (
-                        <div key={contributor.githubUsername} className="rounded border bg-gray-50 p-3">
+                        <div key={contributor.githubUsername} className="rounded border bg-muted p-3">
                           <p className="font-medium">{contributor.githubUsername}{isBot ? " (bot/system)" : ""}</p>
-                          <p className="text-sm text-gray-600">{contributor.percentage.toFixed(2)}% share</p>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-muted-foreground">{contributor.percentage.toFixed(2)}% share</p>
+                          <p className="text-sm text-muted-foreground">
                             Status: {isBot ? "Non-payout account" : statusLabel}{liveStatus?.walletAddress ? ` (${liveStatus.walletAddress})` : ""}
                           </p>
                           {!isBot && (
-                            <Link href={verifyHref} className="text-sm text-blue-700 underline">
+                            <Link href={verifyHref} className="text-sm text-blue-700 dark:text-blue-400 underline">
                               Verify contributor
                             </Link>
                           )}
@@ -896,9 +896,9 @@ export default function SplitsPage() {
             </div>
 
             {contributors.length > 0 && (
-              <div className="rounded-md border bg-white p-4 space-y-3">
+              <div className="rounded-md border bg-card p-4 space-y-3">
                 <p className="text-sm font-medium">Proactive Outreach Toolkit</p>
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-muted-foreground">
                   Generate one-click outreach artifacts for verification and payouts.
                 </p>
 
@@ -906,7 +906,7 @@ export default function SplitsPage() {
                   <Label htmlFor="outreachUser">Contributor</Label>
                   <select
                     id="outreachUser"
-                    className="w-full rounded-md border bg-white px-3 py-2 text-sm"
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                     value={selectedContributor}
                     onChange={(e) => setSelectedContributor(e.target.value)}
                   >
@@ -920,7 +920,7 @@ export default function SplitsPage() {
 
                 {outreach && (
                   <div className="space-y-3">
-                    <div className="rounded border bg-gray-50 p-3 text-xs break-all">
+                    <div className="rounded border bg-muted p-3 text-xs break-all">
                       Verification URL: {outreach.verifyUrl}
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -965,27 +965,27 @@ export default function SplitsPage() {
                         Copy PR Comment Template
                       </Button>
                     </div>
-                    {copiedState && <p className="text-xs text-green-700">{copiedState}</p>}
+                    {copiedState && <p className="text-xs text-green-700 dark:text-green-400">{copiedState}</p>}
                   </div>
                 )}
               </div>
             )}
 
             {analyzeResponse && (
-              <div className="rounded-md border bg-gray-50 p-3 text-sm whitespace-pre-wrap">
+              <div className="rounded-md border bg-muted p-3 text-sm whitespace-pre-wrap">
                 <p className="mb-2 font-medium">Analyze Response</p>
                 {analyzeResponse}
               </div>
             )}
 
             {createResponse && (
-              <div className="rounded-md border bg-gray-50 p-3 text-sm whitespace-pre-wrap">
+              <div className="rounded-md border bg-muted p-3 text-sm whitespace-pre-wrap">
                 <p className="mb-2 font-medium">Create Response</p>
                 {createResponse}
               </div>
             )}
             {payResponse && (
-              <div className="rounded-md border bg-white p-4 text-sm space-y-2">
+              <div className="rounded-md border bg-card p-4 text-sm space-y-2">
                 <p className="font-medium">Payout Receipt</p>
                 <p>Distributed: {payReceipt.distributedAmount || "n/a"}</p>
                 <p>
@@ -1000,13 +1000,13 @@ export default function SplitsPage() {
                 <p>Pending claims created: {payReceipt.pendingCount ?? 0}</p>
                 <p>Timestamp: {payReceipt.at ? new Date(payReceipt.at).toLocaleString() : "n/a"}</p>
                 {paymentTxs.length > 0 && (
-                  <div className="rounded border bg-gray-50 p-2 space-y-1">
+                  <div className="rounded border bg-muted p-2 space-y-1">
                     <p className="font-medium">Signed NEAR transactions</p>
                     {paymentTxs.map((tx) => (
                       <p key={`${tx.recipient}-${tx.txHash}`} className="text-xs break-all">
                         {tx.recipient}:{" "}
                         <a
-                          className="underline text-blue-700"
+                          className="underline text-blue-700 dark:text-blue-400"
                           href={`https://nearblocks.io/txns/${tx.txHash}`}
                           target="_blank"
                           rel="noreferrer"
@@ -1027,22 +1027,22 @@ export default function SplitsPage() {
                     </Link>
                   )}
                 </div>
-                <div className="rounded border bg-gray-50 p-2 whitespace-pre-wrap">{payResponse}</div>
+                <div className="rounded border bg-muted p-2 whitespace-pre-wrap">{payResponse}</div>
               </div>
             )}
             {pendingClaimsOutput && (
-              <div className="rounded-md border bg-gray-50 p-3 text-sm whitespace-pre-wrap">
+              <div className="rounded-md border bg-muted p-3 text-sm whitespace-pre-wrap">
                 <p className="mb-2 font-medium">Pending Claims</p>
                 {pendingClaimsOutput}
               </div>
             )}
 
-            <div className="rounded-md border bg-white p-4 space-y-2 text-sm">
+            <div className="rounded-md border bg-card p-4 space-y-2 text-sm">
               <p className="font-medium">Need Help?</p>
               <p>
                 GitHub app/analysis issues:
                 {" "}
-                <Link href="/agent" className="underline text-blue-700">open agent chat</Link>
+                <Link href="/agent" className="underline text-blue-700 dark:text-blue-400">open agent chat</Link>
                 {" "}
                 and run <code>analyze owner/repo</code>.
               </p>
@@ -1051,7 +1051,7 @@ export default function SplitsPage() {
                 {" "}
                 <Link
                   href={`/verify${repoPath ? `?repo=${encodeURIComponent(repoPath)}${selectedContributor ? `&user=${encodeURIComponent(selectedContributor)}` : ""}` : ""}`}
-                  className="underline text-blue-700"
+                  className="underline text-blue-700 dark:text-blue-400"
                 >
                   open verification link
                 </Link>
@@ -1067,7 +1067,7 @@ export default function SplitsPage() {
             </div>
           </CardContent>
         </Card>
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t p-3">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur border-t border-border p-3">
           <div className="max-w-4xl mx-auto flex gap-2">
             <Button
               type="button"

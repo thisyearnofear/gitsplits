@@ -369,7 +369,7 @@ export default function VerifyPage() {
   }, [autoVerifying, githubGistId, githubUsername, isLoading, isVerified, walletAddress]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gentle-blue via-gentle-purple to-gentle-orange py-10">
+    <div className="min-h-screen page-gradient py-10">
       <div className="container mx-auto max-w-3xl px-4">
         <WalletStatusBar />
         <div className="mb-4">
@@ -382,9 +382,9 @@ export default function VerifyPage() {
             <CardDescription>
               Link your GitHub identity and NEAR account to receive contributor payouts.
             </CardDescription>
-            <p className="text-xs font-medium text-blue-700">Status: {verificationStage}</p>
+            <p className="text-xs font-medium text-primary">Status: {verificationStage}</p>
             {prefillRepo && (
-              <p className="text-xs text-gray-600 mt-2">
+              <p className="text-xs text-muted-foreground mt-2">
                 Verification request for repository: <span className="font-mono">{prefillRepo}</span>
               </p>
             )}
@@ -413,8 +413,8 @@ export default function VerifyPage() {
               </Alert>
             )}
             {mode === "success" && (
-              <Alert className="bg-green-50 border-green-200">
-                <CheckCircle2 className="h-4 w-4 text-green-700" />
+              <Alert className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
+                <CheckCircle2 className="h-4 w-4 text-green-700 dark:text-green-400" />
                 <AlertTitle>Success</AlertTitle>
                 <AlertDescription>{message}</AlertDescription>
               </Alert>
@@ -428,11 +428,11 @@ export default function VerifyPage() {
             )}
 
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-md border p-4 space-y-2">
-                <div className="flex items-center gap-2 font-medium">
+              <div className="rounded-md border border-border bg-card p-4 space-y-2">
+                <div className="flex items-center gap-2 font-medium text-card-foreground">
                   <Wallet className="h-4 w-4" /> Wallet
                 </div>
-                <p className="text-sm text-gray-700">
+                <p className="text-sm text-muted-foreground">
                   {!mounted ? "Loading..." : walletAddress ? `Connected: ${walletAddress}` : "No wallet connected"}
                 </p>
                 <div className="flex gap-2">
@@ -441,7 +441,7 @@ export default function VerifyPage() {
                     variant={isEvmConnected ? "default" : "outline"}
                     onClick={() => mounted && open()}
                     disabled={!mounted}
-                    className={isEvmConnected ? "bg-green-600 hover:bg-green-700 text-white" : ""}
+                    className={isEvmConnected ? "bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white" : ""}
                   >
                     {isEvmConnected ? (
                       <>
@@ -457,7 +457,7 @@ export default function VerifyPage() {
                     variant={isNearConnected ? "default" : "outline"}
                     onClick={() => mounted && connectNear()}
                     disabled={!mounted}
-                    className={isNearConnected ? "bg-green-600 hover:bg-green-700 text-white" : ""}
+                    className={isNearConnected ? "bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white" : ""}
                   >
                     {isNearConnected ? (
                       <>
@@ -471,8 +471,8 @@ export default function VerifyPage() {
                 </div>
               </div>
 
-              <div className="rounded-md border p-4 space-y-2">
-                <div className="flex items-center gap-2 font-medium">
+              <div className="rounded-md border border-border bg-card p-4 space-y-2">
+                <div className="flex items-center gap-2 font-medium text-card-foreground">
                   <Github className="h-4 w-4" /> GitHub
                 </div>
                 <Label htmlFor="githubUsername">GitHub Username</Label>
@@ -491,10 +491,10 @@ export default function VerifyPage() {
               </Button>
 
               {verificationCode && (
-                <div className="rounded-md border bg-gray-50 p-4 space-y-3">
+                <div className="rounded-md border border-border bg-muted p-4 space-y-3">
                   <p className="text-sm font-medium">Verification code</p>
-                  <pre className="overflow-x-auto rounded bg-white p-3 text-xs">{verificationCode}</pre>
-                  <p className="text-xs text-gray-600">
+                  <pre className="overflow-x-auto rounded bg-card p-3 text-xs text-card-foreground">{verificationCode}</pre>
+                  <p className="text-xs text-muted-foreground">
                     Create a public gist containing this exact code, then paste the gist ID below.
                   </p>
                   <Button
@@ -543,7 +543,7 @@ export default function VerifyPage() {
             </div>
 
             {isVerified && (
-              <p className="text-sm text-green-700">
+              <p className="text-sm text-green-700 dark:text-green-400">
                 Verification complete. You can now manage splits and claim distributions in the dashboard.
               </p>
             )}
@@ -558,7 +558,7 @@ export default function VerifyPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="rounded-md border p-3 space-y-3">
+            <div className="rounded-md border border-border p-3 space-y-3">
               <div className="flex flex-col sm:flex-row gap-2">
                 <Input
                   value={repoLookup}
@@ -591,21 +591,21 @@ export default function VerifyPage() {
                   </Button>
                 ))}
               </div>
-              {repoError && <p className="text-xs text-red-600">{repoError}</p>}
+              {repoError && <p className="text-xs text-destructive">{repoError}</p>}
               {repoStatus && (
                 <div className="text-sm space-y-2">
                   <p>
                     <span className="font-semibold">Coverage:</span>{" "}
                     {repoStatus.verified.length}/{repoStatus.total_contributors} verified
                   </p>
-                  <p className="text-xs text-gray-600 break-all">
+                  <p className="text-xs text-muted-foreground break-all">
                     Repo: {repoStatus.repo_url} · Split: {repoStatus.split_id}
                   </p>
                   <div className="grid gap-2 md:grid-cols-2">
-                    <div className="rounded border p-2">
+                    <div className="rounded border border-border p-2">
                       <p className="text-xs font-semibold mb-1">Verified</p>
                       {repoStatus.verified.length === 0 ? (
-                        <p className="text-xs text-gray-500">None</p>
+                        <p className="text-xs text-muted-foreground">None</p>
                       ) : (
                         <ul className="space-y-1">
                           {repoStatus.verified.map((entry) => (
@@ -617,10 +617,10 @@ export default function VerifyPage() {
                         </ul>
                       )}
                     </div>
-                    <div className="rounded border p-2">
+                    <div className="rounded border border-border p-2">
                       <p className="text-xs font-semibold mb-1">Unverified</p>
                       {repoStatus.unverified.length === 0 ? (
-                        <p className="text-xs text-green-700">All contributors verified</p>
+                        <p className="text-xs text-green-700 dark:text-green-400">All contributors verified</p>
                       ) : (
                         <ul className="space-y-1">
                           {repoStatus.unverified.map((user) => (
@@ -676,17 +676,17 @@ export default function VerifyPage() {
               </Alert>
             )}
 
-            <div className="rounded-md border">
-              <div className="grid grid-cols-2 gap-2 px-3 py-2 text-xs font-semibold border-b bg-gray-50">
+            <div className="rounded-md border border-border">
+              <div className="grid grid-cols-2 gap-2 px-3 py-2 text-xs font-semibold border-b border-border bg-muted">
                 <span>GitHub</span>
                 <span>NEAR Wallet</span>
               </div>
               {mappingLoading ? (
-                <div className="p-3 text-sm text-gray-600">Loading verification mapping...</div>
+                <div className="p-3 text-sm text-muted-foreground">Loading verification mapping...</div>
               ) : mappingEntries.length === 0 ? (
-                <div className="p-3 text-sm text-gray-600">No mappings found.</div>
+                <div className="p-3 text-sm text-muted-foreground">No mappings found.</div>
               ) : (
-                <div className="divide-y">
+                <div className="divide-y divide-border">
                   {mappingEntries.map((entry) => (
                     <div key={`${entry.github_username}-${entry.wallet_address}`} className="grid grid-cols-2 gap-2 px-3 py-2 text-sm">
                       <a
@@ -711,7 +711,7 @@ export default function VerifyPage() {
               )}
             </div>
 
-            <div className="flex items-center justify-between text-xs text-gray-600">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>
                 Showing {mappingEntries.length} of {mappingTotal}
               </span>
@@ -749,7 +749,7 @@ export default function VerifyPage() {
             </div>
           </CardContent>
         </Card>
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t p-3">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur border-t border-border p-3">
           <div className="max-w-3xl mx-auto flex gap-2">
             <Button
               type="button"

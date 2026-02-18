@@ -151,6 +151,32 @@
     @apply from-blue-400 to-purple-400;
   }
   
+  /* Page gradient wrapper — single source for all page backgrounds */
+  .page-gradient {
+    @apply min-h-screen bg-gradient-to-br from-gentle-blue via-gentle-purple to-gentle-orange;
+  }
+
+  .dark .page-gradient {
+    @apply from-gentle-blue-dark via-gentle-purple-dark to-gentle-orange-dark;
+  }
+
+  /* Surface utilities — semantic surfaces for cards/panels */
+  .surface {
+    @apply bg-white border-gray-200;
+  }
+
+  .dark .surface {
+    @apply bg-white/5 border-white/10;
+  }
+
+  .surface-muted {
+    @apply bg-gray-50 border-gray-100;
+  }
+
+  .dark .surface-muted {
+    @apply bg-white/5 border-white/10;
+  }
+
   /* Glass effect */
   .glass {
     @apply bg-white/70 backdrop-blur-xl border border-white/20;

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
+import { Buffer } from "buffer";
 import { Github, Wallet, CheckCircle2, AlertCircle, ExternalLink, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,9 +35,33 @@ function toHex(value: unknown): string {
 function extractGistId(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) return "";
-  const urlMatch = trimmed.match(/gist\.github\.com\/[^/]+\/([a-f0-9]+)/i);
-  if (urlMatch?.[1]) return urlMatch[1];
-  return trimmed.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+  const hexIdMatch = trimmed.match(/\b([a-f0-9]{8,})\b/i);
+  if (/^[a-f0-9]{8,}$/i.test(trimmed)) return trimmed;
+
+  try {
+    const url = new URL(trimmed);
+    if (url.hostname.includes("gist.github.com")) {
+      const segments = url.pathname.split("/").filter(Boolean);
+      const candidate = segments[segments.length - 1] || "";
+      const cleaned = candidate.replace(/\.git$/i, "");
+      if (/^[a-f0-9]{8,}$/i.test(cleaned)) return cleaned;
+    }
+  } catch {
+    // Not a full URL; continue fallback parsing.
+  }
+
+  if (hexIdMatch?.[1]) return hexIdMatch[1];
+  return trimmed;
+}
+
+function createNearNonce(): Buffer {
+  const nonce = new Uint8Array(32);
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    crypto.getRandomValues(nonce);
+    return Buffer.from(nonce);
+  }
+  nonce.fill(1);
+  return Buffer.from(nonce);
 }
 
 export default function VerifyPage() {
@@ -154,7 +179,7 @@ export default function VerifyPage() {
         const signed = await wallet.signMessage({
           message: nearMessage,
           recipient: nearAccountId,
-          nonce: `${Date.now()}`,
+          nonce: createNearNonce(),
         });
         const nearSignature = toHex(signed);
         if (nearSignature) {
@@ -277,20 +302,22 @@ export default function VerifyPage() {
                 </p>
                 <div className="flex gap-2">
                   <Button 
-                    type="button" 
-                    variant="outline" 
+                    type="button"
+                    variant={isEvmConnected ? "default" : "outline"}
                     onClick={() => mounted && open()}
                     disabled={!mounted}
+                    className={isEvmConnected ? "bg-green-600 hover:bg-green-700 text-white" : ""}
                   >
-                    Connect EVM
+                    {isEvmConnected ? "EVM Connected ✓" : "Connect EVM"}
                   </Button>
                   <Button 
-                    type="button" 
-                    variant="outline" 
+                    type="button"
+                    variant={isNearConnected ? "default" : "outline"}
                     onClick={() => mounted && connectNear()}
                     disabled={!mounted}
+                    className={isNearConnected ? "bg-green-600 hover:bg-green-700 text-white" : ""}
                   >
-                    Connect NEAR
+                    {isNearConnected ? "NEAR Connected ✓" : "Connect NEAR"}
                   </Button>
                 </div>
               </div>

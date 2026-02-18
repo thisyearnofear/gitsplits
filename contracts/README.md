@@ -35,7 +35,3 @@ near deploy gitsplits-worker.papajams.near target/near/gitsplits_x_agent.wasm
 export NEAR_ENV=mainnet
 near call gitsplits-worker.papajams.near new '{"owner_id": "papajams.near"}' --accountId papajams.near
 ```
-
-## Notes
-
-For more detailed information about the contract deployment, see the [PRIVATE_DEPLOYMENT_DETAILS.md](../PRIVATE_DEPLOYMENT_DETAILS.md) file.

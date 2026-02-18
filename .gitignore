@@ -1,91 +1,44 @@
 # Dependencies
 node_modules/
-**/node_modules/
 .pnp
 .pnp.js
-.yarn/
-.npm
 jspm_packages/
 
 # Next.js
 .next/
 out/
-next-env.d.ts
-*.tsbuildinfo
-
-# Build Output
-dist/
-**/dist/
 build/
-**/build/
-target/
-**/target/
-*.wasm
-.cache/
-.parcel-cache/
-.vite/
-.nuxt/
-.vuepress/dist
-.serverless/
-.fusebox/
-.dynamodb/
 
-# Environment / Secrets
+# Production
+dist/
+
+# Environment variables
 .env
-.env.*
-!.env.example
-.env*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 .env.github-app
-worker.env
-.tee-secrets/
-.near-credentials/
-neardev/
-PRIVATE_DEPLOYMENT_DETAILS.md
+agent/.env
+agent/.env.example.tls
 
-# Testing
-coverage/
-/coverage
-.nyc_output/
-/jest_output/
-*.lcov
-
-# IDEs / OS
-.DS_Store
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.eslintcache
-.node_repl_history
-
-# Logs
-logs/
-*.log
+# Debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
-# Runtime data
-pids/
-*.pid
-*.seed
-*.pid.lock
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
 
-# Misc
-*.pem
-*.tgz
-.yarn-integrity
-.vercel
-
-# Rust specific
-**/*.rs.bk
-Cargo.lock
-
-# Worker specific
-/worker/phala-docker-compose.yaml
-/worker/logs/
-/worker/tmp/
-
-# Config (if they are meant to be private, but usually they are not)
-# config/
+# GitSplits specific
+.junie/
+.output.txt
+next-env.d.ts
+tsconfig.tsbuildinfo
+contracts/near/target/
+contracts/near/Cargo.lock

@@ -128,8 +128,18 @@ Farcaster/Web → Intent Agent → EigenCompute (TEE) → NEAR + Payments
 - ✅ EigenCompute agent is live on Sepolia and running verifiable builds/upgrades
 - ✅ Production endpoint: `https://agent.gitsplits.thisyearnofear.com`
 - ✅ Hetzner fallback remains available for recovery/testing
+- ✅ NEAR contract `lhkor_marty.near` migrated on mainnet (tx: `5VNpfg8yEiqqp7D3YoVaDuq2Z53nMMMwa5Zjez1mUy9R`)
+- ✅ Production test evidence (Feb 18, 2026):
+  - `AGENT_MODE=production npm run test:production:preflight` → 11/11 passed
+  - `AGENT_MODE=production npm run test:production:intents -- --runInBand` → 3/3 passed
 - ✅ Web UI: `https://gitsplits.vercel.app`
 - 🔄 Farcaster temporarily disabled pending Neynar configuration
+
+### Contract Deployment Note
+
+- For NEAR mainnet contract deploys, we currently recommend Docker-based `cargo-near` on Hetzner.
+- Local deploys with older local `cargo-near` can fail with wasm validation/deserialization issues.
+- Reference image used successfully: `sourcescan/cargo-near:0.19.0-rust-1.86.0`.
 
 ## Development
 

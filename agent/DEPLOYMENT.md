@@ -5,8 +5,10 @@
 ### Production
 - **EigenCompute deployment**: Live on Sepolia
 - **App ID**: `0xe852Fa024C69F871D3D67D5463F5BA35E9d19e2B`
-- **Latest release**: `7c0278e55db676bd1e9850d48a44b98ff7490fdd`
+- **Latest release**: `b238c27c223fffab0ae71b93f604cbb2f16e2fc1`
 - **TEE status**: Active
+- **NEAR contract**: `lhkor_marty.near` migrated on mainnet
+- **Contract migration tx**: `5VNpfg8yEiqqp7D3YoVaDuq2Z53nMMMwa5Zjez1mUy9R`
 
 ### Staging
 - **Hetzner Server**: `http://157.180.36.156:8443`
@@ -130,6 +132,47 @@ echo "AGENT_BASE_URL=http://157.180.36.156:8443" > .env.local
 # Test fallback path if Eigen endpoint is degraded
 ```
 
+## NEAR Contract Deployment (Recommended Path)
+
+### Why this path
+
+- Local deploys can fail with older local `cargo-near` + wasm validator compatibility.
+- Dockerized `cargo-near` on Hetzner is currently the most reliable production path.
+
+### Deploy from Hetzner using Dockerized cargo-near
+
+```bash
+ssh snel-bot
+cd /opt/gitsplits/repo
+git pull --ff-only origin master
+
+cd contracts/near
+set -a
+source ../../agent/.env
+set +a
+
+docker run --rm --user 0:0 \
+  -v "$PWD":/workspace \
+  -w /workspace \
+  -e NEAR_CONTRACT_ID \
+  -e NEAR_PRIVATE_KEY \
+  sourcescan/cargo-near:0.19.0-rust-1.86.0 \
+  cargo near deploy build-non-reproducible-wasm "$NEAR_CONTRACT_ID" \
+  with-init-call migrate json-args "{}" \
+  prepaid-gas "300 Tgas" attached-deposit "0 NEAR" \
+  network-config mainnet \
+  sign-with-plaintext-private-key "$NEAR_PRIVATE_KEY" \
+  send
+```
+
+### Verify deployed contract
+
+```bash
+curl -s https://rpc.mainnet.near.org \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":"1","method":"query","params":{"request_type":"view_code","finality":"final","account_id":"lhkor_marty.near"}}'
+```
+
 ## Health Checks
 
 ```bash
@@ -157,3 +200,5 @@ curl http://localhost:3000/ready
 - [ ] Environment variables secured (not in repo)
 - [ ] Health checks configured
 - [ ] Farcaster bot secured with 2FA
+- [ ] Production preflight passed (`test:production:preflight`)
+- [ ] Production intents passed (`test:production:intents`)

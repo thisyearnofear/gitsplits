@@ -299,16 +299,16 @@ const LandingPage: React.FC<LandingPageProps> = ({
             <span>Running on EigenCompute for cryptographic transparency</span>
           </motion.div>
 
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-4">
-            Pay open source contributors
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-gray-900 dark:text-white mb-6 tracking-tighter leading-[0.9]">
+            Reward open source
             <span className="block gradient-text mt-2">
-              in one command
+              in one command.
             </span>
           </h1>
           
-          <p className="text-lg text-gray-600 dark:text-gray-300 mb-4 max-w-xl mx-auto">
-            Analyze any GitHub repository, get fair split suggestions based on actual contributions, 
-            and distribute payments to contributors automatically.
+          <p className="text-xl md:text-2xl font-medium text-gray-600 dark:text-gray-300 mb-6 max-w-2xl mx-auto leading-tight">
+            Verifiable AI analysis for fair contributor splits. 
+            Powered by hardware-secured intelligence.
           </p>
           
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-8 max-w-lg mx-auto">
@@ -317,16 +317,15 @@ const LandingPage: React.FC<LandingPageProps> = ({
             <span className="text-blue-600 dark:text-blue-400">verify the agent behaved correctly</span>
           </p>
 
-          {/* Primary CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-10">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
             <Button
               onClick={() => handleTryAgent()}
               size="lg"
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-8 py-6 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-lg group pulse-glow"
+              className="bg-black dark:bg-white text-white dark:text-black hover:bg-gray-900 dark:hover:bg-gray-100 font-black text-lg px-10 py-8 rounded-2xl transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl group shadow-xl"
             >
-              <Bot className="mr-2 h-5 w-5 group-hover:animate-bounce" />
-              Try the Agent
-              <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+              <Bot className="mr-3 h-6 w-6" />
+              LAUNCH AGENT
+              <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-1 transition-transform" />
             </Button>
             
             {!isAnyWalletConnected ? (
@@ -334,52 +333,51 @@ const LandingPage: React.FC<LandingPageProps> = ({
                 onClick={handleConnectWallet}
                 size="lg"
                 variant="outline"
-                className="font-semibold px-8 py-6 rounded-full border-2 hover:bg-white/50 dark:hover:bg-white/10"
+                className="font-black text-lg px-10 py-8 rounded-2xl border-2 border-black/10 dark:border-white/10 hover:bg-white/50 dark:hover:bg-white/10"
               >
-                <Wallet className="mr-2 h-5 w-5" />
-                Connect Wallet
+                CONNECT WALLET
               </Button>
             ) : (
               <Button
                 onClick={() => router.push("/dashboard")}
                 size="lg"
                 variant="outline"
-                className="font-semibold px-8 py-6 rounded-full border-2 hover:bg-white/50 dark:hover:bg-white/10"
+                className="font-black text-lg px-10 py-8 rounded-2xl border-2 border-black/10 dark:border-white/10 hover:bg-white/50 dark:hover:bg-white/10"
               >
-                <ExternalLink className="mr-2 h-5 w-5" />
-                Open Dashboard
+                GO TO DASHBOARD
               </Button>
             )}
           </div>
 
-          {/* Repo Analysis Card */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="glass rounded-2xl p-6 shadow-xl"
+            className="bg-white/40 dark:bg-black/20 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-2xl border border-white/20"
           >
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <Github className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Analyze any public repository
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <div className="p-2 bg-black dark:bg-white rounded-xl">
+                <Github className="w-5 h-5 text-white dark:text-black" />
+              </div>
+              <p className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">
+                Analyze public repository
               </p>
             </div>
             
-            <form onSubmit={(e) => handleAnalyze(e)} className="flex gap-2">
+            <form onSubmit={(e) => handleAnalyze(e)} className="flex flex-col sm:flex-row gap-3">
               <div className="flex-1 relative">
                 <Input
-                  placeholder="owner/repo or paste GitHub URL"
+                  placeholder="e.g. facebook/react"
                   value={repoUrl}
                   onChange={(e) => setRepoUrl(e.target.value)}
-                  className="bg-white/80 dark:bg-black/30 border-gray-200 dark:border-gray-700 pr-10"
+                  className="bg-white dark:bg-black/50 border-0 h-16 rounded-2xl px-6 text-lg font-medium shadow-inner"
                   disabled={isAnalyzing}
                 />
                 {repoUrl && (
                   <button
                     type="button"
                     onClick={() => { setRepoUrl(""); setAnalysisResult(null); }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 font-bold text-xl"
                   >
                     ×
                   </button>
@@ -388,12 +386,12 @@ const LandingPage: React.FC<LandingPageProps> = ({
               <Button 
                 type="submit" 
                 disabled={isAnalyzing || !repoUrl.trim()}
-                className="bg-blue-600 hover:bg-blue-700 whitespace-nowrap px-6"
+                className="bg-blue-600 hover:bg-blue-700 h-16 rounded-2xl px-10 text-lg font-black shadow-lg shadow-blue-200 dark:shadow-none"
               >
                 {isAnalyzing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-6 h-6 animate-spin" />
                 ) : (
-                  "Analyze"
+                  "ANALYZE NOW"
                 )}
               </Button>
             </form>

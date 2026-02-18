@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import Badge from '@/components/ui/badge';
 import Header from '@/components/shared/Header';
-import { Search, Plus, DollarSign, Shield, Send, Loader2, Bot, Sparkles } from 'lucide-react';
+import { Search, Plus, DollarSign, Shield, Send, Loader2, Bot, Sparkles, ChevronRight, Github, ExternalLink, CheckCircle2, AlertCircle, RefreshCcw, Wallet, Info } from 'lucide-react';
 import { trackUxEvent } from '@/lib/services/ux-events';
 
 interface Message {
@@ -16,6 +16,8 @@ interface Message {
   text: string;
   timestamp?: Date;
   isTyping?: boolean;
+  type?: 'analysis' | 'split_created' | 'payment_sent' | 'verification' | 'welcome';
+  data?: any;
 }
 
 interface CommandExample {
@@ -45,7 +47,8 @@ export default function AgentPage() {
   const [messages, setMessages] = useState<Message[]>([
     { 
       role: 'agent', 
-      text: 'Hello! I\'m GitSplits Agent. I can help you:\n\n• Analyze repository contributions\n• Create payment splits\n• Send payouts to verified contributors\n• Verify GitHub/X identities\n\n⚠️ Important: Contributors must verify their wallets at gitsplits.vercel.app/verify before they can receive payments.\n\nTry one of the example commands below or type your own!',
+      type: 'welcome',
+      text: 'Hello! I\'m GitSplits Agent. I can help you analyze repositories, create payment splits, and distribute rewards to contributors.',
       timestamp: new Date()
     },
   ]);
@@ -71,7 +74,8 @@ export default function AgentPage() {
     if (repoParam && !hasInteracted) {
       const command = `analyze ${repoParam}`;
       setInput(command);
-      // Small delay to show the user what happened
+      
+      // Auto-send the command after a short delay
       const timer = setTimeout(() => {
         sendMessage(command);
       }, 500);
@@ -159,14 +163,26 @@ export default function AgentPage() {
 
       const data = await res.json();
 
+      // Helper to detect message type from text
+      const detectType = (text: string) => {
+        if (text.includes('📊 Analysis for')) return 'analysis';
+        if (text.includes('✅ Split created') || text.includes('Split created')) return 'split_created';
+        if (text.includes('💸 Payment sent') || text.includes('Payment successfully sent')) return 'payment_sent';
+        if (text.includes('✅ Verification coverage') || text.includes('Verification status')) return 'verification';
+        return undefined;
+      };
+
       // Remove typing indicator and add response
       setMessages((prev) => {
         const withoutTyping = prev.filter(m => !m.isTyping);
       if (data.success) {
           trackUxEvent('agent_command_success');
+          const type = detectType(data.response);
           return [...withoutTyping, { 
             role: 'agent', 
             text: data.response, 
+            type,
+            data: data.data, // Capture any structured data if returned
             timestamp: new Date() 
           }];
         } else {
@@ -209,6 +225,276 @@ export default function AgentPage() {
     inputRef.current?.focus();
   };
 
+  const MessageBubble = ({ msg }: { msg: Message }) => {
+    if (msg.isTyping) {
+      return (
+        <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-3 border border-gray-200">
+          <TypingIndicator />
+        </div>
+      );
+    }
+
+    if (msg.role === 'user') {
+      return (
+        <div className="max-w-[85%] rounded-2xl px-4 py-3 whitespace-pre-wrap text-sm bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-br-md shadow-sm">
+          {msg.text}
+        </div>
+      );
+    }
+
+    // Special handling for welcome message
+    if (msg.type === 'welcome') {
+      return (
+        <div className="max-w-[90%] bg-white rounded-2xl rounded-bl-md p-6 border border-blue-100 shadow-xl space-y-6 relative overflow-hidden">
+          <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-50 rounded-full blur-3xl opacity-50"></div>
+          <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-purple-50 rounded-full blur-3xl opacity-50"></div>
+          
+          <div className="flex items-start gap-4 relative z-10">
+            <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl text-white shadow-lg shadow-blue-100">
+              <Bot className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-black text-gray-900 tracking-tight">GitSplits Intelligence</h3>
+              <p className="text-sm font-medium text-gray-600 leading-relaxed">{msg.text}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 relative z-10">
+            <div className="flex items-center gap-3 p-3 bg-gray-50/80 rounded-xl border border-gray-100 transition-colors hover:bg-white hover:shadow-sm">
+              <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                <Search className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-bold text-gray-700">Analyze repo contributions</span>
+            </div>
+            <div className="flex items-center gap-3 p-3 bg-gray-50/80 rounded-xl border border-gray-100 transition-colors hover:bg-white hover:shadow-sm">
+              <div className="p-2 bg-purple-100 text-purple-600 rounded-lg">
+                <Plus className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-bold text-gray-700">Create payment splits</span>
+            </div>
+            <div className="flex items-center gap-3 p-3 bg-gray-50/80 rounded-xl border border-gray-100 transition-colors hover:bg-white hover:shadow-sm">
+              <div className="p-2 bg-green-100 text-green-600 rounded-lg">
+                <DollarSign className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-bold text-gray-700">Send payouts automatically</span>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100 rounded-xl p-4 flex items-start gap-3 relative z-10 shadow-sm">
+            <div className="p-1.5 bg-amber-100 rounded-full">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+            </div>
+            <p className="text-xs text-amber-900 leading-relaxed font-medium">
+              Important: Contributors must verify their wallets at 
+              <a href="https://gitsplits.vercel.app/verify" target="_blank" rel="noopener noreferrer" className="underline font-black ml-1 text-amber-950">gitsplits.vercel.app/verify</a>
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest justify-center pt-2">
+            <div className="h-px w-8 bg-gray-100"></div>
+            <span>Ready for your first command</span>
+            <div className="h-px w-8 bg-gray-100"></div>
+          </div>
+        </div>
+      );
+    }
+
+  // Special handling for analysis response
+  if (msg.type === 'analysis') {
+    const lines = msg.text.split('\n');
+    const repoLine = lines.find(l => l.includes('github.com/'));
+    const repoUrl = repoLine ? repoLine.match(/github\.com\/[a-zA-Z0-9-._/]+/)?.[0] : null;
+    const repoName = repoUrl?.replace('github.com/', '');
+
+    return (
+      <div className="max-w-[90%] bg-white rounded-2xl rounded-bl-md border border-gray-200 shadow-lg overflow-hidden transition-all hover:shadow-xl">
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 border-b border-blue-100 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-white rounded-md shadow-sm">
+              <Github className="w-4 h-4 text-gray-700" />
+            </div>
+            <span className="text-xs font-bold text-gray-700 uppercase tracking-tight">Repository Insights</span>
+          </div>
+          {repoUrl && (
+            <a 
+              href={repoUrl.startsWith('http') ? repoUrl : `https://${repoUrl}`} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-[10px] font-bold text-blue-600 bg-white px-2 py-1 rounded-full border border-blue-100 flex items-center gap-1 hover:bg-blue-50 transition-colors"
+            >
+              SOURCE <ExternalLink className="w-2.5 h-2.5" />
+            </a>
+          )}
+        </div>
+        <div className="p-4 space-y-5">
+          <div className="whitespace-pre-wrap text-sm text-gray-800 font-mono text-[13px] bg-gray-50/50 p-4 rounded-xl border border-gray-100 shadow-inner leading-relaxed">
+            {msg.text}
+          </div>
+          
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 px-1">
+              <div className="h-px flex-1 bg-gray-100"></div>
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Next Steps</span>
+              <div className="h-px flex-1 bg-gray-100"></div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Card className="border-purple-100 hover:border-purple-200 hover:bg-purple-50/30 transition-all cursor-pointer group shadow-sm overflow-hidden" onClick={() => sendMessage(`create split for ${repoName || 'this repo'}`)}>
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="p-2 bg-purple-100 text-purple-600 rounded-lg group-hover:scale-110 transition-transform">
+                      <Plus className="w-4 h-4" />
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-purple-300 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900">Reward Everyone</h4>
+                    <p className="text-[11px] text-gray-500 leading-tight mt-0.5">Automated distribution based on contributions</p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white h-8 text-xs font-bold rounded-lg shadow-md shadow-purple-100"
+                  >
+                    Create Split
+                  </Button>
+                </CardContent>
+              </Card>
+              
+              <Card className="border-blue-100 hover:border-blue-200 hover:bg-blue-50/30 transition-all cursor-pointer group shadow-sm overflow-hidden" onClick={() => sendMessage(`verify contributors for ${repoName || 'this repo'}`)}>
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="p-2 bg-blue-100 text-blue-600 rounded-lg group-hover:scale-110 transition-transform">
+                      <Shield className="w-4 h-4" />
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-blue-300 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900">Review Status</h4>
+                    <p className="text-[11px] text-gray-500 leading-tight mt-0.5">Check which contributors are verified</p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    className="w-full border-blue-200 text-blue-700 hover:bg-white h-8 text-xs font-bold rounded-lg"
+                  >
+                    Check Verification
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+          
+          <div className="bg-amber-50/80 backdrop-blur-sm rounded-xl p-3 flex items-start gap-3 border border-amber-100 shadow-sm">
+            <div className="p-1.5 bg-amber-100 rounded-full">
+              <Info className="w-3 h-3 text-amber-700" />
+            </div>
+            <p className="text-[11px] text-amber-900 leading-relaxed font-medium">
+              You can customize the split percentages manually before finalizing the rewards.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+    // Special handling for split created response
+    if (msg.type === 'split_created') {
+      const deTerminalLink = msg.text.match(/https:\/\/determinal\.eigenarcade\.com\/verify\/[a-zA-Z0-9]+/)?.[0];
+      
+      return (
+        <div className="max-w-[90%] bg-white rounded-2xl rounded-bl-md border border-purple-200 shadow-lg overflow-hidden transition-all hover:shadow-xl">
+          <div className="bg-gradient-to-r from-purple-50 to-fuchsia-50 px-4 py-3 border-b border-purple-100 flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-white rounded-md shadow-sm">
+                <CheckCircle2 className="w-4 h-4 text-purple-700" />
+              </div>
+              <span className="text-xs font-bold text-purple-700 uppercase tracking-tight">Distribution Ready</span>
+            </div>
+          </div>
+          <div className="p-4 space-y-5">
+            <div className="whitespace-pre-wrap text-sm text-gray-700 bg-gray-50/50 p-4 rounded-xl border border-gray-100 italic shadow-inner leading-relaxed">
+              {msg.text.split('🔗')[0]}
+            </div>
+
+            {deTerminalLink && (
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4 space-y-3 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-1 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <Shield className="w-12 h-12" />
+                </div>
+                <div className="flex items-center gap-2 text-blue-800 relative z-10">
+                  <div className="p-1 bg-blue-100 rounded-md">
+                    <Shield className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-[0.15em]">Proof of Fairness</span>
+                </div>
+                <p className="text-xs text-blue-700/80 leading-relaxed font-medium relative z-10">
+                  This split was computed within a <strong>Trusted Execution Environment (TEE)</strong>. The distribution is mathematically verifiable against GitHub commit logs.
+                </p>
+                <Button 
+                  asChild
+                  size="sm" 
+                  variant="outline" 
+                  className="w-full bg-white/80 backdrop-blur-sm border-blue-200 text-blue-700 hover:bg-white h-9 text-xs font-bold rounded-lg relative z-10 shadow-sm"
+                >
+                  <a href={deTerminalLink} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="w-3.5 h-3.5 mr-2" />
+                    Verify on deTERMinal
+                  </a>
+                </Button>
+              </div>
+            )}
+            
+            <div className="pt-2 border-t border-gray-100 space-y-4">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2 px-1 mb-1">
+                  <div className="h-px flex-1 bg-gray-100"></div>
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Action Required</span>
+                  <div className="h-px flex-1 bg-gray-100"></div>
+                </div>
+                <Button 
+                  size="lg" 
+                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white h-12 text-sm font-black rounded-xl shadow-xl shadow-green-100 border-b-4 border-green-800 active:border-b-0 active:translate-y-1 transition-all"
+                  onClick={() => sendMessage(`pay 10 USDC to this repo`)}
+                >
+                  <DollarSign className="w-5 h-5 mr-2" />
+                  FUND & DISTRIBUTE NOW
+                </Button>
+              </div>
+              
+              <div className="flex gap-3">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="flex-1 h-9 text-xs font-bold border-gray-200 hover:bg-gray-50 rounded-lg"
+                  onClick={() => sendMessage(`show distribution for this repo`)}
+                >
+                  <Search className="w-3.5 h-3.5 mr-1.5 text-gray-400" />
+                  View Shares
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="flex-1 h-9 text-xs font-bold border-gray-200 hover:bg-gray-50 rounded-lg"
+                  onClick={() => sendMessage(`regenerate split for this repo`)}
+                >
+                  <RefreshCcw className="w-3.5 h-3.5 mr-1.5 text-gray-400" />
+                  Recalculate
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Default agent message
+    return (
+      <div className="max-w-[85%] rounded-2xl px-4 py-3 whitespace-pre-wrap text-sm bg-gray-100 text-gray-900 rounded-bl-md border border-gray-200 shadow-sm">
+        {msg.text}
+      </div>
+    );
+  };
+
   return (
     <>
       <Header />
@@ -240,21 +526,7 @@ export default function AgentPage() {
                     transition={{ duration: 0.3 }}
                     className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    {msg.isTyping ? (
-                      <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-3 border border-gray-200">
-                        <TypingIndicator />
-                      </div>
-                    ) : (
-                      <div
-                        className={`max-w-[85%] rounded-2xl px-4 py-3 whitespace-pre-wrap text-sm ${
-                          msg.role === 'user'
-                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-br-md'
-                            : 'bg-gray-100 text-gray-900 rounded-bl-md border border-gray-200'
-                        }`}
-                      >
-                        {msg.text}
-                      </div>
-                    )}
+                    <MessageBubble msg={msg} />
                   </motion.div>
                 ))}
                 <div ref={messagesEndRef} />

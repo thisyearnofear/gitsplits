@@ -13,8 +13,7 @@ import {
   CheckCircle2,
   ArrowRight,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import Badge from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 
 interface OnboardingStep {
@@ -51,163 +50,193 @@ export function OnboardingFlow() {
       description: "The easiest way to pay open source contributors",
       icon: Sparkles,
       content: (
-        <div className="text-center space-y-4">
-          <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto">
-            <span className="text-white text-3xl font-bold">G</span>
+        <div className="text-center space-y-6 py-4">
+          <motion.div 
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-24 h-24 bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-700 rounded-3xl flex items-center justify-center mx-auto shadow-2xl shadow-purple-200 dark:shadow-none"
+          >
+            <span className="text-white text-4xl font-black italic tracking-tighter">GS</span>
+          </motion.div>
+          <div className="space-y-2">
+            <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Fair rewards for every commit.</h3>
+            <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed max-w-[280px] mx-auto">
+              GitSplits uses verifiable AI to analyze GitHub contributions and distribute rewards fairly.
+            </p>
           </div>
-          <p className="text-gray-600 dark:text-gray-400">
-            GitSplits uses AI to analyze GitHub contributions and distribute payments fairly. 
-            Let&apos;s show you how it works in 3 simple steps.
-          </p>
         </div>
       ),
     },
     {
       id: "analyze",
-      title: "1. Analyze Repository",
-      description: "Our AI examines commits, PRs, and reviews",
-      icon: Github,
+      title: "1. Secure AI Analysis",
+      description: "Verifiable contribution breakdown",
+      icon: Shield,
       content: (
         <div className="space-y-4">
-          <Card className="border-0 shadow-soft bg-gray-50 dark:bg-gray-800/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                  <Github className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          <Card className="border-0 shadow-xl bg-white dark:bg-gray-800/50 overflow-hidden">
+            <div className="h-1 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                  <Bot className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
-                <div className="flex-1">
-                  <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-1"></div>
-                  <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                <div>
+                  <div className="text-[10px] font-black text-blue-600 uppercase tracking-widest">TEE SECURED</div>
+                  <div className="text-sm font-bold text-gray-900 dark:text-white">Analysis in Progress...</div>
                 </div>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                  <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  <span>Analyzing 1,247 commits</span>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg border border-gray-100 dark:border-gray-800">
+                  <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                  <span className="font-medium">1,247 commits processed</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                  <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  <span>Processing 89 pull requests</span>
+                <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg border border-gray-100 dark:border-gray-800">
+                  <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                  <span className="font-medium">89 pull requests reviewed</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                  <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  <span>Reviewing 156 code reviews</span>
+                <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg border border-gray-100 dark:border-gray-800">
+                  <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                  <span className="font-medium">Proof of Fairness generated</span>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Our secure AI agent runs in a Trusted Execution Environment (TEE) to ensure fair analysis.
+          <p className="text-xs text-center text-gray-500 dark:text-gray-400 font-medium px-4">
+            Our AI runs in a <span className="text-blue-600 font-bold">TEE (Trusted Execution Environment)</span>, making every split mathematically verifiable.
           </p>
         </div>
       ),
     },
     {
       id: "verify",
-      title: "2. Verify Contributors",
-      description: "Contributors link their wallets to receive payments",
+      title: "2. Connect Identities",
+      description: "Linking GitHub to Wallets",
       icon: Wallet,
       content: (
         <div className="space-y-4">
-          <div className="flex items-center gap-4">
-            <div className="flex -space-x-2">
-              {["S", "A", "M", "J"].map((letter, i) => (
+          <div className="flex items-center justify-between px-2">
+            <div className="flex -space-x-3">
+              {[
+                { l: "S", c: "from-blue-400 to-blue-600" },
+                { l: "A", c: "from-purple-400 to-purple-600" },
+                { l: "M", c: "from-indigo-400 to-indigo-600" },
+                { l: "J", c: "from-fuchsia-400 to-fuchsia-600" }
+              ].map((item, i) => (
                 <div
                   key={i}
-                  className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 border-2 border-white dark:border-gray-800 flex items-center justify-center text-white text-sm font-bold"
+                  className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${item.c} border-4 border-white dark:border-gray-900 flex items-center justify-center text-white text-lg font-black shadow-lg`}
                 >
-                  {letter}
+                  {item.l}
                 </div>
               ))}
             </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-gray-900 dark:text-white">12 contributors found</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Waiting for wallet verification</p>
+            <div className="text-right">
+              <p className="text-sm font-black text-gray-900 dark:text-white">12 Contributors</p>
+              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-tight">Awaiting Verification</p>
             </div>
           </div>
-          <Card className="border-0 shadow-soft bg-green-50 dark:bg-green-900/20">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400" />
+          <Card className="border-0 shadow-xl bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-l-4 border-green-500">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/40 flex items-center justify-center text-green-600">
+                  <Shield className="w-6 h-6" />
+                </div>
                 <div>
-                  <p className="font-medium text-green-900 dark:text-green-100">Verification Complete</p>
-                  <p className="text-sm text-green-700 dark:text-green-300">8 of 12 contributors verified</p>
+                  <p className="font-black text-green-900 dark:text-green-100 tracking-tight">Identity Secured</p>
+                  <p className="text-xs font-bold text-green-700 dark:text-green-300">8 of 12 wallets verified & linked</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Contributors verify their identity by linking their GitHub and wallet addresses.
+          <p className="text-xs text-center text-gray-500 dark:text-gray-400 font-medium px-4 leading-relaxed">
+            Contributors verify their identity once to receive rewards across any project using GitSplits.
           </p>
         </div>
       ),
     },
     {
       id: "distribute",
-      title: "3. Distribute Payments",
-      description: "Send payments to verified contributors",
+      title: "3. Automated Payouts",
+      description: "One command. Instant rewards.",
       icon: Bot,
       content: (
         <div className="space-y-4">
-          <Card className="border-0 shadow-soft bg-gray-50 dark:bg-gray-800/50">
-            <CardContent className="p-4 space-y-3">
+          <Card className="border-0 shadow-xl bg-white dark:bg-gray-800/50 overflow-hidden">
+            <div className="bg-gray-50 dark:bg-gray-900/50 px-4 py-2 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Calculated Split</span>
+              <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-100 border-0 text-[10px] font-black">STABLECOINS</Badge>
+            </div>
+            <CardContent className="p-4 space-y-4">
               {[
-                { name: "sarah-dev", amount: "450 NEAR", percent: "45%" },
-                { name: "alex-coder", amount: "280 NEAR", percent: "28%" },
-                { name: "mike-oss", amount: "170 NEAR", percent: "17%" },
-                { name: "Others", amount: "100 NEAR", percent: "10%" },
+                { name: "sarah-dev", amount: "450 USDC", percent: "45%", w: "w-[45%]" },
+                { name: "alex-coder", amount: "280 USDC", percent: "28%", w: "w-[28%]" },
+                { name: "mike-oss", amount: "170 USDC", percent: "17%", w: "w-[17%]" },
               ].map((item, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
-                      {item.name[0].toUpperCase()}
-                    </div>
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{item.name}</span>
+                <div key={i} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-bold text-gray-700 dark:text-gray-300">{item.name}</span>
+                    <span className="font-black text-gray-900 dark:text-white">{item.amount}</span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">{item.amount}</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">({item.percent})</span>
+                  <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                    <div className={`h-full bg-gradient-to-r from-blue-500 to-purple-500 ${item.w}`}></div>
                   </div>
                 </div>
               ))}
             </CardContent>
           </Card>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Payments are distributed automatically based on contribution analysis. Only verified contributors receive funds.
-          </p>
+          <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900 rounded-xl flex items-start gap-3">
+             <Sparkles className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+             <p className="text-[11px] font-medium text-amber-900 dark:text-amber-200 leading-tight">
+               Payments are sent directly to contributors&apos; verified wallets via NEAR or EVM chains.
+             </p>
+          </div>
         </div>
       ),
     },
     {
       id: "ready",
-      title: "You're Ready!",
-      description: "Start analyzing repositories and rewarding contributors",
+      title: "Launch Sequence Ready",
+      description: "Your journey starts here.",
       icon: CheckCircle2,
       content: (
-        <div className="text-center space-y-4">
-          <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto">
-            <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400" />
+        <div className="text-center space-y-6 py-4">
+          <div className="relative inline-block">
+            <motion.div 
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+              className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto"
+            >
+              <CheckCircle2 className="w-10 h-10 text-green-600 dark:text-green-400" />
+            </motion.div>
+            <div className="absolute -top-1 -right-1 w-6 h-6 bg-blue-500 rounded-full border-4 border-white dark:border-gray-900 animate-ping"></div>
           </div>
-          <p className="text-gray-600 dark:text-gray-400">
-            You now understand the basics. Try analyzing a repository or connect your wallet to get started.
-          </p>
-          <div className="flex flex-col gap-2">
+          <div className="space-y-2">
+            <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">You&apos;re all set!</h3>
+            <p className="text-gray-600 dark:text-gray-400 text-sm font-medium px-4">
+              Ready to transform how you reward open source contributors?
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 px-4">
             <Button
               onClick={() => {
                 completeOnboarding();
                 router.push("/agent");
               }}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600"
+              size="lg"
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-black rounded-xl shadow-xl shadow-blue-100"
             >
-              Try the Agent
-              <ArrowRight className="w-4 h-4 ml-2" />
+              TRY THE AGENT NOW
+              <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
             <Button
-              variant="outline"
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 completeOnboarding();
                 router.push("/dashboard");
               }}
+              className="text-gray-500 font-bold uppercase tracking-widest text-[10px]"
             >
               Go to Dashboard
             </Button>
@@ -285,88 +314,92 @@ export function OnboardingFlow() {
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
           >
-            <Card className="w-full max-w-lg border-0 shadow-2xl bg-white dark:bg-gray-900 overflow-hidden">
-              {/* Header */}
-              <div className="relative bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white">
-                <button
-                  onClick={skipOnboarding}
-                  className="absolute top-4 right-4 p-1 rounded-full hover:bg-white/20 transition-colors"
+        <Card className="border-0 shadow-2xl bg-white dark:bg-gray-900 overflow-hidden relative">
+          {/* Decorative elements */}
+          <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl"></div>
+          
+          <CardContent className="p-0">
+            {/* Header */}
+            <div className="relative p-8 text-center border-b border-gray-100 dark:border-gray-800">
+              <button
+                onClick={skipOnboarding}
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              
+              <motion.div
+                key={currentStep}
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-200 dark:shadow-none text-white"
+              >
+                <Icon className="w-8 h-8" />
+              </motion.div>
+              
+              <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight leading-tight mb-1">{currentStepData.title}</h2>
+              <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">{currentStepData.description}</p>
+            </div>
+
+            {/* Content area */}
+            <div className="p-8 min-h-[300px] flex flex-col justify-center">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentStep}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
                 >
-                  <X className="w-5 h-5" />
-                </button>
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                    <Icon className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold">{currentStepData.title}</h2>
-                    <p className="text-blue-100 text-sm">{currentStepData.description}</p>
-                  </div>
-                </div>
-              </div>
+                  {currentStepData.content}
+                </motion.div>
+              </AnimatePresence>
+            </div>
 
-              {/* Content */}
-              <CardContent className="p-6">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={currentStep}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    {currentStepData.content}
-                  </motion.div>
-                </AnimatePresence>
-
-                {/* Progress dots */}
-                <div className="flex justify-center gap-2 mt-6">
+            {/* Footer / Navigation */}
+            <div className="p-6 bg-gray-50/50 dark:bg-gray-950/50 border-t border-gray-100 dark:border-gray-800">
+              <div className="flex items-center justify-between">
+                <div className="flex gap-1.5">
                   {steps.map((_, index) => (
-                    <button
+                    <div
                       key={index}
-                      onClick={() => setCurrentStep(index)}
-                      className={`w-2 h-2 rounded-full transition-all ${
+                      className={`h-1.5 rounded-full transition-all duration-300 ${
                         index === currentStep
-                          ? "w-6 bg-blue-600"
+                          ? "w-8 bg-blue-600"
                           : index < currentStep
-                          ? "bg-blue-400"
-                          : "bg-gray-300 dark:bg-gray-700"
+                          ? "w-1.5 bg-blue-400"
+                          : "w-1.5 bg-gray-200 dark:bg-gray-700"
                       }`}
                     />
                   ))}
                 </div>
 
-                {/* Navigation */}
-                <div className="flex items-center justify-between mt-6">
-                  <Button
-                    variant="ghost"
-                    onClick={goToPrevious}
-                    disabled={currentStep === 0}
-                    className={currentStep === 0 ? "invisible" : ""}
-                  >
-                    <ChevronLeft className="w-4 h-4 mr-1" />
-                    Back
-                  </Button>
-
-                  <div className="flex items-center gap-2">
-                    {currentStep < steps.length - 1 && (
-                      <Button variant="ghost" onClick={skipOnboarding}>
-                        Skip
-                      </Button>
-                    )}
+                <div className="flex items-center gap-3">
+                  {currentStep > 0 && (
                     <Button
-                      onClick={goToNext}
-                      className="bg-gradient-to-r from-blue-600 to-purple-600"
+                      variant="ghost"
+                      onClick={goToPrevious}
+                      className="text-gray-500 font-bold text-xs uppercase tracking-widest"
                     >
-                      {currentStep === steps.length - 1 ? "Get Started" : "Next"}
-                      {currentStep < steps.length - 1 && (
-                        <ChevronRight className="w-4 h-4 ml-1" />
-                      )}
+                      Back
                     </Button>
-                  </div>
+                  )}
+                  
+                  <Button
+                    onClick={goToNext}
+                    className="bg-black dark:bg-white text-white dark:text-black hover:bg-gray-900 dark:hover:bg-gray-100 font-black px-6 h-12 rounded-xl transition-all active:scale-95"
+                  >
+                    {currentStep === steps.length - 1 ? "FINISH" : "CONTINUE"}
+                    {currentStep < steps.length - 1 && (
+                      <ChevronRight className="w-4 h-4 ml-2" />
+                    )}
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
           </motion.div>
         </>
       )}

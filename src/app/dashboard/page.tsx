@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, CheckCircle2, Circle, HelpCircle, Loader2 } from "lucide-react";
-import { trackUxEvent } from "@/lib/services/ux-events";
+import { AlertCircle, CheckCircle2, Circle, HelpCircle, Loader2, ArrowRight, Github, Shield, Bot, Wallet } from "lucide-react";
+import { motion } from "framer-motion";
+import Badge from "@/components/ui/badge";
 
 type AgentStatus = "idle" | "ok" | "degraded" | "error";
 
@@ -217,219 +218,192 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gentle-blue via-gentle-purple to-gentle-orange py-6 md:py-10">
-      <div className="container mx-auto max-w-5xl px-4 space-y-6">
+      <div className="container mx-auto max-w-5xl px-4 space-y-8">
         <WalletStatusBar />
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Control Center</CardTitle>
-            <CardDescription>
-              Follow the guided flow to get contributors paid with minimal friction.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {status === "idle" ? (
-              <div className="space-y-2">
-                <Skeleton className="h-5 w-48" />
-                <Skeleton className="h-4 w-80" />
-              </div>
-            ) : status === "ok" ? (
-              <Alert className="bg-green-50 border-green-200">
-                <CheckCircle2 className="h-4 w-4 text-green-700" />
-                <AlertTitle>Live Agent Connected</AlertTitle>
-                <AlertDescription>
-                  {message}
-                  {lastCheckedAt ? ` Last check: ${lastCheckedAt}.` : ""}
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Connection Needs Attention</AlertTitle>
-                <AlertDescription>{message}</AlertDescription>
-              </Alert>
-            )}
-
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={() => void checkReadiness()}>
-                Retry Connectivity Check
-              </Button>
-              <Link href="/agent">
-                <Button type="button" variant="secondary">Open Agent Chat</Button>
-              </Link>
-            </div>
-
-            <div className="grid gap-2 md:grid-cols-5">
-              {flowSteps.map((step, index) => (
-                <div key={step.id} className="rounded border bg-white p-3 text-xs md:text-sm">
-                  <div className="flex items-center gap-2">
-                    {step.complete ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <Circle className="h-4 w-4 text-gray-400" />
-                    )}
-                    <span className="font-medium">{`${index + 1}. ${step.label}`}</span>
-                  </div>
-                  {step.actionHref && (
-                    <div className="mt-2">
-                      <Link href={step.actionHref} className="text-blue-700 underline">
-                        Go to step
-                      </Link>
-                    </div>
-                  )}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="md:col-span-2 border-0 shadow-2xl bg-white/80 backdrop-blur-xl overflow-hidden">
+            <div className="h-2 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600"></div>
+            <CardHeader className="pb-2">
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle className="text-3xl font-black tracking-tight">CONTROL CENTER</CardTitle>
+                  <CardDescription className="text-base font-medium mt-1">
+                    Guided workflow to reward your contributors.
+                  </CardDescription>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Payout Readiness</CardTitle>
-            <CardDescription>Analyze verification coverage and pending claims before paying.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Input
-                value={repoInput}
-                onChange={(e) => setRepoInput(e.target.value)}
-                placeholder="near/near-sdk-rs or github.com/near/near-sdk-rs"
-              />
-              <Button onClick={runCoverageCheck} disabled={insightLoading || !normalizedRepoPath}>
-                {insightLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Checking
-                  </>
+                {status === "ok" ? (
+                  <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-0 font-black px-3 py-1">AGENT ONLINE</Badge>
                 ) : (
-                  "Check Readiness"
+                  <Badge variant="destructive" className="font-black px-3 py-1">AGENT OFFLINE</Badge>
                 )}
-              </Button>
-            </div>
-
-            {recentRepos.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {recentRepos.map((repo) => (
-                  <Button
-                    key={repo}
-                    type="button"
-                    variant="outline"
-                    className="h-8 text-xs"
-                    onClick={() => setRepoInput(repo)}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {flowSteps.map((step, index) => (
+                  <Link 
+                    key={step.id} 
+                    href={step.actionHref || "#"} 
+                    className={`group relative p-4 rounded-2xl border-2 transition-all ${
+                      step.complete 
+                        ? "bg-green-50/50 border-green-100 hover:border-green-200" 
+                        : "bg-white border-gray-100 hover:border-blue-200 hover:shadow-lg"
+                    }`}
                   >
-                    {repo}
-                  </Button>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                        step.complete ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-400 group-hover:bg-blue-100 group-hover:text-blue-600"
+                      }`}>
+                        {step.id === "analyze" && <Github className="w-4 h-4" />}
+                        {step.id === "verify" && <Shield className="w-4 h-4" />}
+                        {step.id === "create" && <Bot className="w-4 h-4" />}
+                        {step.id === "pay" && <Wallet className="w-4 h-4" />}
+                        {step.id === "pending" && <AlertCircle className="w-4 h-4" />}
+                      </div>
+                      {step.complete && <CheckCircle2 className="w-4 h-4 text-green-600" />}
+                    </div>
+                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Step {index + 1}</p>
+                    <p className="font-bold text-gray-900 leading-tight">{step.label}</p>
+                    {!step.complete && (
+                      <div className="mt-3 flex items-center text-[10px] font-black text-blue-600 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">
+                        GO TO STEP <ArrowRight className="w-3 h-3 ml-1" />
+                      </div>
+                    )}
+                  </Link>
                 ))}
               </div>
-            )}
 
-            {coverageOutput && (
-              <Alert>
-                <AlertTitle>Coverage</AlertTitle>
-                <AlertDescription>{coverageOutput}</AlertDescription>
-              </Alert>
-            )}
-
-            {normalizedRepoPath && coverageStats && coverageStats.verified < coverageStats.total && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Unverified Contributors Detected</AlertTitle>
-                <AlertDescription>
-                  {`${coverageStats.total - coverageStats.verified} contributor(s) are not verified yet. `}
-                  <Link
-                    href={`/verify?repo=${encodeURIComponent(normalizedRepoPath)}`}
-                    className="underline"
-                  >
-                    Open verification flow
-                  </Link>
-                  .
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {normalizedRepoPath && coverageStats && coverageStats.verified > 0 && (
-              <div className="flex flex-wrap gap-2">
-                <Link
-                  href={`/agent?command=${encodeURIComponent(
-                    `pay 1 USDC to github.com/${normalizedRepoPath}`
-                  )}`}
+              <div className="flex gap-3 pt-2">
+                <Button 
+                  onClick={() => router.push("/agent")}
+                  className="flex-1 bg-black text-white hover:bg-gray-900 h-14 rounded-xl font-black text-lg shadow-xl shadow-gray-200"
                 >
-                  <Button type="button" variant="outline">Open Pay Command</Button>
-                </Link>
-                <Link href="/splits">
-                  <Button type="button" variant="secondary">Open Splits Workspace</Button>
-                </Link>
-              </div>
-            )}
-
-            {pendingOutput && (
-              <div className="rounded border bg-gray-50 p-3 text-sm whitespace-pre-wrap">
-                {pendingOutput}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Activity Timeline</CardTitle>
-              <CardDescription>Recent workflow actions across this browser session.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {timeline.length === 0 ? (
-                <p className="text-sm text-gray-600">No activity yet.</p>
-              ) : (
-                <div className="space-y-2">
-                  {timeline.map((item, index) => (
-                    <div key={`${item.at}-${index}`} className="rounded border bg-white p-2 text-sm">
-                      <p className="font-medium">{item.action.replaceAll("_", " ")}</p>
-                      <p className="text-gray-600">
-                        status: {item.status}
-                        {item.repo ? ` • repo: ${item.repo}` : ""}
-                      </p>
-                      <p className="text-xs text-gray-500">{new Date(item.at).toLocaleString()}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <HelpCircle className="h-4 w-4" />
-                Need Help?
-              </CardTitle>
-              <CardDescription>Fast recovery actions for common issues.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <p>
-                GitHub install issues:
-                {" "}
-                <Link href="/agent" className="underline text-blue-700">Open agent chat</Link>
-                {" "}
-                and run <code>analyze owner/repo</code>.
-              </p>
-              <p>
-                Unverified contributors:
-                {" "}
-                <Link href={`/verify${normalizedRepoPath ? `?repo=${encodeURIComponent(normalizedRepoPath)}` : ""}`} className="underline text-blue-700">
-                  Open verification flow
-                </Link>
-                .
-              </p>
-              <p>
-                Timeouts/network issues:
-                {" "}
-                <Button type="button" variant="outline" size="sm" onClick={() => void checkReadiness()}>
-                  Retry connectivity
+                  <Bot className="w-5 h-5 mr-2" />
+                  OPEN AGENT CHAT
                 </Button>
-              </p>
+                <Button 
+                  variant="outline"
+                  onClick={() => void checkReadiness()}
+                  className="h-14 w-14 rounded-xl border-2"
+                  title="Check connection"
+                >
+                  <Circle className={`w-4 h-4 ${status === "ok" ? "fill-green-500 text-green-500" : "fill-red-500 text-red-500"}`} />
+                </Button>
+              </div>
             </CardContent>
           </Card>
+
+          <div className="space-y-6">
+            <Card className="border-0 shadow-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
+              <CardHeader>
+                <CardTitle className="text-xl font-black tracking-tight">QUICK ANALYZE</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="relative">
+                  <Input
+                    value={repoInput}
+                    onChange={(e) => setRepoInput(e.target.value)}
+                    placeholder="owner/repo"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 h-12 rounded-xl"
+                  />
+                </div>
+                <Button 
+                  onClick={runCoverageCheck} 
+                  disabled={insightLoading || !normalizedRepoPath}
+                  className="w-full bg-white text-blue-700 hover:bg-blue-50 h-12 rounded-xl font-black"
+                >
+                  {insightLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "CHECK READINESS"}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-xl">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg font-black tracking-tight">RECENT ACTIVITY</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {timeline.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <Circle className="w-4 h-4 text-gray-200" />
+                    </div>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">No activity yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {timeline.slice(0, 3).map((item, index) => (
+                      <div key={`${item.at}-${index}`} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                          item.status === "success" ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"
+                        }`}>
+                          {item.status === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-gray-900 truncate uppercase tracking-tight">
+                            {item.action.replaceAll("_", " ")}
+                          </p>
+                          <p className="text-[10px] font-bold text-gray-500">{new Date(item.at).toLocaleTimeString()}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
+
+        {/* Original Insight sections rendered only when data exists, with better styling */}
+        {normalizedRepoPath && (coverageOutput || pendingOutput) && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="border-0 shadow-2xl overflow-hidden">
+              <div className="bg-gray-900 text-white px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Github className="w-5 h-5" />
+                  <span className="font-black uppercase tracking-widest text-sm">{normalizedRepoPath}</span>
+                </div>
+                {coverageStats && (
+                  <Badge className="bg-blue-500 text-white border-0 font-black">
+                    {coverageStats.verified}/{coverageStats.total} VERIFIED
+                  </Badge>
+                )}
+              </div>
+              <CardContent className="p-6 grid md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Verification Status</h4>
+                  {coverageOutput ? (
+                    <div className="p-4 rounded-xl bg-blue-50 border border-blue-100 text-blue-900 text-sm font-medium">
+                      {coverageOutput}
+                    </div>
+                  ) : <Skeleton className="h-20 w-full rounded-xl" />}
+                  
+                  {coverageStats && coverageStats.verified < coverageStats.total && (
+                    <Button asChild variant="destructive" className="w-full h-12 rounded-xl font-black">
+                      <Link href={`/verify?repo=${encodeURIComponent(normalizedRepoPath)}`}>
+                        START VERIFICATION FLOW
+                      </Link>
+                    </Button>
+                  )}
+                </div>
+                <div className="space-y-4">
+                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Pending Claims</h4>
+                  {pendingOutput ? (
+                    <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 text-gray-700 text-sm font-mono whitespace-pre-wrap leading-relaxed">
+                      {pendingOutput}
+                    </div>
+                  ) : <Skeleton className="h-20 w-full rounded-xl" />}
+                  
+                  <Button asChild className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 font-black">
+                    <Link href={`/agent?command=${encodeURIComponent(`pay 1 USDC to github.com/${normalizedRepoPath}`)}`}>
+                      EXECUTE PAYOUT
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
       </div>
     </div>
   );

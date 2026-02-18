@@ -136,11 +136,11 @@ const Header: React.FC = () => {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                <span className="text-white font-bold text-sm">G</span>
+              <div className="w-10 h-10 rounded-xl bg-black dark:bg-white flex items-center justify-center">
+                <span className="text-white dark:text-black font-black text-lg italic tracking-tighter">GS</span>
               </div>
-              <h1 className="text-xl font-bold gradient-text hidden sm:block">
-                GitSplits
+              <h1 className="text-2xl font-black gradient-text hidden sm:block tracking-tight">
+                GITSPLITS
               </h1>
             </motion.div>
 
@@ -149,18 +149,18 @@ const Header: React.FC = () => {
               {NAV_ITEMS.map((item) => (
                 <Button
                   key={item.href}
-                  variant={isActive(item.href) ? "secondary" : "ghost"}
+                  variant="ghost"
                   size="sm"
                   onClick={() => router.push(item.href)}
-                  className={`relative ${
-                    isActive(item.href) ? "font-medium" : "text-muted-foreground"
+                  className={`relative uppercase tracking-widest text-[11px] font-black h-9 px-4 ${
+                    isActive(item.href) ? "text-primary bg-primary/5" : "text-muted-foreground hover:text-primary"
                   }`}
                 >
                   {item.label}
                   {isActive(item.href) && (
                     <motion.div
                       layoutId="activeNav"
-                      className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
                       transition={{ type: "spring", stiffness: 500, damping: 30 }}
                     />
                   )}

@@ -1,23 +1,30 @@
 # GitSplits Agent - Deployment
 
-## Current Status (February 18, 2026)
+## Current Status (February 19, 2026)
 
 ### Production
 - **EigenCompute deployment**: Live on Sepolia
 - **App ID**: `0xe852Fa024C69F871D3D67D5463F5BA35E9d19e2B`
-- **Latest release**: `b238c27c223fffab0ae71b93f604cbb2f16e2fc1`
+- **Latest app release time**: `2026-02-19 13:32:36` (sepolia)
 - **TEE status**: Active
 - **NEAR contract**: `lhkor_marty.near` migrated on mainnet
 - **Contract migration tx**: `5VNpfg8yEiqqp7D3YoVaDuq2Z53nMMMwa5Zjez1mUy9R`
+- **Endpoint auth**: `AGENT_SERVER_API_KEY` required on `/process`
 
 ### Staging
-- **Hetzner Server**: `http://157.180.36.156:8443`
+- **Hetzner Server**: `https://hetzner-agent.gitsplits.thisyearnofear.com`
 - **Purpose**: Test deployments before EigenCompute upgrade
 - **PM2 Managed**: Auto-restart on failure
+- **Network hardening**: direct public `8443` blocked at firewall; ingress via `80/443` reverse proxy
 
 ### Web Frontend
 - **Vercel**: `https://gitsplits.vercel.app`
-- **Agent Config**: `AGENT_BASE_URL=https://agent.gitsplits.thisyearnofear.com`
+- **Hybrid Agent Config**:
+  - `AGENT_HETZNER_BASE_URL=https://hetzner-agent.gitsplits.thisyearnofear.com`
+  - `AGENT_EIGEN_BASE_URL=https://agent.gitsplits.thisyearnofear.com`
+  - `AGENT_API_KEY=<shared-secret>`
+  - `AGENT_REQUIRE_EIGEN_FOR_CREATE_PAY=true`
+  - `AGENT_ALLOW_HETZNER_EXEC_FALLBACK=false`
 
 ## Quick Start
 
@@ -44,6 +51,7 @@ npm start
 | `HOT_PAY_JWT` | HOT partner JWT |
 | `EIGENAI_WALLET_PRIVATE_KEY` | deTERMinal grant wallet key |
 | `EIGENAI_WALLET_ADDRESS` | deTERMinal grant wallet address |
+| `AGENT_SERVER_API_KEY` | Required shared secret for `/process` endpoint |
 | `NEYNAR_API_KEY` | Farcaster API (optional) |
 | `NEYNAR_SIGNER_UUID` | Farcaster signer (optional) |
 
@@ -106,10 +114,10 @@ ecloud compute app upgrade 0xe852Fa024C69F871D3D67D5463F5BA35E9d19e2B \
 
 ```bash
 # Status
-ecloud compute app info
+ecloud compute app list --environment sepolia
 
 # Logs
-ecloud compute app logs
+ecloud compute app logs 0xe852Fa024C69F871D3D67D5463F5BA35E9d19e2B --environment sepolia --watch
 
 # Health check
 curl https://agent.gitsplits.thisyearnofear.com/health
@@ -123,13 +131,19 @@ curl https://agent.gitsplits.thisyearnofear.com/health
 ssh snel-bot "cd /opt/gitsplits/repo/agent && git pull && npm run build && pm2 restart gitsplits-agent --update-env"
 ```
 
-### Test Against Fallback
+### Security Validation (Direct Endpoint)
 
 ```bash
-# Point local frontend to staging
-echo "AGENT_BASE_URL=http://157.180.36.156:8443" > .env.local
+# Without key -> should be 401
+curl -i -X POST https://hetzner-agent.gitsplits.thisyearnofear.com/process \
+  -H "content-type: application/json" \
+  -d '{"text":"@gitsplits analyze thisyearnofear/gitsplits","author":"audit","type":"web"}'
 
-# Test fallback path if Eigen endpoint is degraded
+# With key -> should be 200
+curl -i -X POST https://hetzner-agent.gitsplits.thisyearnofear.com/process \
+  -H "content-type: application/json" \
+  -H "x-agent-api-key: $AGENT_SERVER_API_KEY" \
+  -d '{"text":"@gitsplits analyze thisyearnofear/gitsplits","author":"audit","type":"web"}'
 ```
 
 ## NEAR Contract Deployment (Recommended Path)

@@ -267,14 +267,31 @@ export async function POST(request: NextRequest) {
       });
 
       if (!upstreamResult.ok || !upstreamResult.response) {
-        attempts.push({
+        const failedAttempt = {
           plane,
           baseUrl,
           ok: false,
           error: upstreamResult.error,
           status: upstreamResult.status,
           reason: 'upstream request failed',
-        });
+        };
+        attempts.push(failedAttempt);
+
+        // Security: do not bypass auth failures on the preferred plane.
+        // If preferred upstream rejects auth, fail-closed instead of fallback.
+        if (
+          plane === plan.preferred &&
+          (upstreamResult.status === 401 || upstreamResult.status === 403)
+        ) {
+          return NextResponse.json(
+            {
+              error: `Preferred agent upstream rejected authorization (${upstreamResult.status}).`,
+              routing: formatRoutingSummary(plan),
+              attempts,
+            },
+            { status: 502 }
+          );
+        }
         continue;
       }
 

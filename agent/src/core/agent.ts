@@ -45,6 +45,8 @@ export class ToolRegistry {
   get hotpay() { return this.get('hotpay'); }
   get eigenai() { return this.get('eigenai'); }
   get teeWallet() { return this.get('tee-wallet'); }
+  get paymentOrchestrator() { return this.get('payment-orchestrator'); }
+  get reputation() { return this.get('reputation'); }
 }
 
 export class Agent {
@@ -60,12 +62,26 @@ export class Agent {
   }
   
   async parseIntent(text: string, context?: any): Promise<{ intent: Intent; params: Record<string, any> } | null> {
+    const detailed = await this.parseIntentDetailed(text, context);
+    if (!detailed) return null;
+    return { intent: detailed.intent, params: detailed.params };
+  }
+
+  async parseIntentDetailed(
+    text: string,
+    context?: any
+  ): Promise<{ intent: Intent; params: Record<string, any>; confidence: number; matchedText: string } | null> {
     for (const intent of this.intents) {
       for (const pattern of intent.patterns) {
         const match = text.match(pattern);
         if (match) {
           const params = intent.extractParams(match);
-          return { intent, params };
+          const matchedText = match[0] || '';
+          const normalizedText = String(text || '').trim();
+          const lengthScore = normalizedText.length > 0 ? matchedText.length / normalizedText.length : 0.5;
+          const prefixScore = normalizedText.toLowerCase().startsWith(intent.name.toLowerCase()) ? 0.2 : 0;
+          const confidence = Math.max(0, Math.min(1, 0.4 + lengthScore * 0.6 + prefixScore));
+          return { intent, params, confidence, matchedText };
         }
       }
     }
@@ -94,5 +110,9 @@ export class Agent {
   
   getTools(): ToolRegistry {
     return this.tools;
+  }
+
+  getIntentByName(name: string): Intent | null {
+    return this.intents.find((intent) => intent.name === name) || null;
   }
 }

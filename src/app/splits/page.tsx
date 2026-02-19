@@ -55,10 +55,19 @@ type ContributorStatus = {
   walletAddress: string | null;
 };
 
+type ContributorReputation = {
+  kind: "human" | "agent" | "unknown";
+  score: number | null;
+  tier: "bronze" | "silver" | "gold" | "unknown";
+  erc8004Registered: boolean;
+  raw: string;
+};
+
 type PayReceipt = {
   distributedAmount?: string;
   verifiedCount?: number;
   totalCount?: number;
+  engine?: string;
   protocol?: string;
   transactionRef?: string;
   splitId?: string;
@@ -131,6 +140,7 @@ function parsePendingUsernames(response: string): Set<string> {
 function parsePayReceipt(response: string): PayReceipt {
   const distributed = response.match(/Distributed\s+([0-9.]+\s+[A-Z0-9]+)/i);
   const coverage = response.match(/Coverage:\s+(\d+)\s*\/\s*(\d+)/i);
+  const engine = response.match(/Payment mode:\s+(.+)/i);
   const protocol = response.match(/Protocol:\s+(.+)/i);
   const tx = response.match(/Transaction:\s+(.+)/i);
   const split = response.match(/Split:\s+(.+)/i);
@@ -140,6 +150,7 @@ function parsePayReceipt(response: string): PayReceipt {
     distributedAmount: distributed?.[1]?.trim(),
     verifiedCount: coverage ? Number(coverage[1]) : undefined,
     totalCount: coverage ? Number(coverage[2]) : undefined,
+    engine: engine?.[1]?.trim(),
     protocol: protocol?.[1]?.trim(),
     transactionRef: tx?.[1]?.trim(),
     splitId: split?.[1]?.trim(),
@@ -166,6 +177,7 @@ export default function SplitsPage() {
   const [verificationHint, setVerificationHint] = useState("");
   const [coverageStats, setCoverageStats] = useState<CoverageStats | null>(null);
   const [contributorStatuses, setContributorStatuses] = useState<Record<string, ContributorStatus>>({});
+  const [contributorReputation, setContributorReputation] = useState<Record<string, ContributorReputation>>({});
   const [pendingClaimsOutput, setPendingClaimsOutput] = useState("");
   const [payResponse, setPayResponse] = useState("");
   const [payAmount, setPayAmount] = useState("1");
@@ -181,7 +193,13 @@ export default function SplitsPage() {
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [paymentMode, setPaymentMode] = useState<"verified_now" | "hold_all">("verified_now");
+  const [experienceMode, setExperienceMode] = useState<"guided" | "hands_off">("guided");
+  const [isSyncingExperienceMode, setIsSyncingExperienceMode] = useState(false);
+  const [isLoadingStatuses, setIsLoadingStatuses] = useState(false);
+  const [isLoadingReputation, setIsLoadingReputation] = useState(false);
+  const [showPaymentSuccessPulse, setShowPaymentSuccessPulse] = useState(false);
   const paySectionId = "fund-pay-step";
+  const REPUTATION_MIN_PAYOUT_SCORE = 50;
 
   const walletIdentity = useMemo(() => {
     if (nearAccountId && nearAccountId !== "Unknown NEAR Account") return nearAccountId;
@@ -266,6 +284,12 @@ export default function SplitsPage() {
     }
   }, [coverageStats]);
 
+  useEffect(() => {
+    if (!showPaymentSuccessPulse) return;
+    const timer = setTimeout(() => setShowPaymentSuccessPulse(false), 2400);
+    return () => clearTimeout(timer);
+  }, [showPaymentSuccessPulse]);
+
   const setContributorIncluded = (username: string, included: boolean) => {
     setAllocationDraft((prev) => ({
       ...prev,
@@ -330,6 +354,18 @@ export default function SplitsPage() {
       const included = draft?.included ?? !isSystemContributor(contributor.githubUsername);
       const status = contributorStatuses[contributor.githubUsername];
       const verified = Boolean(status?.verified);
+      const reputation = contributorReputation[contributor.githubUsername];
+      const meetsReputation =
+        !reputation ||
+        reputation.score === null ||
+        reputation.score >= REPUTATION_MIN_PAYOUT_SCORE ||
+        reputation.erc8004Registered;
+      const payoutEligible =
+        included &&
+        verified &&
+        Boolean(status?.walletAddress) &&
+        /\.near$|\.testnet$/i.test(status?.walletAddress || "") &&
+        meetsReputation;
       return {
         githubUsername: contributor.githubUsername,
         share,
@@ -337,14 +373,14 @@ export default function SplitsPage() {
         verified,
         walletAddress: status?.walletAddress || null,
         isBot: isSystemContributor(contributor.githubUsername),
+        reputation,
+        payoutEligible,
       };
     });
-  }, [allocationDraft, contributorStatuses, contributors]);
+  }, [allocationDraft, contributorStatuses, contributorReputation, contributors]);
 
   const livePayoutPreview = useMemo(() => {
-    const valid = allocationCandidates.filter(
-      (c) => c.included && c.verified && c.walletAddress && /\.near$|\.testnet$/i.test(c.walletAddress)
-    );
+    const valid = allocationCandidates.filter((c) => c.payoutEligible);
     const shareTotal = valid.reduce((sum, c) => sum + c.share, 0);
     const amount = Number.isFinite(payoutAmountNumber) ? payoutAmountNumber : 0;
     return valid.map((item) => ({
@@ -436,6 +472,20 @@ export default function SplitsPage() {
     });
   };
 
+  const parseReputationResponse = (response: string): ContributorReputation => {
+    const kindMatch = response.match(/Kind:\s*(human|agent|unknown)/i);
+    const scoreMatch = response.match(/Score:\s*(\d+)\s*\/\s*100\s*\((bronze|silver|gold)\)/i);
+    const ercLine = response.match(/ERC-8004:\s*(.+)/i)?.[1] || "";
+    const erc8004Registered = /registered/i.test(ercLine) && !/not registered/i.test(ercLine);
+    return {
+      kind: (kindMatch?.[1]?.toLowerCase() as any) || "unknown",
+      score: scoreMatch ? Number(scoreMatch[1]) : null,
+      tier: (scoreMatch?.[2]?.toLowerCase() as any) || "unknown",
+      erc8004Registered,
+      raw: response,
+    };
+  };
+
   async function callAgent(text: string) {
     const response = await fetch("/api/agent", {
       method: "POST",
@@ -464,6 +514,7 @@ export default function SplitsPage() {
       setContributorStatuses({});
       return;
     }
+    setIsLoadingStatuses(true);
     try {
       const response = await fetch("/api/contributor-status", {
         method: "POST",
@@ -484,6 +535,33 @@ export default function SplitsPage() {
       setContributorStatuses(next);
     } catch {
       // Keep UI functional even if status endpoint fails.
+    } finally {
+      setIsLoadingStatuses(false);
+    }
+  }
+
+  async function loadContributorReputation(usernames: string[]) {
+    if (!usernames.length) {
+      setContributorReputation({});
+      return;
+    }
+    setIsLoadingReputation(true);
+    try {
+      const deduped = Array.from(new Set(usernames)).slice(0, 25);
+      const results = await Promise.allSettled(
+        deduped.map(async (username) => ({
+          username,
+          response: await callAgent(`reputation for ${username}`),
+        }))
+      );
+      const next: Record<string, ContributorReputation> = {};
+      for (const result of results) {
+        if (result.status !== "fulfilled") continue;
+        next[result.value.username] = parseReputationResponse(result.value.response);
+      }
+      setContributorReputation(next);
+    } finally {
+      setIsLoadingReputation(false);
     }
   }
 
@@ -504,6 +582,7 @@ export default function SplitsPage() {
     setPayResponse("");
     setContributors([]);
     setContributorStatuses({});
+    setContributorReputation({});
     setVerificationHint("");
     trackUxEvent("splits_analyze_start", { repo: normalizedRepo });
 
@@ -515,7 +594,8 @@ export default function SplitsPage() {
         .find((line) => line.toLowerCase().includes("verification coverage"));
       setAnalyzeResponse(response);
       setContributors(parsed);
-      await loadContributorStatuses(parsed.map((c) => c.githubUsername));
+      loadContributorStatuses(parsed.map((c) => c.githubUsername));
+      loadContributorReputation(parsed.map((c) => c.githubUsername));
       setSelectedContributor(parsed[0]?.githubUsername || "");
       if (coverageLine) {
         setVerificationHint(coverageLine.trim());
@@ -529,7 +609,7 @@ export default function SplitsPage() {
       setStatus("success");
       setMessage(
         parsed.length > 0
-          ? "Repository analyzed successfully. You can create a split now."
+          ? "Repository analyzed. Review allocation, then create or refresh split."
           : "Analysis completed. Contributor table could not be fully parsed, but you can still create a split."
       );
       trackUxEvent("splits_analyze_success", {
@@ -541,7 +621,24 @@ export default function SplitsPage() {
       setMessage(error instanceof Error ? error.message : "Failed to analyze repository.");
       setCoverageStats(null);
       setContributorStatuses({});
+      setContributorReputation({});
       trackUxEvent("splits_analyze_failed", { repo: normalizedRepo });
+    }
+  };
+
+  const setAgentExperienceMode = async (mode: "guided" | "hands_off") => {
+    setExperienceMode(mode);
+    setIsSyncingExperienceMode(true);
+    try {
+      await callAgent(`experience ${mode === "hands_off" ? "hands-off" : "guided"}`);
+      setMessage(`Agent experience mode set to ${mode === "hands_off" ? "hands-off" : "guided"}.`);
+      setStatus("success");
+      trackUxEvent("splits_experience_mode_changed", { mode });
+    } catch (error) {
+      setStatus("error");
+      setMessage(`Failed to set experience mode: ${toUserFacingError(error)}`);
+    } finally {
+      setIsSyncingExperienceMode(false);
     }
   };
 
@@ -757,6 +854,7 @@ export default function SplitsPage() {
       setPayResponse(response);
       setStatus("success");
       setMessage("Payout request completed.");
+      setShowPaymentSuccessPulse(true);
       trackUxEvent("funnel_pay_success", { repo: normalized, amount, token: payToken });
       trackUxEvent("splits_pay_success", { repo: normalized, amount, token: payToken });
     } catch (error) {
@@ -774,7 +872,7 @@ export default function SplitsPage() {
   const parsedPayAmount = Number(payAmount);
   const hasValidPayAmount = Number.isFinite(parsedPayAmount) && parsedPayAmount > 0;
   const includedContributors = allocationCandidates.filter((c) => c.included);
-  const includedVerifiedCount = includedContributors.filter((c) => c.verified && c.walletAddress && /\.near$|\.testnet$/i.test(c.walletAddress || "")).length;
+  const includedVerifiedCount = includedContributors.filter((c: any) => c.payoutEligible).length;
   const preflightChecks = useMemo(
     () => [
       { id: "repo", label: "Repository selected", ok: hasRepoInput },
@@ -955,6 +1053,34 @@ export default function SplitsPage() {
               />
             </div>
 
+            <div className="rounded-md border bg-card p-3">
+              <p className="text-sm font-medium">Agent Experience</p>
+              <p className="text-xs text-muted-foreground mb-2">
+                Choose guided controls or a hands-off mode where intent is interpreted and outcomes are suggested automatically.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={experienceMode === "guided" ? "default" : "outline"}
+                  onClick={() => setAgentExperienceMode("guided")}
+                  disabled={isSyncingExperienceMode}
+                >
+                  Guided
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={experienceMode === "hands_off" ? "default" : "outline"}
+                  onClick={() => setAgentExperienceMode("hands_off")}
+                  disabled={isSyncingExperienceMode}
+                >
+                  Hands-off
+                </Button>
+                {isSyncingExperienceMode && <span className="text-xs text-muted-foreground">Syncing…</span>}
+              </div>
+            </div>
+
             <div className="space-y-3">
               <div className="flex flex-wrap gap-2">
                 <Button onClick={analyzeRepo} disabled={status === "loading"}>
@@ -970,27 +1096,19 @@ export default function SplitsPage() {
                 <Button variant="outline" onClick={createSplit} disabled={status === "loading" || !canCreateSplitNow}>
                   Create or Refresh Split
                 </Button>
-                <Button
-                  variant="ghost"
-                  type="button"
-                  className="text-xs"
-                  onClick={() => setShowMoreOptions((prev) => !prev)}
-                >
-                  {showMoreOptions ? (
-                    <>
-                      Hide options <ChevronUp className="ml-1 h-3.5 w-3.5" />
-                    </>
-                  ) : (
-                    <>
-                      More options <ChevronDown className="ml-1 h-3.5 w-3.5" />
-                    </>
-                  )}
-                </Button>
               </div>
               <div id={paySectionId} className="rounded-md border bg-card p-3 md:sticky md:top-20">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-sm font-medium">Step 3: Fund & Pay (on this page)</p>
                   <p className="text-xs text-muted-foreground">No chat redirect needed</p>
+                </div>
+                <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
+                  <span className="rounded-full border border-green-300 bg-green-50 px-2 py-0.5 font-semibold text-green-700 dark:border-green-800 dark:bg-green-950/30 dark:text-green-300">
+                    Engine: Direct Wallet (NEAR)
+                  </span>
+                  <span className="rounded-full border border-blue-300 bg-blue-50 px-2 py-0.5 font-semibold text-blue-700 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
+                    Agent Rails (HOT/Ping): optional backend mode
+                  </span>
                 </div>
                 <div className="mb-3 rounded border bg-muted/40 p-2">
                   <p className="text-xs font-medium">Preflight checklist</p>
@@ -1064,12 +1182,33 @@ export default function SplitsPage() {
                   <p>Included contributors: {includedContributors.length}</p>
                   <p>Unverified excluded now: {Math.max(includedContributors.length - includedVerifiedCount, 0)}</p>
                 </div>
+                <div className="mt-2 rounded border bg-muted/40 p-2 text-xs">
+                  {paymentMode === "verified_now"
+                    ? "Policy: Pay only included + verified recipients now. Unverified contributors are not charged and can be invited to verify."
+                    : "Policy: Hold payout until all included contributors are verified."}
+                </div>
                 {!canPayFromWalletNow && payDisabledReason && (
                   <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
                     Payment blocked: {payDisabledReason}
                   </p>
                 )}
               </div>
+              <Button
+                variant="ghost"
+                type="button"
+                className="text-xs w-fit"
+                onClick={() => setShowMoreOptions((prev) => !prev)}
+              >
+                {showMoreOptions ? (
+                  <>
+                    Hide secondary options <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                  </>
+                ) : (
+                  <>
+                    More options <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                  </>
+                )}
+              </Button>
               {showMoreOptions && (
                 <div className="flex flex-wrap gap-2 rounded-md border bg-muted/30 p-2">
                   <Button variant="outline" onClick={repairSplit} disabled={status === "loading" || !hasRepoInput}>
@@ -1098,6 +1237,22 @@ export default function SplitsPage() {
                   </Button>
                 ))}
               </div>
+            )}
+
+            {status === "loading" && (
+              <div className="rounded-md border bg-card p-3 space-y-2">
+                <p className="text-sm font-medium">Working on it…</p>
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+            )}
+
+            {isLoadingStatuses && contributors.length > 0 && (
+              <p className="text-xs text-muted-foreground">Refreshing contributor verification status…</p>
+            )}
+            {isLoadingReputation && contributors.length > 0 && (
+              <p className="text-xs text-muted-foreground">Refreshing contributor reputation and agent eligibility…</p>
             )}
 
             {verificationHint && (
@@ -1320,6 +1475,22 @@ export default function SplitsPage() {
                               <TableCell>
                                 {isBot ? "Non-payout account" : statusLabel}
                                 {liveStatus?.walletAddress ? ` (${liveStatus.walletAddress})` : ""}
+                                {contributorReputation[contributor.githubUsername] && (
+                                  <div className="mt-1 space-y-1">
+                                    <p className="text-xs text-muted-foreground">
+                                      Reputation: {contributorReputation[contributor.githubUsername].score ?? "n/a"} ({contributorReputation[contributor.githubUsername].tier})
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Kind: {contributorReputation[contributor.githubUsername].kind}
+                                      {contributorReputation[contributor.githubUsername].erc8004Registered ? " • ERC-8004" : ""}
+                                    </p>
+                                    <p className="text-xs">
+                                      {(allocationCandidates.find((c) => c.githubUsername === contributor.githubUsername)?.payoutEligible ?? false)
+                                        ? "Eligible now"
+                                        : "Not eligible now"}
+                                    </p>
+                                  </div>
+                                )}
                               </TableCell>
                               <TableCell>
                                 {isBot ? (
@@ -1388,6 +1559,16 @@ export default function SplitsPage() {
                           <p className="text-sm text-muted-foreground">
                             Status: {isBot ? "Non-payout account" : statusLabel}{liveStatus?.walletAddress ? ` (${liveStatus.walletAddress})` : ""}
                           </p>
+                          {contributorReputation[contributor.githubUsername] && (
+                            <p className="text-xs text-muted-foreground">
+                              Reputation: {contributorReputation[contributor.githubUsername].score ?? "n/a"} ({contributorReputation[contributor.githubUsername].tier}) • Kind: {contributorReputation[contributor.githubUsername].kind}
+                              {contributorReputation[contributor.githubUsername].erc8004Registered ? " • ERC-8004" : ""}
+                              {" • "}
+                              {(allocationCandidates.find((c) => c.githubUsername === contributor.githubUsername)?.payoutEligible ?? false)
+                                ? "Eligible now"
+                                : "Not eligible now"}
+                            </p>
+                          )}
                           {!isBot && (
                             <div className="mt-2 flex flex-wrap gap-2">
                               <Link href={verifyHref} className="text-sm text-blue-700 dark:text-blue-400 underline">
@@ -1417,7 +1598,7 @@ export default function SplitsPage() {
                 <p className="font-medium">Live Payout Preview ({Number.isFinite(payoutAmountNumber) ? payoutAmountNumber : 0} NEAR)</p>
                 {livePayoutPreview.length === 0 ? (
                   <p className="text-muted-foreground text-xs">
-                    No included + verified NEAR recipients yet. Adjust inclusion or complete verification.
+                    No included + eligible + verified NEAR recipients yet. Adjust inclusion, verification, or contributor reputation.
                   </p>
                 ) : (
                   <div className="space-y-1">
@@ -1567,9 +1748,13 @@ export default function SplitsPage() {
               </div>
             )}
             {payResponse && (
-              <div className="rounded-md border bg-card p-4 text-sm space-y-2">
+              <div className={`rounded-md border bg-card p-4 text-sm space-y-2 ${showPaymentSuccessPulse ? "ring-2 ring-green-300 dark:ring-green-700" : ""}`}>
                 <p className="font-medium">Payout Receipt</p>
                 <p>Distributed: {payReceipt.distributedAmount || "n/a"}</p>
+                <p>
+                  Engine:{" "}
+                  {payReceipt.engine === "direct_wallet_near" ? "Direct Wallet (NEAR)" : payReceipt.engine || "Direct Wallet (NEAR)"}
+                </p>
                 <p>
                   Coverage:{" "}
                   {payReceipt.verifiedCount !== undefined && payReceipt.totalCount !== undefined
@@ -1677,26 +1862,17 @@ export default function SplitsPage() {
           </CardContent>
         </Card>
         <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur border-t border-border p-3">
-          <div className="max-w-4xl mx-auto flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1"
-              onClick={analyzeRepo}
-              disabled={status === "loading"}
-            >
-              Analyze
-            </Button>
+          <div className="max-w-4xl mx-auto flex gap-2 items-center">
             <Button
               type="button"
               className="flex-1"
-              onClick={payNow}
-              disabled={status === "loading" || !canPayFromWalletNow}
+              onClick={nextAction.onClick}
+              disabled={status === "loading" || nextAction.disabled}
             >
-              Pay NEAR
+              {nextAction.label}
             </Button>
           </div>
-          {!canPayFromWalletNow && payDisabledReason && (
+          {nextAction.disabled && payDisabledReason && (
             <p className="max-w-4xl mx-auto mt-2 text-[11px] text-amber-700 dark:text-amber-400">
               Payment blocked: {payDisabledReason}
             </p>

@@ -11,6 +11,7 @@
     "test": "jest",
     "test:production:preflight": "jest tests/production.preflight.test.ts --runInBand",
     "test:production:intents": "jest tests/production.intents.test.ts --runInBand",
+    "canary:once": "tsx src/canary-once.ts",
     "lint": "eslint src/**/*.ts",
     "docker:build": "docker build -t gitsplits-agent -f Dockerfile.eigen .",
     "docker:run": "docker run -p 3000:3000 --env-file .env gitsplits-agent"

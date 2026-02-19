@@ -153,7 +153,7 @@ export default function AgentPage() {
     },
     {
       command: 'pay 10 USDC to thisyearnofear/gitsplits',
-      description: 'Trigger a live payout via the backend agent',
+      description: 'Redirect to Splits for direct wallet payout setup',
       icon: <DollarSign className="w-4 h-4" />,
       category: 'pay',
     },
@@ -815,6 +815,15 @@ export default function AgentPage() {
           <div className="mb-4">
             <FlowStatusStrip steps={flowSteps} title="Contributor Payout Journey" />
           </div>
+          <div className="mb-4 rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
+            <p className="font-semibold text-foreground mb-1">Payment engines</p>
+            <p>
+              <strong>Direct Wallet (NEAR):</strong> user-signed payouts in <code>/splits</code> (default user flow).
+            </p>
+            <p>
+              <strong>Agent Rails (HOT/Ping):</strong> backend-integrated payout rails used by agent pay-intent infrastructure.
+            </p>
+          </div>
 
           {/* Chat Container */}
           <Card className={`shadow-xl border-0 overflow-hidden ${isFullScreen ? 'fixed inset-3 z-[70] md:inset-6' : ''}`}>
@@ -880,12 +889,12 @@ export default function AgentPage() {
                     )}
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2 text-center">
-                  Press Enter to send • Commands: analyze, create, pay, verify
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-1 text-center">
-                  Current mode: pay commands continue in Splits for direct NEAR wallet signing.
-                </p>
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              Press Enter to send • Commands: analyze, create, pay, verify
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-1 text-center">
+              Current mode: pay commands redirect to Splits for direct NEAR wallet signing.
+            </p>
                 {lastCommand && !loading && (
                   <div className="mt-2 text-center">
                     <Button

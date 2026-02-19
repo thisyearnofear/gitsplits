@@ -11,6 +11,7 @@
 
 import { Intent } from '../core/agent';
 import { getVerifyBaseUrl } from '../config';
+import { inspectDistributionRisk, shouldBlockForSafety } from '../agentic/safety';
 
 export const payIntent: Intent = {
   name: 'pay',
@@ -73,6 +74,25 @@ export const payIntent: Intent = {
       // Split verified/unverified contributors
       const unverified = contributors.filter((c: any) => !c.wallet);
       const verified = contributors.filter((c: any) => !!c.wallet);
+      const reputationDecisions = await Promise.all(
+        verified.map(async (c: any) => ({
+          contributor: c,
+          decision: await tools.reputation.evaluatePayoutEligibility({
+            githubUsername: c.github_username,
+            walletAddress: c.wallet,
+          }),
+        }))
+      );
+      const eligibleVerified = reputationDecisions
+        .filter((r: any) => r.decision.eligible)
+        .map((r: any) => r.contributor);
+      const ineligibleVerified = reputationDecisions
+        .filter((r: any) => !r.decision.eligible)
+        .map((r: any) => ({
+          username: r.contributor.github_username,
+          reasons: r.decision.reasons,
+          score: r.decision.profile?.score,
+        }));
 
       if (strictMode && unverified.length > 0) {
         return {
@@ -84,19 +104,19 @@ export const payIntent: Intent = {
         };
       }
 
-      if (verified.length === 0) {
+      if (eligibleVerified.length === 0) {
         return {
           response:
-            `❌ No verified contributors found for ${repoUrl}. Nothing can be paid yet.\n\n` +
+            `❌ No payout-eligible verified contributors found for ${repoUrl}. Nothing can be paid yet.\n\n` +
             `Ask contributors to verify at ${verifyBaseUrl}`,
           context,
         };
       }
 
       // In default mode, pay verified contributors now and store pending claims for unverified.
-      const verifiedPercentage = verified.reduce((sum: number, c: any) => sum + Number(c.percentage), 0);
+      const verifiedPercentage = eligibleVerified.reduce((sum: number, c: any) => sum + Number(c.percentage), 0);
       const distributableAmount = (amount * verifiedPercentage) / 100;
-      const normalizedRecipients = verified.map((c: any) => ({
+      const normalizedRecipients = eligibleVerified.map((c: any) => ({
         wallet: c.wallet,
         percentage: verifiedPercentage > 0 ? (Number(c.percentage) / verifiedPercentage) * 100 : 0,
       }));
@@ -119,49 +139,43 @@ export const payIntent: Intent = {
         }
       }
       
-      // Execute distribution
-      let distribution;
-      let providerName = 'Ping Pay';
-      const isHotPayPreferred = token === 'NEAR' || context.message?.text?.toLowerCase().includes('hotpay');
-      
-      if (isHotPayPreferred) {
-        console.log('[Agent] Using HOT Pay for distribution');
-        distribution = await tools.hotpay.distribute({
+      const safetyAlerts = inspectDistributionRisk(
+        contributors.map((c: any) => ({
+          github_username: c.github_username,
+          percentage: Number(c.percentage),
+          wallet: c.wallet,
+        }))
+      );
+      if (shouldBlockForSafety(safetyAlerts, context?.message?.text)) {
+        return {
+          response:
+            `🛑 Safety review required before payout:\\n` +
+            safetyAlerts
+              .map((alert) => `- [${alert.level.toUpperCase()}] ${alert.message}`)
+              .join('\n') +
+            `\\n\\nReply with \"override safety\" to proceed anyway.`,
+          context,
+        };
+      }
+
+      // Unified payout engine selection.
+      const distribution = await tools.paymentOrchestrator.distribute(
+        {
           splitId: split.id,
           amount: distributableAmount,
           token,
           recipients: normalizedRecipients,
-        });
-        providerName = 'HOT Pay';
-      } else {
-        console.log('[Agent] Using Ping Pay for distribution');
-        try {
-          distribution = await tools.pingpay.distribute({
-            splitId: split.id,
-            amount: distributableAmount,
-            token,
-            recipients: normalizedRecipients,
-          });
-        } catch (pingErr: any) {
-          if (process.env.HOT_PAY_JWT) {
-            console.log(`[Agent] Ping Pay failed (${pingErr?.message || 'unknown error'}), falling back to HOT Pay`);
-            distribution = await tools.hotpay.distribute({
-              splitId: split.id,
-              amount: distributableAmount,
-              token,
-              recipients: normalizedRecipients,
-            });
-            providerName = 'HOT Pay (Ping Pay fallback)';
-          } else {
-            throw pingErr;
-          }
-        }
-      }
-      
-      const protocolInfo =
-        providerName.startsWith('HOT Pay') || isHotPayPreferred
-          ? 'HOT Partner API'
-          : 'NEAR Intents & Chain Signatures';
+        },
+        context,
+        tools
+      );
+
+      const providerName =
+        distribution.engine === 'pingpay'
+          ? 'Ping Pay'
+          : distribution.engine === 'hotpay_fallback'
+          ? 'HOT Pay (Ping Pay fallback)'
+          : 'HOT Pay';
       const teeSignature = tools.teeWallet.isRunningInTEE() ? `\n🔒 TEE Signature: ${tools.teeWallet.getAddress()}` : '';
       const pendingSummary =
         pendingClaims.length > 0
@@ -171,12 +185,23 @@ export const payIntent: Intent = {
               .join('\n') +
             `\n\nInvite them to verify: ${verifyBaseUrl}`
           : '';
+      const ineligibleSummary =
+        ineligibleVerified.length > 0
+          ? `\n\n🚫 Excluded by eligibility policy (${ineligibleVerified.length}):\n` +
+            ineligibleVerified
+              .slice(0, 8)
+              .map((entry: any) => `- ${entry.username}: score ${entry.score ?? 'n/a'} (${entry.reasons.join('; ')})`)
+              .join('\n')
+          : '';
       
       return {
         response:
-          `✅ Distributed ${distributableAmount.toFixed(4)} ${token} to ${verified.length} verified contributors via ${providerName}!\n\n` +
-          `Coverage: ${verified.length}/${contributors.length} contributors verified\n` +
-          `🌐 Protocol: ${protocolInfo}\n🔗 Transaction: ${distribution.txHash}\n📜 Split: ${split.id}${teeSignature}${pendingSummary}`,
+          `✅ Distributed ${distributableAmount.toFixed(4)} ${token} to ${eligibleVerified.length} payout-eligible verified contributors via ${providerName}!\n\n` +
+          `Coverage: ${eligibleVerified.length}/${contributors.length} contributors eligible+verified\n` +
+          `Payment mode: agent_rails_${distribution.engine}\n` +
+          `🌐 Protocol: ${distribution.protocol}\n🔗 Transaction: ${distribution.txHash}\n📜 Split: ${split.id}` +
+          `${safetyAlerts.length ? `\n⚠️ Safety flags: ${safetyAlerts.map((s) => s.code).join(', ')}` : ''}` +
+          `${teeSignature}${pendingSummary}${ineligibleSummary}`,
         context: {
           ...context,
           lastPayment: {

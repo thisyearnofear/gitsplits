@@ -17,9 +17,9 @@ export const verifyIntent: Intent = {
   
   patterns: [
     /verify\s+contributors?\s+(?:for|of)\s+(?<repo>.+)/i,
-    /verify\s+(?!contributors?\b)(?:my\s+)?(?:github\s+)?@?(?<githubUsername>[\w-]+)/i,
-    /link\s+(?:my\s+)?(?:github\s+)?@?(?<githubUsername>[\w-]+)/i,
-    /connect\s+(?:my\s+)?(?:github\s+)?@?(?<githubUsername>[\w-]+)/i,
+    /verify\s+(?!contributors?\b)(?:my\s+)?(?:github\s+)?@?(?<githubUsername>[a-zA-Z0-9_.\-\[\]]+)/i,
+    /link\s+(?:my\s+)?(?:github\s+)?@?(?<githubUsername>[a-zA-Z0-9_.\-\[\]]+)/i,
+    /connect\s+(?:my\s+)?(?:github\s+)?@?(?<githubUsername>[a-zA-Z0-9_.\-\[\]]+)/i,
   ],
   
   extractParams: (matches: RegExpMatchArray) => {
@@ -135,13 +135,17 @@ export const verifyIntent: Intent = {
         (isLikelyNearAccount(message?.walletAddress) ? message?.walletAddress : null);
 
       if (message?.type === 'web' && nearWallet) {
+        const profile = await tools.reputation.getProfile(githubUsername);
         await tools.near.storeVerification({
           githubUsername,
           walletAddress: nearWallet,
           xUsername: message?.author || 'web',
         });
         return {
-          response: `✅ @${githubUsername} verified and linked to ${nearWallet}.`,
+          response:
+            `✅ @${githubUsername} verified and linked to ${nearWallet}.` +
+            `\n🏅 Reputation: ${profile.score}/100 (${profile.tier})` +
+            `${profile.erc8004?.registered ? '\n🤖 ERC-8004 agent registration detected.' : ''}`,
           context: {
             ...context,
             lastVerification: {

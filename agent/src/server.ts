@@ -13,6 +13,8 @@ import { processMessage } from './index';
 import { createFarcasterClient, FarcasterClient } from './services/farcaster';
 import { eigenaiTool } from './tools/eigenai';
 import { teeWalletTool } from './tools/tee-wallet';
+import { getLastCanaryResult, runCanaryOnce, startCanaryMonitor, stopCanaryMonitor } from './services/canary-monitor';
+import { getTelemetryPath } from './agentic/telemetry';
 import {
   getGitHubAuthMode,
   isProductionMode,
@@ -281,6 +283,34 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify(walletInfo, null, 2));
       return;
     }
+
+    // Canary monitoring endpoints
+    if (url.pathname === '/canary' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify(
+          {
+            result: getLastCanaryResult(),
+            logFile: getTelemetryPath(),
+          },
+          null,
+          2
+        )
+      );
+      return;
+    }
+
+    if (url.pathname === '/canary/run' && req.method === 'POST') {
+      try {
+        const result = await runCanaryOnce();
+        res.writeHead(result.ok ? 200 : 503, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result, null, 2));
+      } catch (error: any) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: error.message }));
+      }
+      return;
+    }
     
     // Root endpoint - show info
     if (url.pathname === '/') {
@@ -296,6 +326,8 @@ const server = http.createServer(async (req, res) => {
           webhook: 'POST /webhook/farcaster',
           eigenaiGrant: '/eigenai/grant',
           teeWallet: '/tee/wallet',
+          canary: '/canary',
+          runCanary: 'POST /canary/run',
         },
         documentation: 'https://github.com/thisyearnofear/gitsplits',
       }, null, 2));
@@ -324,6 +356,7 @@ function gracefulShutdown(signal: string) {
   if (farcasterClient) {
     farcasterClient.stop();
   }
+  stopCanaryMonitor();
   
   // Close HTTP server
   server.close(() => {
@@ -395,6 +428,8 @@ server.listen(PORT, async () => {
   } else {
     console.log('ℹ️ Farcaster integration disabled (set NEYNAR_API_KEY to enable)');
   }
+
+  startCanaryMonitor();
   
   console.log('');
   console.log('✅ Agent ready to process messages');

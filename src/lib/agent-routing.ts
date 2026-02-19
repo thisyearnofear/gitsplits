@@ -66,7 +66,12 @@ export function buildAgentRoutingPlan(text: string, env: NodeJS.ProcessEnv): Age
 export function getAgentPlaneBaseUrls(env: NodeJS.ProcessEnv): Record<AgentPlane, string | null> {
   const normalize = (value: string | undefined) => {
     if (!value || !value.trim()) return null;
-    return value.trim().replace(/\/+$/, '');
+    const trimmed = value.trim().replace(/\/+$/, '');
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    if (/^(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/i.test(trimmed)) {
+      return `http://${trimmed}`;
+    }
+    return `https://${trimmed}`;
   };
 
   const base = normalize(env.AGENT_BASE_URL);

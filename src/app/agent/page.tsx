@@ -21,6 +21,23 @@ interface Message {
   data?: any;
 }
 
+function ExecutionPill({ execution }: { execution?: any }) {
+  if (!execution || !execution.plane) return null;
+  const isEigen = execution.plane === 'eigen';
+  const label = isEigen ? 'Verified in TEE (Eigen)' : 'Processed on Hetzner';
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+        isEigen
+          ? 'border-green-300 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950/30 dark:text-green-300'
+          : 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300'
+      }`}
+    >
+      {label}
+    </span>
+  );
+}
+
 interface CommandExample {
   command: string;
   description: string;
@@ -272,7 +289,7 @@ export default function AgentPage() {
             role: 'agent', 
             text: data.response, 
             type,
-            data: data.data, // Capture any structured data if returned
+            data: { ...(data.data || {}), execution: data.execution }, // Capture structured metadata
             timestamp: new Date() 
           }];
         } else {
@@ -397,7 +414,7 @@ export default function AgentPage() {
     const hasCreateHint = msg.text.includes('Create a split');
 
     return (
-      <div className="max-w-[90%] bg-card rounded-2xl rounded-bl-md border border-border shadow-lg overflow-hidden transition-all hover:shadow-xl">
+        <div className="max-w-[90%] bg-card rounded-2xl rounded-bl-md border border-border shadow-lg overflow-hidden transition-all hover:shadow-xl">
         <div className="bg-muted/50 px-4 py-3 border-b border-border flex justify-between items-center">
           <div className="flex items-center gap-2">
             <div className="p-1.5 bg-card rounded-md shadow-sm">
@@ -416,7 +433,8 @@ export default function AgentPage() {
             </a>
           )}
         </div>
-        <div className="p-4 space-y-5">
+          <div className="p-4 space-y-5">
+          <ExecutionPill execution={msg.data?.execution} />
           <div className="whitespace-pre-wrap text-sm text-foreground font-mono text-[13px] bg-muted/50 p-4 rounded-xl border border-border shadow-inner leading-relaxed">
             {msg.text}
           </div>
@@ -552,6 +570,7 @@ export default function AgentPage() {
             </div>
           </div>
           <div className="p-4 space-y-5">
+            <ExecutionPill execution={msg.data?.execution} />
             <div className="whitespace-pre-wrap text-sm text-foreground bg-muted/50 p-4 rounded-xl border border-border italic shadow-inner leading-relaxed">
               {msg.text.split('🔗')[0]}
             </div>
@@ -719,6 +738,7 @@ export default function AgentPage() {
             <span className="text-xs font-bold text-green-800 dark:text-green-400 uppercase tracking-tight">Distribution Completed</span>
           </div>
           <div className="p-4 space-y-3">
+            <ExecutionPill execution={msg.data?.execution} />
             <p className="text-xs text-green-900 dark:text-green-300 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-md p-2 font-medium">
               {isDirectWalletMode
                 ? 'Payment mode: direct NEAR wallet signing.'

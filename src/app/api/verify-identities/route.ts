@@ -7,13 +7,13 @@ import {
 } from "@/lib/verification-service";
 import { setDoc, doc, Timestamp, Firestore } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { getAgentPlaneBaseUrls } from "@/lib/agent-routing";
 
 const REQUEST_TIMEOUT_MS = 20_000;
 
 function getAgentBaseUrl(): string | null {
-  const value = process.env.AGENT_BASE_URL?.trim();
-  if (!value) return null;
-  return value.replace(/\/+$/, "");
+  const planes = getAgentPlaneBaseUrls(process.env);
+  return planes.hetzner || planes.eigen;
 }
 
 async function syncVerificationToContract(params: {
@@ -23,7 +23,9 @@ async function syncVerificationToContract(params: {
 }): Promise<void> {
   const agentBaseUrl = getAgentBaseUrl();
   if (!agentBaseUrl) {
-    throw new Error("AGENT_BASE_URL is not configured for contract sync");
+    throw new Error(
+      "Agent upstream is not configured for contract sync (set AGENT_HETZNER_BASE_URL and/or AGENT_EIGEN_BASE_URL, or AGENT_BASE_URL)."
+    );
   }
 
   const headers: Record<string, string> = {

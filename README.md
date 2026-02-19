@@ -95,17 +95,25 @@ Configure with:
 ```bash
 AGENT_HETZNER_BASE_URL=...
 AGENT_EIGEN_BASE_URL=...
+AGENT_API_KEY=...
 AGENT_REQUIRE_EIGEN_FOR_CREATE_PAY=true
 AGENT_ALLOW_HETZNER_EXEC_FALLBACK=false
 ```
 
+Security requirements:
+- Set `AGENT_API_KEY` in Vercel.
+- Set matching `AGENT_SERVER_API_KEY` on each upstream agent (Hetzner + Eigen).
+- Keep direct compute `/process` protected; only the web proxy should call it.
+
 ## Current Status
 
-- ✅ EigenCompute agent live on Sepolia
-- ✅ Production endpoint: https://agent.gitsplits.thisyearnofear.com
+- ✅ Hybrid routing live (`analyze` -> Hetzner, `create`/high-risk -> Eigen)
+- ✅ EigenCompute agent live on Sepolia (TEE signer active)
+- ✅ Hetzner endpoint protected by API key + HTTPS domain
+- ✅ Eigen endpoint protected by API key
 - ✅ NEAR contract `lhkor_marty.near` on mainnet
 - ✅ Web UI: https://gitsplits.vercel.app
-- ✅ Production tests: 11/11 preflight, 3/3 intents passed
+- ✅ Live routing checks passing with attempt diagnostics enabled
 
 ## License
 

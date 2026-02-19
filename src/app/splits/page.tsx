@@ -27,6 +27,7 @@ type ContributorAllocation = {
   included: boolean;
   share: number;
 };
+type PaymentOutcome = "pay_now" | "awaiting_verification" | "blocked_rule" | "excluded";
 
 type AgentApiResponse = {
   success?: boolean;
@@ -355,26 +356,36 @@ export default function SplitsPage() {
       const status = contributorStatuses[contributor.githubUsername];
       const verified = Boolean(status?.verified);
       const reputation = contributorReputation[contributor.githubUsername];
+      const isBot = isSystemContributor(contributor.githubUsername);
       const meetsReputation =
         !reputation ||
         reputation.score === null ||
         reputation.score >= REPUTATION_MIN_PAYOUT_SCORE ||
         reputation.erc8004Registered;
+      const walletLooksNear = /\.near$|\.testnet$/i.test(status?.walletAddress || "");
       const payoutEligible =
         included &&
         verified &&
         Boolean(status?.walletAddress) &&
-        /\.near$|\.testnet$/i.test(status?.walletAddress || "") &&
+        walletLooksNear &&
         meetsReputation;
+      let blockedReason = "";
+      if (!included) blockedReason = "Excluded by allocation";
+      else if (isBot) blockedReason = "Bot/system contributor";
+      else if (!verified) blockedReason = "Not verified yet";
+      else if (!status?.walletAddress) blockedReason = "No linked wallet";
+      else if (!walletLooksNear) blockedReason = "Wallet is not NEAR";
+      else if (!meetsReputation) blockedReason = "Below payout reputation threshold";
       return {
         githubUsername: contributor.githubUsername,
         share,
         included,
         verified,
         walletAddress: status?.walletAddress || null,
-        isBot: isSystemContributor(contributor.githubUsername),
+        isBot,
         reputation,
         payoutEligible,
+        blockedReason,
       };
     });
   }, [allocationDraft, contributorStatuses, contributorReputation, contributors]);
@@ -387,6 +398,27 @@ export default function SplitsPage() {
       ...item,
       payoutAmount: shareTotal > 0 ? (amount * item.share) / shareTotal : 0,
     }));
+  }, [allocationCandidates, payoutAmountNumber]);
+  const paymentSimulationRows = useMemo(() => {
+    const amount = Number.isFinite(payoutAmountNumber) ? payoutAmountNumber : 0;
+    const included = allocationCandidates.filter((c) => c.included);
+    const includedShareTotal = included.reduce((sum, item) => sum + item.share, 0);
+    return allocationCandidates.map((item) => {
+      const draftAmount =
+        includedShareTotal > 0 && item.included ? (amount * item.share) / includedShareTotal : 0;
+      const outcome: PaymentOutcome = !item.included
+        ? "excluded"
+        : item.payoutEligible
+        ? "pay_now"
+        : item.verified
+        ? "blocked_rule"
+        : "awaiting_verification";
+      return {
+        ...item,
+        draftAmount,
+        outcome,
+      };
+    });
   }, [allocationCandidates, payoutAmountNumber]);
 
   const includedCount = allocationCandidates.filter((c) => c.included).length;
@@ -873,6 +905,13 @@ export default function SplitsPage() {
   const hasValidPayAmount = Number.isFinite(parsedPayAmount) && parsedPayAmount > 0;
   const includedContributors = allocationCandidates.filter((c) => c.included);
   const includedVerifiedCount = includedContributors.filter((c: any) => c.payoutEligible).length;
+  const includedVerifiedButBlockedCount = includedContributors.filter(
+    (c) => c.verified && !c.payoutEligible && !c.isBot
+  ).length;
+  const includedUnverifiedCount = includedContributors.filter(
+    (c) => !c.verified && !c.isBot
+  ).length;
+  const includedBotCount = includedContributors.filter((c) => c.isBot).length;
   const preflightChecks = useMemo(
     () => [
       { id: "repo", label: "Repository selected", ok: hasRepoInput },
@@ -1178,13 +1217,15 @@ export default function SplitsPage() {
                   <p>
                     You pay: {hasValidPayAmount ? parsedPayAmount.toFixed(4) : "0.0000"} {payToken.toUpperCase()}
                   </p>
-                  <p>Recipients now: {livePayoutPreview.length}</p>
+                  <p>Will receive now: {livePayoutPreview.length}</p>
                   <p>Included contributors: {includedContributors.length}</p>
-                  <p>Unverified excluded now: {Math.max(includedContributors.length - includedVerifiedCount, 0)}</p>
+                  <p>Waiting for verification: {includedUnverifiedCount}</p>
+                  <p>Blocked (wallet/reputation/rules): {includedVerifiedButBlockedCount}</p>
+                  {includedBotCount > 0 && <p>Bot/system contributors: {includedBotCount}</p>}
                 </div>
                 <div className="mt-2 rounded border bg-muted/40 p-2 text-xs">
                   {paymentMode === "verified_now"
-                    ? "Policy: Pay only included + verified recipients now. Unverified contributors are not charged and can be invited to verify."
+                    ? "Policy: Pay only included + verified recipients now. Unverified contributors are not charged and remain unpaid until they verify."
                     : "Policy: Hold payout until all included contributors are verified."}
                 </div>
                 {!canPayFromWalletNow && payDisabledReason && (
@@ -1362,6 +1403,28 @@ export default function SplitsPage() {
                 <p className="text-muted-foreground">
                   Payable immediately: {payableNowCount}
                 </p>
+              </div>
+            )}
+
+            {contributors.length > 0 && (
+              <div className="rounded-md border bg-card p-4 space-y-2 text-sm">
+                <p className="font-medium">Recipient Outcome (Before You Sign)</p>
+                <p className="text-xs text-muted-foreground">
+                  This is exactly what will happen if you click <strong>Pay from Wallet</strong> now.
+                </p>
+                <div className="grid gap-1 text-xs md:grid-cols-2">
+                  <p className="text-green-700 dark:text-green-400">✓ Paid now: {livePayoutPreview.length}</p>
+                  <p className="text-amber-700 dark:text-amber-400">• Awaiting verification: {includedUnverifiedCount}</p>
+                  <p className="text-amber-700 dark:text-amber-400">• Blocked by payout rules: {includedVerifiedButBlockedCount}</p>
+                  <p className="text-muted-foreground">• Excluded by you: {Math.max(contributors.length - includedContributors.length, 0)}</p>
+                </div>
+                {includedUnverifiedCount > 0 && (
+                  <div className="pt-1">
+                    <Link href={verificationLink}>
+                      <Button size="sm" type="button" variant="outline">Invite Unverified Contributors</Button>
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1617,6 +1680,41 @@ export default function SplitsPage() {
 
             {contributors.length > 0 && (
               <div className="rounded-md border bg-card p-4 space-y-3">
+                <p className="font-medium">Payment Simulation (Per Contributor)</p>
+                <p className="text-xs text-muted-foreground">
+                  Preview before signature. This does not move funds yet.
+                </p>
+                <div className="space-y-2">
+                  {paymentSimulationRows.map((row) => (
+                    <div
+                      key={row.githubUsername}
+                      className="rounded border bg-muted/40 p-2 text-xs md:grid md:grid-cols-12 md:items-center md:gap-2"
+                    >
+                      <p className="font-medium md:col-span-3">@{row.githubUsername}</p>
+                      <p className="text-muted-foreground md:col-span-2">{row.share.toFixed(2)}%</p>
+                      <p className="md:col-span-3">
+                        {row.outcome === "pay_now" ? (
+                          <span className="text-green-700 dark:text-green-400">Paid now</span>
+                        ) : row.outcome === "awaiting_verification" ? (
+                          <span className="text-amber-700 dark:text-amber-400">Awaiting verification</span>
+                        ) : row.outcome === "blocked_rule" ? (
+                          <span className="text-amber-700 dark:text-amber-400">Blocked by rules</span>
+                        ) : (
+                          <span className="text-muted-foreground">Excluded</span>
+                        )}
+                      </p>
+                      <p className="font-mono md:col-span-2">{row.draftAmount.toFixed(4)} NEAR</p>
+                      <p className="text-muted-foreground md:col-span-2">
+                        {row.outcome === "pay_now" ? row.walletAddress || "wallet set" : row.blockedReason}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {contributors.length > 0 && (
+              <div className="rounded-md border bg-card p-4 space-y-3">
                 <button
                   type="button"
                   className="w-full flex items-center justify-between text-left"
@@ -1798,6 +1896,19 @@ export default function SplitsPage() {
                     ))}
                   </div>
                 )}
+                <div className="rounded border bg-muted/40 p-2 space-y-1 text-xs">
+                  <p className="font-medium">Execution Timeline</p>
+                  <p className="text-green-700 dark:text-green-400">✓ Payout plan prepared</p>
+                  <p className="text-green-700 dark:text-green-400">
+                    ✓ Wallet signatures collected ({paymentTxs.length} transaction{paymentTxs.length === 1 ? "" : "s"})
+                  </p>
+                  <p className="text-green-700 dark:text-green-400">✓ Transactions submitted on-chain</p>
+                  <p className={payReceipt.pendingCount && payReceipt.pendingCount > 0 ? "text-amber-700 dark:text-amber-400" : "text-green-700 dark:text-green-400"}>
+                    {payReceipt.pendingCount && payReceipt.pendingCount > 0
+                      ? `• ${payReceipt.pendingCount} pending claim(s) remain until verification`
+                      : "✓ No pending claims in this run"}
+                  </p>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   <Button type="button" variant="outline" size="sm" onClick={checkPendingClaims}>
                     View Pending Claims

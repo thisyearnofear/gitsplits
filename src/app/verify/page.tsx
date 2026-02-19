@@ -235,6 +235,27 @@ export default function VerifyPage() {
     return "Not verified";
   }, [githubGistId, githubUsername, isVerified, verificationCode, walletAddress]);
 
+  const verificationChecks = useMemo(
+    () => [
+      { id: "wallet", label: "Wallet connected", ok: Boolean(walletAddress) },
+      { id: "near", label: "NEAR connected", ok: Boolean(isNearConnected && nearAccountId) },
+      { id: "github", label: "GitHub username set", ok: Boolean(githubUsername.trim()) },
+      { id: "code", label: "Verification code generated", ok: Boolean(verificationCode) },
+      { id: "gist", label: "Public gist provided", ok: Boolean(githubGistId.trim()) },
+      { id: "verified", label: "Linked on-chain for payouts", ok: Boolean(isVerified) },
+    ],
+    [walletAddress, isNearConnected, nearAccountId, githubUsername, verificationCode, githubGistId, isVerified]
+  );
+  const nextVerificationAction = useMemo(() => {
+    if (!walletAddress) return "Connect a wallet";
+    if (!isNearConnected || !nearAccountId) return "Connect NEAR wallet";
+    if (!githubUsername.trim()) return "Enter GitHub username";
+    if (!verificationCode) return "Generate verification code";
+    if (!githubGistId.trim()) return "Paste public gist ID or URL";
+    if (!isVerified) return "Submit verification";
+    return "Verification complete";
+  }, [walletAddress, isNearConnected, nearAccountId, githubUsername, verificationCode, githubGistId, isVerified]);
+
   const flowSteps = useMemo(
     () => [
       { id: "analyze", label: "Analyze", href: "/agent", complete: true },
@@ -391,6 +412,26 @@ export default function VerifyPage() {
           </CardHeader>
 
           <CardContent className="space-y-6">
+            <div className="rounded-md border bg-card p-4 space-y-2">
+              <p className="text-sm font-semibold">Verification Checklist</p>
+              <div className="grid gap-1 text-xs md:grid-cols-2">
+                {verificationChecks.map((check) => (
+                  <p
+                    key={check.id}
+                    className={check.ok ? "text-green-700 dark:text-green-400" : "text-amber-700 dark:text-amber-400"}
+                  >
+                    {check.ok ? "✓" : "•"} {check.label}
+                  </p>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Payout-ready means: GitHub verified + NEAR connected + on-chain link confirmed.
+              </p>
+              <p className="text-xs font-medium">
+                Next action: <span className="text-primary">{nextVerificationAction}</span>
+              </p>
+            </div>
+
             {showOnboarding && (
               <Alert>
                 <AlertTitle>Quick start</AlertTitle>
@@ -469,6 +510,11 @@ export default function VerifyPage() {
                     )}
                   </Button>
                 </div>
+                {isNearConnected && nearAccountId && (
+                  <p className="text-xs text-muted-foreground">
+                    NEAR payout account: <span className="font-mono">{nearAccountId}</span>
+                  </p>
+                )}
               </div>
 
               <div className="rounded-md border border-border bg-card p-4 space-y-2">

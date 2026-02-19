@@ -83,6 +83,22 @@ AGENT_MODE=mock npm run dev
 
 See [**docs/SETUP.md**](docs/SETUP.md) for full setup instructions.
 
+## Hybrid Agent Routing (Cost + Reliability)
+
+Web `/api/agent` now supports two execution planes:
+
+- **Hetzner plane**: low-risk orchestration and advisory commands
+- **Eigen plane**: high-risk execution paths where TEE verification is required
+
+Configure with:
+
+```bash
+AGENT_HETZNER_BASE_URL=...
+AGENT_EIGEN_BASE_URL=...
+AGENT_REQUIRE_EIGEN_FOR_CREATE_PAY=true
+AGENT_ALLOW_HETZNER_EXEC_FALLBACK=false
+```
+
 ## Current Status
 
 - ✅ EigenCompute agent live on Sepolia

@@ -11,7 +11,10 @@ import { getGitHubAuthMode } from '../config';
 
 let appOctokit: Octokit | null = null;
 let tokenOctokit: Octokit | null = null;
-const installationClientCache = new Map<number, Octokit>();
+const installationClientCache = new Map<
+  number,
+  { client: Octokit; expiresAtMs: number }
+>();
 
 function normalizePrivateKey(privateKey: string): string {
   return privateKey.replace(/\\n/g, '\n');
@@ -99,7 +102,10 @@ async function getInstallationClient(owner: string, repo: string): Promise<Octok
 
   const installationId = installation.data.id;
   const cached = installationClientCache.get(installationId);
-  if (cached) return cached;
+  const nowMs = Date.now();
+  if (cached && cached.expiresAtMs - nowMs > 60_000) {
+    return cached.client;
+  }
 
   const tokenResponse = await appClient.request(
     'POST /app/installations/{installation_id}/access_tokens',
@@ -113,7 +119,11 @@ async function getInstallationClient(owner: string, repo: string): Promise<Octok
   );
 
   const client = new Octokit({ auth: tokenResponse.data.token });
-  installationClientCache.set(installationId, client);
+  const expiresAtMs = Date.parse(tokenResponse.data.expires_at || '');
+  installationClientCache.set(installationId, {
+    client,
+    expiresAtMs: Number.isFinite(expiresAtMs) ? expiresAtMs : nowMs + 45 * 60_000,
+  });
   return client;
 }
 

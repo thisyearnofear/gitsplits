@@ -165,18 +165,21 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       text,
+      message,
       userId = 'web_user',
       walletAddress,
       nearAccountId,
       evmAddress,
     } = body;
 
-    if (!text) {
-      return NextResponse.json({ error: 'Missing text parameter' }, { status: 400 });
+    const userText = String(text ?? message ?? '').trim();
+
+    if (!userText) {
+      return NextResponse.json({ error: 'Missing text/message parameter' }, { status: 400 });
     }
 
     // Web-first safety: pay execution must happen from /splits wallet flow.
-    if (/^\s*@?gitsplits\s+pay\b|^\s*pay\b/i.test(String(text))) {
+    if (/^\s*@?gitsplits\s+pay\b|^\s*pay\b/i.test(userText)) {
       return NextResponse.json(
         {
           error:
@@ -186,7 +189,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const plan = buildAgentRoutingPlan(String(text), process.env);
+    const plan = buildAgentRoutingPlan(userText, process.env);
     const planeUrls = getAgentPlaneBaseUrls(process.env);
 
     if (!planeUrls.hetzner && !planeUrls.eigen) {
@@ -200,7 +203,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (plan.cacheable) {
-      const key = responseCacheKey({ text, userId, nearAccountId, evmAddress });
+      const key = responseCacheKey({ text: userText, userId, nearAccountId, evmAddress });
       const cached = responseCache.get(key);
       if (cached && Date.now() - cached.at < RESPONSE_CACHE_TTL_MS) {
         return NextResponse.json({
@@ -210,6 +213,7 @@ export async function POST(request: NextRequest) {
             ...cached.execution,
             cacheHit: true,
           },
+          attempts: [],
           source: 'agent-cache',
           timestamp: new Date().toISOString(),
         });
@@ -217,13 +221,26 @@ export async function POST(request: NextRequest) {
     }
 
     const order = planeOrder(plan.preferred, plan.allowFallback);
-    const attempts: Array<{ plane: AgentPlane; baseUrl: string; error?: string; status?: number }> = [];
+    const attempts: Array<{
+      plane: AgentPlane;
+      baseUrl: string;
+      ok: boolean;
+      error?: string;
+      status?: number;
+      reason?: string;
+    }> = [];
 
     for (const plane of order) {
       const baseUrl = planeUrls[plane];
       if (!baseUrl) continue;
 
       if (plan.requireAttestation && plane !== 'eigen') {
+        attempts.push({
+          plane,
+          baseUrl,
+          ok: false,
+          reason: 'skipped: attestation required',
+        });
         continue;
       }
 
@@ -232,15 +249,17 @@ export async function POST(request: NextRequest) {
         attempts.push({
           plane,
           baseUrl,
+          ok: false,
           error: `not ready (${readiness.status})`,
           status: readiness.status,
+          reason: 'readiness check failed',
         });
         continue;
       }
 
       const upstreamResult = await callAgentUpstream({
         baseUrl,
-        text,
+        text: userText,
         userId,
         walletAddress,
         nearAccountId,
@@ -251,11 +270,21 @@ export async function POST(request: NextRequest) {
         attempts.push({
           plane,
           baseUrl,
+          ok: false,
           error: upstreamResult.error,
           status: upstreamResult.status,
+          reason: 'upstream request failed',
         });
         continue;
       }
+
+      attempts.push({
+        plane,
+        baseUrl,
+        ok: true,
+        status: upstreamResult.status,
+        reason: 'selected',
+      });
 
       const execution = {
         plane,
@@ -269,7 +298,7 @@ export async function POST(request: NextRequest) {
       };
 
       if (plan.cacheable) {
-        const key = responseCacheKey({ text, userId, nearAccountId, evmAddress });
+        const key = responseCacheKey({ text: userText, userId, nearAccountId, evmAddress });
         responseCache.set(key, {
           at: Date.now(),
           response: upstreamResult.response,
@@ -281,6 +310,7 @@ export async function POST(request: NextRequest) {
         success: true,
         response: upstreamResult.response,
         execution,
+        attempts,
         source: 'agent-upstream',
         timestamp: new Date().toISOString(),
       });

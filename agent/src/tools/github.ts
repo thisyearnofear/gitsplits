@@ -162,42 +162,43 @@ async function getRepoClient(owner: string, repo: string): Promise<Octokit> {
 
 export const githubTool = {
   name: 'github',
-  
+
   /**
    * Analyze repository contributions
    */
   async analyze(repoUrl: string) {
     const { owner, repo } = parseRepo(repoUrl);
     const client = await getRepoClient(owner, repo);
-    
+
     // Fetch contributors from GitHub API
     const { data: contributors } = await client.rest.repos.listContributors({
       owner,
       repo,
       per_page: 100,
+      anon: 'true',
     });
-    
+
     if (contributors.length === 0) {
       return { contributors: [] };
     }
-    
+
     // Calculate total contributions
     const totalContributions = contributors.reduce(
       (sum, c) => sum + (c.contributions || 0), 0
     );
-    
+
     // Calculate percentages
-    const analyzedContributors = contributors.map((c) => ({
-      username: c.login!,
+    const analyzedContributors = contributors.map((c, index) => ({
+      username: c.login || (c as any).name || `anon-${index + 1}`,
       commits: c.contributions || 0,
       percentage: totalContributions > 0
         ? Math.round(((c.contributions || 0) / totalContributions) * 100)
         : 0,
     }));
-    
+
     // Sort by contributions (descending)
     analyzedContributors.sort((a, b) => b.commits - a.commits);
-    
+
     return {
       contributors: analyzedContributors,
       totalContributions,
@@ -205,7 +206,7 @@ export const githubTool = {
       repo,
     };
   },
-  
+
   /**
    * Verify GitHub gist ownership
    */
@@ -217,13 +218,13 @@ export const githubTool = {
         : mode === 'token'
           ? getTokenClient()
           : new Octokit();
-    
+
     // Search for gist containing the verification code
     const { data: gists } = await client.rest.gists.listForUser({
       username: githubUsername,
       per_page: 10,
     });
-    
+
     for (const gist of gists) {
       const file = Object.values(gist.files || {})[0] as any;
       const content = file?.content || '';
@@ -234,10 +235,10 @@ export const githubTool = {
         };
       }
     }
-    
+
     return { verified: false };
   },
-  
+
   /**
    * Get rate limit status
    */

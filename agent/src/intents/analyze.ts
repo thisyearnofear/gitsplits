@@ -14,42 +14,42 @@ import { getVerifyBaseUrl } from '../config';
 
 export const analyzeIntent: Intent = {
   name: 'analyze',
-  
+
   patterns: [
     /analyze\s+(.+)/i,
     /who\s+(?:contributes?\s+to|works?\s+on)\s+(.+)/i,
     /show\s+(?:me\s+)?(?:the\s+)?contributors?\s+(?:for|of)\s+(.+)/i,
     /what\s+(?:about|is)\s+(.+)/i,
   ],
-  
+
   extractParams: (matches: RegExpMatchArray) => ({
     repo: matches[1].trim(),
   }),
-  
+
   validate: (params: any) => {
     if (!params.repo) {
       return { valid: false, error: 'Repository is required' };
     }
     return { valid: true };
   },
-  
+
   execute: async (params: any, context: any, tools: any) => {
     const { repo } = params;
     const verifyBaseUrl = getVerifyBaseUrl();
-    
+
     try {
       const repoUrl = normalizeRepoUrl(repo);
-      
+
       // Analyze GitHub repository
       const analysis = await tools.github.analyze(repoUrl);
-      
+
       if (!analysis.contributors || analysis.contributors.length === 0) {
         return {
           response: `No contributors found for ${repoUrl}. Make sure it's a public repository with commit history.`,
           context,
         };
       }
-      
+
       // Format top contributors
       const topContributors = analysis.contributors
         .slice(0, 5)
@@ -58,7 +58,7 @@ export const analyzeIntent: Intent = {
           return `${medal} ${c.username}: ${c.commits} commits (${c.percentage}%)`;
         })
         .join('\n');
-      
+
       const totalCommits = analysis.contributors.reduce(
         (sum: number, c: any) => sum + c.commits, 0
       );
@@ -81,10 +81,9 @@ export const analyzeIntent: Intent = {
       } catch (err: any) {
         console.log('[Analyze] Verification coverage skipped:', err.message);
       }
-      
+
       // Run verifiable AI analysis via EigenAI
       let aiInsight = '';
-      let aiSignature = '';
       const strictEigenAiInTest =
         process.env.AGENT_MODE === 'production' && process.env.NODE_ENV === 'test';
       try {
@@ -92,7 +91,7 @@ export const analyzeIntent: Intent = {
           repoUrl,
           analysis.contributors.slice(0, 10),
         );
-        const explorerLink = aiResult.explorerUrl ? `\n🔗 Verify on deTERMinal: ${aiResult.explorerUrl}` : '';
+        const explorerLink = aiResult.explorerUrl ? `\n🔗 Proof: ${aiResult.explorerUrl}` : '';
         aiInsight = aiResult.analysis ? `\n\n🛡️ Verifiable AI Insight:\n${aiResult.analysis}${explorerLink}` : '';
       } catch (err: any) {
         if (strictEigenAiInTest) {
@@ -101,8 +100,8 @@ export const analyzeIntent: Intent = {
         console.log('[Analyze] EigenAI analysis skipped:', err.message);
       }
 
-      const teeInfo = tools.teeWallet.isRunningInTEE() ? `\n\n🔒 Signed by TEE: ${tools.teeWallet.getAddress()}` : '';
-      
+      const teeInfo = tools.teeWallet.isRunningInTEE() ? `\n\n🔒 Orchestration: Verified in TEE (${tools.teeWallet.getAddress()})` : '';
+
       return {
         response: `📊 Analysis for ${repoUrl}\n\nTotal commits: ${totalCommits}\nContributors: ${analysis.contributors.length}\n\nTop contributors:\n${topContributors}${analysis.contributors.length > 5 ? `\n...and ${analysis.contributors.length - 5} more` : ''}${verificationCoverage}${aiInsight}${teeInfo}\n\nCreate a split: "@gitsplits create ${repoUrl}"`,
         context: {
@@ -114,7 +113,7 @@ export const analyzeIntent: Intent = {
           },
         },
       };
-      
+
     } catch (error: any) {
       return {
         response: `❌ Analysis failed: ${error.message}`,
@@ -129,7 +128,7 @@ function normalizeRepoUrl(input: string): string {
     .replace(/^(https?:\/\/)?(www\.)?github\.com\//, '')
     .replace(/\/$/, '')
     .trim();
-  
+
   return `github.com/${cleaned}`;
 }
 

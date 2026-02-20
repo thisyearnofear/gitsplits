@@ -21,17 +21,43 @@ interface Message {
   data?: any;
 }
 
+// Helper to make URLs clickable in text
+function LinkifyText({ text }: { text: string }) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.match(urlRegex)) {
+          return (
+            <a
+              key={i}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline font-bold break-all"
+            >
+              {part}
+            </a>
+          );
+        }
+        return part;
+      })}
+    </>
+  );
+}
+
 function ExecutionPill({ execution }: { execution?: any }) {
   if (!execution || !execution.plane) return null;
   const isEigen = execution.plane === 'eigen';
-  const label = isEigen ? 'Verified in TEE (Eigen)' : 'Processed on Hetzner';
+  const label = isEigen ? 'Processed on Eigen Plane' : 'Processed on Hetzner';
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
-        isEigen
-          ? 'border-green-300 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950/30 dark:text-green-300'
-          : 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300'
-      }`}
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${isEigen
+        ? 'border-green-300 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950/30 dark:text-green-300'
+        : 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300'
+        }`}
     >
       {label}
     </span>
@@ -81,11 +107,11 @@ export default function AgentPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  
+
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
-    { 
-      role: 'agent', 
+    {
+      role: 'agent',
       type: 'welcome',
       text: 'Hello! I\'m GitSplits Agent. I can help you analyze repositories, create payment splits, and distribute rewards to contributors.',
       timestamp: new Date()
@@ -131,7 +157,7 @@ export default function AgentPage() {
     if (repoParam && !hasInteracted) {
       const command = `analyze ${repoParam}`;
       setInput(command);
-      
+
       // Auto-send the command after a short delay
       const timer = setTimeout(() => {
         sendMessage(command);
@@ -228,26 +254,26 @@ export default function AgentPage() {
         return;
       }
     }
-    
+
     if (!messageText) {
       setInput('');
     }
-    
-    setMessages((prev) => [...prev, { 
-      role: 'user', 
-      text: userMessage, 
-      timestamp: new Date() 
+
+    setMessages((prev) => [...prev, {
+      role: 'user',
+      text: userMessage,
+      timestamp: new Date()
     }]);
-    
+
     setLoading(true);
     trackUxEvent('agent_command_start', { command: userMessage.slice(0, 120) });
 
     // Add typing indicator
-    setMessages((prev) => [...prev, { 
-      role: 'agent', 
-      text: '', 
+    setMessages((prev) => [...prev, {
+      role: 'agent',
+      text: '',
       timestamp: new Date(),
-      isTyping: true 
+      isTyping: true
     }]);
 
     try {
@@ -280,24 +306,24 @@ export default function AgentPage() {
       // Remove typing indicator and add response
       setMessages((prev) => {
         const withoutTyping = prev.filter(m => !m.isTyping);
-      if (data.success) {
+        if (data.success) {
           trackUxEvent('agent_command_success');
           if (userMessage.toLowerCase().startsWith('create')) trackUxEvent('funnel_split_created');
           if (userMessage.toLowerCase().startsWith('pay')) trackUxEvent('funnel_pay_success');
           const type = detectType(data.response);
-          return [...withoutTyping, { 
-            role: 'agent', 
-            text: data.response, 
+          return [...withoutTyping, {
+            role: 'agent',
+            text: data.response,
             type,
             data: { ...(data.data || {}), execution: data.execution }, // Capture structured metadata
-            timestamp: new Date() 
+            timestamp: new Date()
           }];
         } else {
           trackUxEvent('agent_command_failed', { reason: 'upstream_error' });
-          return [...withoutTyping, { 
-            role: 'agent', 
-            text: `❌ ${data.error}`, 
-            timestamp: new Date() 
+          return [...withoutTyping, {
+            role: 'agent',
+            text: `❌ ${data.error}`,
+            timestamp: new Date()
           }];
         }
       });
@@ -309,10 +335,10 @@ export default function AgentPage() {
           error?.message?.toLowerCase()?.includes('timed out')
             ? 'The agent took too long to respond. Please retry.'
             : toUserFacingError(error?.message || 'Failed to contact agent');
-        return [...withoutTyping, { 
-          role: 'agent', 
-          text: `❌ Error: ${human}`, 
-          timestamp: new Date() 
+        return [...withoutTyping, {
+          role: 'agent',
+          text: `❌ Error: ${human}`,
+          timestamp: new Date()
         }];
       });
     } finally {
@@ -355,7 +381,7 @@ export default function AgentPage() {
         <div className="max-w-[90%] bg-card rounded-2xl rounded-bl-md p-6 border border-border shadow-xl space-y-6 relative overflow-hidden">
           <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/10 rounded-full blur-3xl opacity-50"></div>
           <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl opacity-50"></div>
-          
+
           <div className="flex items-start gap-4 relative z-10">
             <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl text-white shadow-lg shadow-blue-500/20">
               <Bot className="w-6 h-6" />
@@ -392,11 +418,11 @@ export default function AgentPage() {
               <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
             </div>
             <p className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed font-medium">
-              Important: Contributors must verify their wallets at 
+              Important: Contributors must verify their wallets at
               <a href="https://gitsplits.vercel.app/verify" target="_blank" rel="noopener noreferrer" className="underline font-black ml-1 text-amber-950 dark:text-amber-100">gitsplits.vercel.app/verify</a>
             </p>
           </div>
-          
+
           <div className="flex items-center gap-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest justify-center pt-2">
             <div className="h-px w-8 bg-border"></div>
             <span>Ready for your first command</span>
@@ -406,151 +432,166 @@ export default function AgentPage() {
       );
     }
 
-  // Special handling for analysis response
-  if (msg.type === 'analysis') {
-    const repoUrl = extractRepoUrlFromText(msg.text);
-    const repoName = repoUrl?.replace('github.com/', '');
-    const hasCoverage = msg.text.includes('Verification coverage');
-    const hasCreateHint = msg.text.includes('Create a split');
+    // Special handling for analysis response
+    if (msg.type === 'analysis') {
+      const repoUrl = extractRepoUrlFromText(msg.text);
+      const repoName = repoUrl?.replace('github.com/', '');
+      const hasCoverage = msg.text.includes('Verification coverage');
+      const hasCreateHint = msg.text.includes('Create a split');
 
-    return (
+      return (
         <div className="max-w-[90%] bg-card rounded-2xl rounded-bl-md border border-border shadow-lg overflow-hidden transition-all hover:shadow-xl">
-        <div className="bg-muted/50 px-4 py-3 border-b border-border flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-card rounded-md shadow-sm">
-              <Github className="w-4 h-4 text-foreground" />
+          <div className="bg-muted/50 px-4 py-3 border-b border-border flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-card rounded-md shadow-sm">
+                <Github className="w-4 h-4 text-foreground" />
+              </div>
+              <span className="text-xs font-bold text-foreground uppercase tracking-tight">Repository Insights</span>
             </div>
-            <span className="text-xs font-bold text-foreground uppercase tracking-tight">Repository Insights</span>
+            {repoUrl && (
+              <a
+                href={repoUrl.startsWith('http') ? repoUrl : `https://${repoUrl}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] font-bold text-primary bg-card px-2 py-1 rounded-full border border-border flex items-center gap-1 hover:bg-muted transition-colors"
+              >
+                SOURCE <ExternalLink className="w-2.5 h-2.5" />
+              </a>
+            )}
           </div>
-          {repoUrl && (
-            <a 
-              href={repoUrl.startsWith('http') ? repoUrl : `https://${repoUrl}`} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-[10px] font-bold text-primary bg-card px-2 py-1 rounded-full border border-border flex items-center gap-1 hover:bg-muted transition-colors"
-            >
-              SOURCE <ExternalLink className="w-2.5 h-2.5" />
-            </a>
-          )}
-        </div>
           <div className="p-4 space-y-5">
-          <ExecutionPill execution={msg.data?.execution} />
-          <div className="whitespace-pre-wrap text-sm text-foreground font-mono text-[13px] bg-muted/50 p-4 rounded-xl border border-border shadow-inner leading-relaxed">
-            {msg.text}
-          </div>
-          
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 px-1">
-              <div className="h-px flex-1 bg-border"></div>
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Next Steps</span>
-              <div className="h-px flex-1 bg-border"></div>
-            </div>
+            <ExecutionPill execution={msg.data?.execution} />
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="whitespace-pre-wrap text-sm text-foreground font-mono text-[13px] bg-muted/50 p-4 rounded-xl border border-border shadow-inner leading-relaxed"
+            >
+              <LinkifyText text={msg.text} />
+            </motion.div>
 
-            <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 p-3 space-y-2">
-              <p className="text-[11px] font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wide">Happy Path</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                <div className="rounded-md bg-card border border-emerald-200 dark:border-emerald-800 px-2.5 py-2 text-emerald-800 dark:text-emerald-300 font-semibold">
-                  ✅ 1. Analyze repo
-                </div>
-                <div className={`rounded-md bg-card border px-2.5 py-2 font-semibold ${hasCoverage ? 'border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300' : 'border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300'}`}>
-                  {hasCoverage ? '✅' : '⏳'} 2. Check verification
-                </div>
-                <div className={`rounded-md bg-card border px-2.5 py-2 font-semibold ${hasCreateHint ? 'border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300' : 'border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300'}`}>
-                  {hasCreateHint ? '✅' : '⏳'} 3. Create split
-                </div>
-                <div className="rounded-md bg-card border border-amber-200 dark:border-amber-800 px-2.5 py-2 text-amber-800 dark:text-amber-300 font-semibold">
-                  ⏳ 4. Pay contributors
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="space-y-3"
+            >
+              <div className="flex items-center gap-2 px-1">
+                <div className="h-px flex-1 bg-border"></div>
+                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Next Steps</span>
+                <div className="h-px flex-1 bg-border"></div>
+              </div>
+
+              <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 p-3 space-y-2">
+                <p className="text-[11px] font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wide">Happy Path</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-md bg-card border border-emerald-200 dark:border-emerald-800 px-2.5 py-2 text-emerald-800 dark:text-emerald-300 font-semibold">
+                    ✅ 1. Analyze repo
+                  </div>
+                  <div className={`rounded-md bg-card border px-2.5 py-2 font-semibold ${hasCoverage ? 'border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300' : 'border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300'}`}>
+                    {hasCoverage ? '✅' : '⏳'} 2. Check verification
+                  </div>
+                  <div className={`rounded-md bg-card border px-2.5 py-2 font-semibold ${hasCreateHint ? 'border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300' : 'border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300'}`}>
+                    {hasCreateHint ? '✅' : '⏳'} 3. Create split
+                  </div>
+                  <div className="rounded-md bg-card border border-amber-200 dark:border-amber-800 px-2.5 py-2 text-amber-800 dark:text-amber-300 font-semibold">
+                    ⏳ 4. Pay contributors
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Card className="border-purple-200 dark:border-purple-800 hover:border-purple-300 dark:hover:border-purple-700 hover:bg-purple-50/30 dark:hover:bg-purple-950/20 transition-all cursor-pointer group shadow-sm overflow-hidden" onClick={() => sendMessage(`create split for ${repoName || 'this repo'}`)}>
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="p-2 bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-300 rounded-lg group-hover:scale-110 transition-transform">
-                      <Plus className="w-4 h-4" />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Card className="border-purple-200 dark:border-purple-800 hover:border-purple-300 dark:hover:border-purple-700 hover:bg-purple-50/30 dark:hover:bg-purple-950/20 transition-all cursor-pointer group shadow-sm overflow-hidden" onClick={() => sendMessage(`create split for ${repoName || 'this repo'}`)}>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="p-2 bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-300 rounded-lg group-hover:scale-110 transition-transform">
+                        <Plus className="w-4 h-4" />
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-purple-300 dark:text-purple-700 group-hover:translate-x-1 transition-transform" />
                     </div>
-                    <ChevronRight className="w-4 h-4 text-purple-300 dark:text-purple-700 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-foreground">Reward Everyone</h4>
-                    <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">Automated distribution based on contributions</p>
-                  </div>
-                  <Button 
-                    size="sm" 
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-white h-8 text-xs font-bold rounded-lg shadow-md shadow-purple-500/20"
-                  >
-                    Create Split
-                  </Button>
-                </CardContent>
-              </Card>
-              
-              <Card className="border-blue-200 dark:border-blue-800 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-all cursor-pointer group shadow-sm overflow-hidden" onClick={() => sendMessage(`verify contributors for ${repoName || 'this repo'}`)}>
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="p-2 bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-300 rounded-lg group-hover:scale-110 transition-transform">
-                      <Shield className="w-4 h-4" />
+                    <div>
+                      <h4 className="text-sm font-bold text-foreground">Reward Everyone</h4>
+                      <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">Automated distribution based on contributions</p>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-blue-300 dark:text-blue-700 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-foreground">Review Status</h4>
-                    <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">Check which contributors are verified</p>
-                  </div>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    className="w-full border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-card h-8 text-xs font-bold rounded-lg"
-                  >
-                    Check Verification
-                  </Button>
-                </CardContent>
-              </Card>
+                    <Button
+                      size="sm"
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white h-8 text-xs font-bold rounded-lg shadow-md shadow-purple-500/20"
+                    >
+                      Create Split
+                    </Button>
+                  </CardContent>
+                </Card>
 
-              <Card
-                className="border-emerald-200 dark:border-emerald-800 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 transition-all cursor-pointer group shadow-sm overflow-hidden"
-                onClick={() => router.push(`/splits?repo=${encodeURIComponent(repoName || '')}`)}
-              >
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="p-2 bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300 rounded-lg group-hover:scale-110 transition-transform">
-                      <Wallet className="w-4 h-4" />
+                <Card className="border-blue-200 dark:border-blue-800 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-all cursor-pointer group shadow-sm overflow-hidden" onClick={() => sendMessage(`verify contributors for ${repoName || 'this repo'}`)}>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="p-2 bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-300 rounded-lg group-hover:scale-110 transition-transform">
+                        <Shield className="w-4 h-4" />
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-blue-300 dark:text-blue-700 group-hover:translate-x-1 transition-transform" />
                     </div>
-                    <ChevronRight className="w-4 h-4 text-emerald-300 dark:text-emerald-700 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-foreground">Open Funding Workspace</h4>
-                    <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">View split details, funding progress, and pay from your wallet</p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 hover:bg-card h-8 text-xs font-bold rounded-lg"
-                  >
-                    Open Workspace
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-          
-          <div className="bg-amber-50/80 dark:bg-amber-950/20 backdrop-blur-sm rounded-xl p-3 flex items-start gap-3 border border-amber-200 dark:border-amber-800 shadow-sm">
-            <div className="p-1.5 bg-amber-100 dark:bg-amber-900 rounded-full">
-              <Info className="w-3 h-3 text-amber-700 dark:text-amber-400" />
-            </div>
-            <p className="text-[11px] text-amber-900 dark:text-amber-200 leading-relaxed font-medium">
-              You can customize the split percentages manually before finalizing the rewards.
-            </p>
+                    <div>
+                      <h4 className="text-sm font-bold text-foreground">Review Status</h4>
+                      <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">Check which contributors are verified</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-card h-8 text-xs font-bold rounded-lg"
+                    >
+                      Check Verification
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <Card
+                  className="border-emerald-200 dark:border-emerald-800 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 transition-all cursor-pointer group shadow-sm overflow-hidden"
+                  onClick={() => router.push(`/splits?repo=${encodeURIComponent(repoName || '')}`)}
+                >
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="p-2 bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300 rounded-lg group-hover:scale-110 transition-transform">
+                        <Wallet className="w-4 h-4" />
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-emerald-300 dark:text-emerald-700 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-foreground">Open Funding Workspace</h4>
+                      <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">View split details, funding progress, and pay from your wallet</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 hover:bg-card h-8 text-xs font-bold rounded-lg"
+                    >
+                      Open Workspace
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.4 }}
+              className="bg-amber-50/80 dark:bg-amber-950/20 backdrop-blur-sm rounded-xl p-3 flex items-start gap-3 border border-amber-200 dark:border-amber-800 shadow-sm"
+            >
+              <div className="p-1.5 bg-amber-100 dark:bg-amber-900 rounded-full">
+                <Info className="w-3 h-3 text-amber-700 dark:text-amber-400" />
+              </div>
+              <p className="text-[11px] text-amber-900 dark:text-amber-200 leading-relaxed font-medium">
+                You can customize the split percentages manually before finalizing the rewards.
+              </p>
+            </motion.div>
           </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
     // Special handling for split created response
     if (msg.type === 'split_created') {
-      const deTerminalLink = msg.text.match(/https:\/\/determinal\.eigenarcade\.com\/verify\/[a-zA-Z0-9]+/)?.[0];
+      const deTerminalLink = msg.text.match(/https:\/\/determinal\.eigenarcade\.com\/verify\/[a-zA-Z0-9-]+/)?.[0];
       const repoUrl = extractRepoUrlFromText(msg.text);
       const repoName = repoUrl?.replace('github.com/', '');
       const repoCommandTarget = repoName ? `github.com/${repoName}` : 'this repo';
@@ -558,7 +599,7 @@ export default function AgentPage() {
       const splitId = extractSplitId(msg.text);
       const splitExists = msg.text.toLowerCase().includes('already exists');
       const hasCoverageGap = !!coverage && coverage.total > 0 && coverage.verified < coverage.total;
-      
+
       return (
         <div className="max-w-[90%] bg-card rounded-2xl rounded-bl-md border border-purple-200 dark:border-purple-800 shadow-lg overflow-hidden transition-all hover:shadow-xl">
           <div className="bg-purple-50/50 dark:bg-purple-950/20 px-4 py-3 border-b border-purple-200 dark:border-purple-800 flex justify-between items-center">
@@ -571,9 +612,13 @@ export default function AgentPage() {
           </div>
           <div className="p-4 space-y-5">
             <ExecutionPill execution={msg.data?.execution} />
-            <div className="whitespace-pre-wrap text-sm text-foreground bg-muted/50 p-4 rounded-xl border border-border italic shadow-inner leading-relaxed">
-              {msg.text.split('🔗')[0]}
-            </div>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="whitespace-pre-wrap text-sm text-foreground bg-muted/50 p-4 rounded-xl border border-border italic shadow-inner leading-relaxed"
+            >
+              <LinkifyText text={msg.text} />
+            </motion.div>
 
             {splitExists && (
               <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 p-4 space-y-3">
@@ -631,10 +676,10 @@ export default function AgentPage() {
                 <p className="text-xs text-blue-700/80 dark:text-blue-400/80 leading-relaxed font-medium relative z-10">
                   This split was computed within a <strong>Trusted Execution Environment (TEE)</strong>. The distribution is mathematically verifiable against GitHub commit logs.
                 </p>
-                <Button 
+                <Button
                   asChild
-                  size="sm" 
-                  variant="outline" 
+                  size="sm"
+                  variant="outline"
                   className="w-full bg-card/80 backdrop-blur-sm border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-card h-9 text-xs font-bold rounded-lg relative z-10 shadow-sm"
                 >
                   <a href={deTerminalLink} target="_blank" rel="noopener noreferrer">
@@ -644,7 +689,7 @@ export default function AgentPage() {
                 </Button>
               </div>
             )}
-            
+
             <div className="pt-2 border-t border-border space-y-4">
               {hasCoverageGap ? (
                 <div className="space-y-3">
@@ -668,8 +713,8 @@ export default function AgentPage() {
                       <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Action Required</span>
                       <div className="h-px flex-1 bg-border"></div>
                     </div>
-                    <Button 
-                      size="lg" 
+                    <Button
+                      size="lg"
                       className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white h-12 text-sm font-black rounded-xl shadow-xl shadow-green-500/20 border-b-4 border-green-800 active:border-b-0 active:translate-y-1 transition-all"
                       onClick={() => router.push(`/splits?repo=${encodeURIComponent(repoName || '')}&amount=10&token=NEAR`)}
                     >
@@ -677,10 +722,10 @@ export default function AgentPage() {
                       PAY FROM MY WALLET
                     </Button>
                   </div>
-                  
+
                   <div className="flex gap-3">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       className="flex-1 h-9 text-xs font-bold border-border hover:bg-muted rounded-lg"
                       onClick={() => sendMessage(`show distribution for ${repoName || 'this repo'}`)}
@@ -688,8 +733,8 @@ export default function AgentPage() {
                       <Search className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
                       View Shares
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       className="flex-1 h-9 text-xs font-bold border-border hover:bg-muted rounded-lg"
                       onClick={() => sendMessage(`regenerate split for ${repoName || 'this repo'}`)}
@@ -760,9 +805,13 @@ export default function AgentPage() {
                 </p>
               )}
             </div>
-            <div className="whitespace-pre-wrap text-sm text-foreground bg-muted/50 p-3 rounded-lg border border-border">
-              {msg.text}
-            </div>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="whitespace-pre-wrap text-sm text-foreground bg-muted/50 p-3 rounded-lg border border-border"
+            >
+              <LinkifyText text={msg.text} />
+            </motion.div>
             <div className="flex flex-wrap gap-2">
               {txLink && (
                 <a href={txLink} target="_blank" rel="noopener noreferrer">
@@ -909,12 +958,12 @@ export default function AgentPage() {
                     )}
                   </Button>
                 </div>
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              Press Enter to send • Commands: analyze, create, pay, verify
-            </p>
-            <p className="text-[11px] text-muted-foreground mt-1 text-center">
-              Current mode: pay commands redirect to Splits for direct NEAR wallet signing.
-            </p>
+                <p className="text-xs text-muted-foreground mt-2 text-center">
+                  Press Enter to send • Commands: analyze, create, pay, verify
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-1 text-center">
+                  Current mode: pay commands redirect to Splits for direct NEAR wallet signing.
+                </p>
                 {lastCommand && !loading && (
                   <div className="mt-2 text-center">
                     <Button

@@ -1,28 +1,34 @@
-# PRODUCTION-READY DOCKERFILE FOR GITSPLITS SOVEREIGN MONOLITH
-# Optimized for Phala Network (dstack) deployment.
+# SURGICAL PRODUCTION DOCKERFILE FOR GITSPLITS SOVEREIGN MONOLITH
+# Designed to avoid build bloat and timeouts by isolating Agent dependencies.
 
 # --- Stage 1: Builder ---
 FROM node:18-slim AS builder
 
-# Install build dependencies (required for some native crypto packages)
+WORKDIR /app
+
+# Install minimal build tools for native dependency compilation (e.g., for ethers/viem)
 RUN apt-get update && apt-get install -y \
     python3 \
     make \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+# Copy root manifest and workspace manifests
+# We skip the frontend package.json to prevent unnecessary dependency resolution
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/controller-phala/package.json ./packages/controller-phala/
 
-# Copy dependency manifests
-COPY package.json package-lock.json* ./
-COPY packages/shared/package.json ./packages/shared/package.json
-COPY packages/controller-phala/package.json ./packages/controller-phala/package.json
+# Surgical Install: Only install dependencies for the Agent and Shared library.
+# This prevents downloading massive frontend/Next.js dependencies, avoiding timeouts.
+RUN npm install \
+    --workspace=@gitsplits/shared \
+    --workspace=gitsplits-controller-phala \
+    --include=dev \
+    --no-audit \
+    --no-fund
 
-# Install ALL dependencies (including devDeps for compilation)
-# We use npm install instead of npm ci to handle the local monorepo symlinks correctly
-RUN npm install
-
-# Copy source code
+# Copy source code for the relevant packages
 COPY packages/shared ./packages/shared
 COPY packages/controller-phala ./packages/controller-phala
 
@@ -30,8 +36,10 @@ COPY packages/controller-phala ./packages/controller-phala
 RUN npm run build:shared
 RUN npm run build:agent
 
-# Remove devDependencies to reduce image size
-RUN npm prune --production
+# Prune development dependencies to keep the final image slim
+RUN npm prune --production \
+    --workspace=@gitsplits/shared \
+    --workspace=gitsplits-controller-phala
 
 # --- Stage 2: Runner ---
 FROM node:18-slim AS runner
@@ -45,18 +53,14 @@ ENV PORT=3002
 # Create logs directory and set permissions
 RUN mkdir -p /app/logs && chown -R node:node /app
 
-# Copy pruned node_modules from builder
-# This includes the root node_modules with the @gitsplits/shared symlink
+# Copy pruned node_modules (contains root deps and workspace symlinks)
 COPY --from=builder /app/node_modules ./node_modules
 
-# Copy package manifests
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/packages/shared/package.json ./packages/shared/package.json
-COPY --from=builder /app/packages/controller-phala/package.json ./packages/controller-phala/package.json
-
-# Copy built artifacts
-COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+# Copy only the necessary built packages
+# Node symlinks require the relative path from node_modules to remain consistent
+COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/packages/controller-phala/dist ./packages/controller-phala/dist
+COPY --from=builder /app/packages/controller-phala/package.json ./packages/controller-phala/package.json
 
 # Security: Run as non-root user
 USER node
@@ -65,5 +69,4 @@ USER node
 EXPOSE 3002
 
 # Start the Monolith Agent
-# Points to the compiled entrypoint in the controller package
 CMD ["node", "packages/controller-phala/dist/index.js"]

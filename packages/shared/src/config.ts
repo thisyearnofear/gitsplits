@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 export interface RuntimeConfigValidation {
   isProduction: boolean;
   githubAuthMode: 'app' | 'token' | 'none';
@@ -31,29 +33,29 @@ function hasValue(value?: string): boolean {
   return !!value && value.trim().length > 0;
 }
 
-export function getWebAppBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function getWebAppBaseUrl(env: any = process.env): string {
   const raw = (env.WEB_APP_BASE_URL || 'https://gitsplits.vercel.app').trim();
   return raw.replace(/\/+$/, '');
 }
 
-export function getVerifyBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function getVerifyBaseUrl(env: any = process.env): string {
   return `${getWebAppBaseUrl(env)}/verify`;
 }
 
-export function isProductionMode(env: NodeJS.ProcessEnv = process.env): boolean {
+export function isProductionMode(env: any = process.env): boolean {
   return env.AGENT_MODE === 'production';
 }
 
-export function hasGitHubAppAuth(env: NodeJS.ProcessEnv = process.env): boolean {
+export function hasGitHubAppAuth(env: any = process.env): boolean {
   return hasValue(env.GITHUB_APP_ID) && hasValue(env.GITHUB_PRIVATE_KEY);
 }
 
-export function hasGitHubTokenAuth(env: NodeJS.ProcessEnv = process.env): boolean {
+export function hasGitHubTokenAuth(env: any = process.env): boolean {
   return hasValue(env.GITHUB_TOKEN);
 }
 
 export function getGitHubAuthMode(
-  env: NodeJS.ProcessEnv = process.env
+  env: any = process.env
 ): 'app' | 'token' | 'none' {
   if (hasGitHubAppAuth(env)) return 'app';
   if (hasGitHubTokenAuth(env)) return 'token';
@@ -61,7 +63,7 @@ export function getGitHubAuthMode(
 }
 
 export function validateRuntimeConfig(
-  env: NodeJS.ProcessEnv = process.env
+  env: any = process.env
 ): RuntimeConfigValidation {
   const isProduction = isProductionMode(env);
   const errors: string[] = [];
@@ -109,7 +111,7 @@ export function validateRuntimeConfig(
 }
 
 export function validateProductionReadiness(
-  env: NodeJS.ProcessEnv = process.env
+  env: any = process.env
 ): ProductionReadiness {
   const checks = {
     githubApp: hasGitHubAppAuth(env),
@@ -164,7 +166,7 @@ function normalizeRepo(repo: string): string {
 }
 
 export function getCanaryConfig(
-  env: NodeJS.ProcessEnv = process.env
+  env: any = process.env
 ): CanaryConfig {
   const analyzeRepo = env.TEST_ANALYZE_REPO || 'near/near-sdk-rs';
   const createRepo = env.TEST_CREATE_REPO || analyzeRepo;
@@ -174,7 +176,7 @@ export function getCanaryConfig(
   const payMaxAmount = Number(env.TEST_PAY_MAX_AMOUNT || '1');
   const explicitCanaryRepos = (env.TEST_CANARY_REPOS || '')
     .split(',')
-    .map((entry) => entry.trim())
+    .map((entry: string) => entry.trim())
     .filter(Boolean);
 
   const canaryRepos = explicitCanaryRepos.length
@@ -193,7 +195,7 @@ export function getCanaryConfig(
 }
 
 export function assertCanaryPaymentGuards(
-  env: NodeJS.ProcessEnv = process.env
+  env: any = process.env
 ): void {
   const canary = getCanaryConfig(env);
   if (Number.isNaN(canary.payAmount) || canary.payAmount <= 0) {

@@ -2,17 +2,10 @@
  * Agent API Route
  *
  * Hybrid routing proxy:
- * - Hetzner plane for low-risk orchestration/advisory commands
- * - Eigen plane for high-risk execution requiring TEE verification
+ * Forwards requests to the Sovereign Controller (Brain) on Phala.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import {
-  AgentPlane,
-  buildAgentRoutingPlan,
-  formatRoutingSummary,
-  getAgentPlaneBaseUrls,
-} from '@/lib/agent-routing';
+import { NextRequest, NextResponse } from "next/server";
 
 const REQUEST_TIMEOUT_MS = 25_000;
 const READY_CACHE_TTL_MS = 15_000;
@@ -35,19 +28,19 @@ const readinessCache = new Map<string, ReadinessCacheEntry>();
 const responseCache = new Map<string, ResponseCacheEntry>();
 
 function getAbortMessage(error: unknown): string {
-  if (error instanceof Error && error.name === 'AbortError') {
+  if (error instanceof Error && error.name === "AbortError") {
     return `Agent request timed out after ${REQUEST_TIMEOUT_MS}ms`;
   }
   if (error instanceof Error) return error.message;
-  return 'Internal server error';
+  return "Internal server error";
 }
 
 function getAgentApiHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   };
   if (process.env.AGENT_API_KEY) {
-    headers['x-agent-api-key'] = process.env.AGENT_API_KEY;
+    headers["x-agent-api-key"] = process.env.AGENT_API_KEY;
   }
   return headers;
 }
@@ -58,7 +51,12 @@ function responseCacheKey(input: {
   nearAccountId?: string;
   evmAddress?: string;
 }): string {
-  return [input.text.trim().toLowerCase(), input.userId, input.nearAccountId || '', input.evmAddress || ''].join('|');
+  return [
+    input.text.trim().toLowerCase(),
+    input.userId,
+    input.nearAccountId || "",
+    input.evmAddress || "",
+  ].join("|");
 }
 
 async function probeReady(baseUrl: string): Promise<ReadinessCacheEntry> {
@@ -68,11 +66,14 @@ async function probeReady(baseUrl: string): Promise<ReadinessCacheEntry> {
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), Math.min(REQUEST_TIMEOUT_MS, 8_000));
+  const timeout = setTimeout(
+    () => controller.abort(),
+    Math.min(REQUEST_TIMEOUT_MS, 8_000),
+  );
   try {
     const upstream = await fetch(`${baseUrl}/ready`, {
-      method: 'GET',
-      cache: 'no-store',
+      method: "GET",
+      cache: "no-store",
       signal: controller.signal,
     });
     const payload = await upstream.json().catch(() => ({}));
@@ -105,18 +106,23 @@ async function callAgentUpstream(args: {
   walletAddress?: string;
   nearAccountId?: string;
   evmAddress?: string;
-}): Promise<{ ok: boolean; status: number; response?: string; error?: string }> {
+}): Promise<{
+  ok: boolean;
+  status: number;
+  response?: string;
+  error?: string;
+}> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
     const upstream = await fetch(`${args.baseUrl}/process`, {
-      method: 'POST',
+      method: "POST",
       headers: getAgentApiHeaders(),
       body: JSON.stringify({
         text: `@gitsplits ${args.text}`,
         author: args.userId,
-        type: 'web',
+        type: "web",
         walletAddress: args.walletAddress,
         nearAccountId: args.nearAccountId,
         evmAddress: args.evmAddress,
@@ -124,10 +130,10 @@ async function callAgentUpstream(args: {
       signal: controller.signal,
     });
 
-    const contentType = upstream.headers.get('content-type') || '';
-    const payload = contentType.includes('application/json')
+    const contentType = upstream.headers.get("content-type") || "";
+    const payload = contentType.includes("application/json")
       ? await upstream.json().catch(() => ({}))
-      : { response: await upstream.text().catch(() => '') };
+      : { response: await upstream.text().catch(() => "") };
 
     if (!upstream.ok) {
       return {
@@ -147,7 +153,7 @@ async function callAgentUpstream(args: {
   } catch (error: any) {
     return {
       ok: false,
-      status: error instanceof Error && error.name === 'AbortError' ? 504 : 503,
+      status: error instanceof Error && error.name === "AbortError" ? 504 : 503,
       error: getAbortMessage(error),
     };
   } finally {
@@ -155,9 +161,12 @@ async function callAgentUpstream(args: {
   }
 }
 
-function planeOrder(preferred: AgentPlane, allowFallback: boolean): AgentPlane[] {
+function planeOrder(
+  preferred: AgentPlane,
+  allowFallback: boolean,
+): AgentPlane[] {
   if (!allowFallback) return [preferred];
-  return preferred === 'eigen' ? ['eigen', 'hetzner'] : ['hetzner', 'eigen'];
+  return preferred === "eigen" ? ["eigen", "hetzner"] : ["hetzner", "eigen"];
 }
 
 export async function POST(request: NextRequest) {
@@ -166,16 +175,19 @@ export async function POST(request: NextRequest) {
     const {
       text,
       message,
-      userId = 'web_user',
+      userId = "web_user",
       walletAddress,
       nearAccountId,
       evmAddress,
     } = body;
 
-    const userText = String(text ?? message ?? '').trim();
+    const userText = String(text ?? message ?? "").trim();
 
     if (!userText) {
-      return NextResponse.json({ error: 'Missing text/message parameter' }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing text/message parameter" },
+        { status: 400 },
+      );
     }
 
     // Web-first safety: pay execution must happen from /splits wallet flow.
@@ -183,231 +195,91 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            'Direct wallet payouts are required in web UI. Use /splits to execute NEAR payment from your connected wallet.',
+            "Direct wallet payouts are required in web UI. Use /splits to execute NEAR payment from your connected wallet.",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const plan = buildAgentRoutingPlan(userText, process.env);
-    const planeUrls = getAgentPlaneBaseUrls(process.env);
+    const baseUrl =
+      process.env.CONTROLLER_URL ||
+      process.env.AGENT_BASE_URL ||
+      "http://localhost:3002";
 
-    if (!planeUrls.hetzner && !planeUrls.eigen) {
+    const upstreamResult = await callAgentUpstream({
+      baseUrl,
+      text: userText,
+      userId,
+      walletAddress,
+      nearAccountId,
+      evmAddress,
+    });
+
+    if (!upstreamResult.ok || !upstreamResult.response) {
       return NextResponse.json(
         {
           error:
-            'Agent upstream is not configured. Set AGENT_HETZNER_BASE_URL and/or AGENT_EIGEN_BASE_URL (or AGENT_BASE_URL).',
+            upstreamResult.error || "Failed to contact Sovereign Controller",
         },
-        { status: 503 }
+        { status: upstreamResult.status || 502 },
       );
     }
 
-    if (plan.cacheable) {
-      const key = responseCacheKey({ text: userText, userId, nearAccountId, evmAddress });
-      const cached = responseCache.get(key);
-      if (cached && Date.now() - cached.at < RESPONSE_CACHE_TTL_MS) {
-        return NextResponse.json({
-          success: true,
-          response: cached.response,
-          execution: {
-            ...cached.execution,
-            cacheHit: true,
-          },
-          attempts: [],
-          source: 'agent-cache',
-          timestamp: new Date().toISOString(),
-        });
-      }
-    }
-
-    const order = planeOrder(plan.preferred, plan.allowFallback);
-    const attempts: Array<{
-      plane: AgentPlane;
-      baseUrl: string;
-      ok: boolean;
-      error?: string;
-      status?: number;
-      reason?: string;
-    }> = [];
-
-    for (const plane of order) {
-      const baseUrl = planeUrls[plane];
-      if (!baseUrl) continue;
-
-      if (plan.requireAttestation && plane !== 'eigen') {
-        attempts.push({
-          plane,
-          baseUrl,
-          ok: false,
-          reason: 'skipped: attestation required',
-        });
-        continue;
-      }
-
-      const readiness = await probeReady(baseUrl);
-      if (!readiness.ready) {
-        attempts.push({
-          plane,
-          baseUrl,
-          ok: false,
-          error: `not ready (${readiness.status})`,
-          status: readiness.status,
-          reason: 'readiness check failed',
-        });
-        continue;
-      }
-
-      const upstreamResult = await callAgentUpstream({
-        baseUrl,
-        text: userText,
-        userId,
-        walletAddress,
-        nearAccountId,
-        evmAddress,
-      });
-
-      if (!upstreamResult.ok || !upstreamResult.response) {
-        const failedAttempt = {
-          plane,
-          baseUrl,
-          ok: false,
-          error: upstreamResult.error,
-          status: upstreamResult.status,
-          reason: 'upstream request failed',
-        };
-        attempts.push(failedAttempt);
-
-        // Security: do not bypass auth failures on the preferred plane.
-        // If preferred upstream rejects auth, fail-closed instead of fallback.
-        if (
-          plane === plan.preferred &&
-          (upstreamResult.status === 401 || upstreamResult.status === 403)
-        ) {
-          return NextResponse.json(
-            {
-              error: `Preferred agent upstream rejected authorization (${upstreamResult.status}).`,
-              routing: formatRoutingSummary(plan),
-              attempts,
-            },
-            { status: 502 }
-          );
-        }
-        continue;
-      }
-
-      attempts.push({
-        plane,
-        baseUrl,
-        ok: true,
-        status: upstreamResult.status,
-        reason: 'selected',
-      });
-
-      const execution = {
-        plane,
-        risk: plan.risk,
-        intent: plan.intent,
-        requireAttestation: plan.requireAttestation,
-        fallbackUsed: plane !== plan.preferred,
-        routing: formatRoutingSummary(plan),
+    return NextResponse.json({
+      success: true,
+      response: upstreamResult.response,
+      execution: {
+        plane: "phala",
         upstream: baseUrl,
-        cacheHit: false,
-      };
-
-      if (plan.cacheable) {
-        const key = responseCacheKey({ text: userText, userId, nearAccountId, evmAddress });
-        responseCache.set(key, {
-          at: Date.now(),
-          response: upstreamResult.response,
-          execution,
-        });
-      }
-
-      return NextResponse.json({
-        success: true,
-        response: upstreamResult.response,
-        execution,
-        attempts,
-        source: 'agent-upstream',
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    const hardFailMessage = plan.requireAttestation
-      ? 'High-risk action is blocked because Eigen (TEE) is unavailable; fail-closed policy is active.'
-      : 'All configured agent upstreams are currently unavailable.';
-
-    return NextResponse.json(
-      {
-        error: hardFailMessage,
-        routing: formatRoutingSummary(plan),
-        attempts,
       },
-      { status: 503 }
-    );
+      source: "agent-upstream",
+      timestamp: new Date().toISOString(),
+    });
   } catch (error: any) {
-    console.error('Agent error:', error);
+    console.error("Agent error:", error);
     return NextResponse.json(
       { error: getAbortMessage(error) },
-      { status: error instanceof Error && error.name === 'AbortError' ? 504 : 500 }
+      {
+        status:
+          error instanceof Error && error.name === "AbortError" ? 504 : 500,
+      },
     );
   }
 }
 
 export async function GET() {
-  const planeUrls = getAgentPlaneBaseUrls(process.env);
+  const baseUrl =
+    process.env.CONTROLLER_URL ||
+    process.env.AGENT_BASE_URL ||
+    "http://localhost:3002";
+  const readiness = await probeReady(baseUrl);
 
-  const checks = await Promise.all(
-    (Object.keys(planeUrls) as AgentPlane[]).map(async (plane) => {
-      const baseUrl = planeUrls[plane];
-      if (!baseUrl) {
-        return {
-          plane,
-          configured: false,
-          ready: false,
-          status: 0,
-          details: 'not configured',
-        };
-      }
-      const readiness = await probeReady(baseUrl);
-      return {
-        plane,
+  return NextResponse.json(
+    {
+      status: readiness.ready ? "ok" : "degraded",
+      service: "gitsplits-agent-proxy",
+      controller: {
         configured: true,
         ready: readiness.ready,
         status: readiness.status,
         details: readiness.payload,
-      };
-    })
-  );
-
-  const anyReady = checks.some((c) => c.ready);
-  return NextResponse.json(
-    {
-      status: anyReady ? 'ok' : 'degraded',
-      service: 'gitsplits-agent-proxy',
-      planes: checks,
-      policy: {
-        requireEigenForCreatePay:
-          process.env.AGENT_REQUIRE_EIGEN_FOR_CREATE_PAY !== 'false',
-        allowHetznerExecFallback:
-          process.env.AGENT_ALLOW_HETZNER_EXEC_FALLBACK === 'true',
       },
       timestamp: new Date().toISOString(),
     },
-    { status: anyReady ? 200 : 503 }
+    { status: readiness.ready ? 200 : 503 },
   );
 }
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 export const maxDuration = 30;
-export const preferredRegion = 'auto';
+export const preferredRegion = "auto";
 export const revalidate = 0;
 
 export async function HEAD() {
   return NextResponse.json({
-    status: 'ok',
-    service: 'gitsplits-agent-proxy',
+    status: "ok",
+    service: "gitsplits-agent-proxy",
     timestamp: new Date().toISOString(),
   });
 }

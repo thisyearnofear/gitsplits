@@ -1,6 +1,6 @@
 # GitSplits User Guide
 
-Autonomous AI agent that compensates open source contributors via natural language commands.
+AI-powered application for compensating open source contributors via natural language commands.
 
 ## Quick Start
 
@@ -8,7 +8,7 @@ Autonomous AI agent that compensates open source contributors via natural langua
 @gitsplits pay 100 USDC to github.com/near/near-sdk-rs
 ```
 
-The agent analyzes the repository, calculates fair splits, and distributes funds to verified contributors.
+The application analyzes the repository, calculates fair splits, and distributes funds to verified contributors.
 
 ## Command Reference
 
@@ -55,7 +55,7 @@ Distribute funds to all contributors of a repository.
 - Contributors must have verified wallets (one-time setup)
 
 **What happens:**
-1. Agent analyzes the repository
+1. Application analyzes the repository
 2. Looks up verified wallets for contributors
 3. Executes cross-chain distribution via Ping Pay
 4. Replies with transaction receipt
@@ -71,9 +71,9 @@ DM @gitsplits: verify your-github-username
 ```
 
 **Flow:**
-1. Agent generates unique verification code
+1. Application generates unique verification code
 2. You create a GitHub gist with the code
-3. Agent verifies and links your identities
+3. Application verifies and links your identities
 4. Future payments go directly to your wallet
 
 ---
@@ -157,7 +157,7 @@ Some actions are easier on the web:
 - **View Splits**: https://gitsplits.vercel.app/splits
 - **Dashboard**: https://gitsplits.vercel.app/dashboard
 
-The web interface and Farcaster agent share the same state.
+The web interface and Farcaster bot share the same state.
 
 ---
 

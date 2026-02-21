@@ -2,17 +2,19 @@
 
 ## Current: GitSplits Core
 
-Autonomous agent for compensating open source contributors via Farcaster.
+User-initiated application for compensating open source contributors via Farcaster and web interface.
 
 ```
-User → @gitsplits → Analyze repo → Pay contributors
+User → @gitsplits → Analyze repo → Pay contributors (with optional approval)
 ```
 
-**What:** Pay open source contributors  
-**Why:** Fair compensation, transparent splits  
-**Input:** GitHub repo URL  
-**Output:** Payment distribution  
+**What:** Pay open source contributors
+**Why:** Fair compensation, transparent splits
+**Input:** GitHub repo URL
+**Output:** Payment distribution
 **Interface:** Farcaster + Web UI
+
+**Current State:** All operations require explicit user commands. Approval workflows are available for sensitive operations (create, pay).
 
 ---
 
@@ -76,143 +78,87 @@ All use cases share:
 
 ---
 
+## Hybrid Sovereign Architecture
+
+To achieve the vision of a "Verifiable Sovereign Agent" while leveraging the unique strengths of different TEE providers, GitSplits employs a **Hybrid "Brain + Muscle" Architecture**.
+
+This approach solves the incompatibility between `dstack` (required for Shade Agents) and `EigenCompute` (required for EigenAI) by splitting the agent into two specialized roles.
+
+### 1. The Controller (Phala + Shade)
+**"The Sovereign CEO"**
+
+*   **Role:** Identity, Governance, & Treasury.
+*   **Infrastructure:** Phala Network (native `dstack` support).
+*   **Responsibilities:**
+    *   **Identity:** Holds the verifiable "code identity" (via `dstack` Quote).
+    *   **Treasury:** Manages funds on NEAR and EVM chains via **Chain Signatures**.
+    *   **Signer:** The only entity authorized to sign financial transactions.
+    *   **Orchestrator:** Delegates heavy compute tasks to the Worker.
+
+### 2. The Worker (EigenCompute)
+**"The Intelligent Employee"**
+
+*   **Role:** Heavy Compute, Data Indexing, & AI Inference.
+*   **Infrastructure:** EigenCompute TEE.
+*   **Responsibilities:**
+    *   **GitHub Indexing:** Fetches and processes thousands of commits.
+    *   **EigenAI Inference:** Uses the deTERMinal grant to run verifiable LLM inference.
+    *   **Attestation:** Signs analysis reports with its TEE-injected key.
+
+---
+
+## Workflow Protocol
+
+1.  **Request:** User asks `@gitsplits` (The Controller) to split funds for `owner/repo`.
+2.  **Delegation:** Controller verifies the request and dispatches a job to the Worker.
+3.  **Execution:** Worker (Eigen) wakes up:
+    *   Scrapes GitHub data.
+    *   Calls EigenAI for "Fair Split" analysis.
+    *   Generates a JSON Report: `{ "alice": 60, "bob": 40 }`.
+    *   **Signs** the report with its Eigen-injected private key.
+4.  **Verification:** Controller (Phala) receives the signed report.
+    *   Verifies the signature against the known "Worker Whitelist" in the smart contract.
+5.  **Settlement:** Controller uses **Chain Signatures** to distribute funds to contributors.
+
+---
+
 ## Roadmap
 
-### Phase 1: GitSplits Core ✅ (NEARCON - Feb 16)
-
+### Phase 1: GitSplits Core ✅ (Complete)
 **Deliverables:**
 - ✅ Intent-based agent framework
 - ✅ Farcaster integration
 - ✅ GitHub analysis via GitHub App
 - ✅ NEAR contract for splits
-- ✅ Ping Pay integration
 - ✅ EigenCloud TEE deployment
 
-### Phase 2: Platform Extraction (Post-NEARCON)
+### Phase 2: Hybrid Sovereign Migration (Current)
+**Goal:** Split the monolith into Controller/Worker roles to enable true sovereignty.
 
-**Goal:** Extract reusable components for new use cases
+**Tasks:**
+1.  **Refactor Agent Codebase:**
+    *   Consolidate logic into a single modular repo.
+    *   Implement `MODE=controller` (Phala) and `MODE=worker` (Eigen).
+2.  **Deploy Controller (Phala):**
+    *   Integrate `dstack` for identity.
+    *   Connect to NEAR Chain Signatures.
+3.  **Downgrade Worker (Eigen):**
+    *   Remove direct payment logic.
+    *   Expose "Signed Analysis" endpoint.
+4.  **Bridge Contract:**
+    *   Add `verify_worker` logic to the main contract.
 
-**Components to generalize:**
-1. **TEE Agent Framework** - Run any agent in EigenCompute
-2. **Intent Parser** - Natural language → structured commands
-3. **Attestation Service** - Prove execution happened in TEE
-4. **Payment Rail** - Cross-chain distribution via Ping Pay
-
-### Phase 3: Private Code Review (March 2026)
-
-**New Agent:** `private-reviewer`  
-**Interface:** Web UI (not Farcaster - too sensitive for public)  
-**Pricing:** Per audit, paid via crypto
-
-### Phase 4: Continuous Security Agent (Q2 2026)
-
-**New Agent:** `security-guardian`
-
-### Phase 5: Marketplace (Q3 2026)
-
-**Goal:** Platform for verifiable compute agents
+### Phase 3: Marketplace & Expansion (Q3 2026)
+**Goal:** Open the platform for other agents.
 
 **Agents:**
 - `gitsplits` - Contributor compensation
-- `private-reviewer` - Security audits
+- `private-reviewer` - Security audits (Worker-heavy)
 - `security-guardian` - Continuous monitoring
-- `compliance-auditor` - Regulatory checks
-- `ip-protector` - License verification
-
-**Infrastructure:**
-- Agent registry
-- TEE orchestration
-- Payment routing
-- Attestation verification
 
 ---
 
-## Why This Timeline?
-
-### NEARCON Focus (Now)
-- **Judges want working demos**, not visions
-- **Single strong product** > multiple incomplete ones
-- **GitSplits alone** is a complete, impressive demo
-- **EigenCloud integration** is already complex enough
-
-### Post-NEARCON Expansion
-- **Proven tech** - GitSplits validates the approach
-- **Reusable components** - Agent framework, TEE deployment
-- **Natural extension** - Same infra, different use case
-- **Bigger market** - Security audits > contributor payments
-
----
-
-## Technical Preparation
-
-**During GitSplits build, prepare for expansion:**
-
-1. **Modular agent framework** - Easy to add new intents
-2. **Generic TEE wrapper** - Any agent can run in EigenCompute
-3. **Pluggable interfaces** - Farcaster, Web, API
-4. **Attestation library** - Reusable proof generation
-
----
-
-## Shade Agents Migration (Planned)
-
-### Current Status
-
-GitSplits is deployed on **EigenCompute** as a TEE-powered agent with:
-- Verifiable execution via TEE attestations
-- Hardware-secure computation
-- Privacy for sensitive operations
-
-### What Are Shade Agents?
-
-[Shade Agents](https://docs.near.org/ai/shade-agents/getting-started/introduction) combine:
-- **TEE** — Verifiable, secure compute
-- **NEAR Chain Signatures** — Decentralized key management
-- **Agent Smart Contracts** — Persistent accounts across TEE instances
-
-### Comparison
-
-| Aspect | Current GitSplits | Shade Agent |
-|--------|------------------|-------------|
-| Key Management | Standard NEAR keys in TEE | Decentralized via chain signatures |
-| Persistence | Keys lost if TEE fails | Persistent across any TEE instance |
-| Multi-chain | NEAR primary | Any chain (EVM, Solana, Bitcoin) |
-| Resilience | Single TEE instance | Multiple instances can share state |
-
-### Migration Benefits
-
-1. **Resilience** — If TEE goes down, another instance takes over
-2. **Multi-chain Native** — Sign transactions on any blockchain
-3. **True Decentralization** — Anyone can run agent Docker image
-4. **Upgradability** — Code hash updates via DAO/timelock
-
-### Migration Requirements
-
-1. **Deploy Shade Agent Contract** (Rust)
-   - Agent registration with attestation verification
-   - Code hash approval mechanism
-   - `request_signature` function for chain signatures
-
-2. **Integrate `shade-agent-api`**
-   - Replace direct NEAR key usage
-   - Call agent contract for transaction signing
-   - Register on boot with TEE attestation
-
-3. **Restructure Agent State**
-   - Move state from agent memory to contract
-   - Ensure stateless agent design
-   - Enable multiple concurrent TEE instances
-
-### Timeline
-
-**Status:** Planned, not yet prioritized
-
-Behind:
-- Core payment functionality stabilization
-- Farcaster bot reactivation
-- Private repo analysis features
-
-### Resources
+## Resources
 
 - [Shade Agents Documentation](https://docs.near.org/ai/shade-agents/getting-started/introduction)
 - [Chain Signatures](https://docs.near.org/concepts/abstraction/chain-signatures)

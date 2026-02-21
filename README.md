@@ -1,6 +1,6 @@
 # GitSplits
 
-Autonomous AI agent that compensates open source contributors via natural language commands, running on EigenCompute for cryptographic transparency.
+AI-powered application that helps compensate open source contributors via natural language commands, running on EigenCompute for cryptographic transparency.
 
 ## Quick Demo
 
@@ -8,15 +8,16 @@ Autonomous AI agent that compensates open source contributors via natural langua
 @gitsplits pay 100 USDC to github.com/near/near-sdk-rs
 ```
 
-The agent analyzes the repository, calculates fair splits based on contribution history, and distributes funds to verified contributors.
+The application analyzes the repository, calculates fair splits based on contribution history, and distributes funds to verified contributors.
 
 ## Features
 
 - **Natural Language**: Just mention @gitsplits with a command
-- **No Setup**: Contributors verify once, then auto-receive payments
+- **No Setup**: Contributors verify once, then receive payments automatically
 - **Cross-Chain**: Contributors receive funds on their preferred chain
 - **Cryptographic Transparency**: Attested execution via EigenCompute TEE
 - **Web UI**: Interactive chat interface at https://gitsplits.vercel.app/agent
+- **Approval Workflow**: Advisor and draft modes require human confirmation before executing payments
 
 ## How to Use
 
@@ -46,7 +47,7 @@ See [**docs/GUIDE.md**](docs/GUIDE.md) for full command reference.
 ## Architecture
 
 ```
-Farcaster/Web → Intent Agent → EigenCompute (TEE) → NEAR + Payments
+Farcaster/Web → Intent Parser → EigenCompute (TEE) → NEAR + Payments
                                     ↓
                           Attestation of Execution
 ```
@@ -54,7 +55,7 @@ Farcaster/Web → Intent Agent → EigenCompute (TEE) → NEAR + Payments
 | Layer | Technology |
 |-------|-----------|
 | Social | Farcaster (@gitsplits bot) |
-| Agent | Custom intent-based framework |
+| Intent Parser | Custom natural language framework |
 | Compute | EigenCompute (TEE + AVS) |
 | Blockchain | NEAR Protocol |
 | Payments | Ping Pay, HOT Pay |
@@ -99,6 +100,11 @@ AGENT_API_KEY=...
 AGENT_REQUIRE_EIGEN_FOR_CREATE_PAY=true
 AGENT_ALLOW_HETZNER_EXEC_FALLBACK=false
 ```
+
+**Execution Modes:**
+- `advisor` - Returns a plan for human review (no execution)
+- `draft` - Returns a plan requiring explicit approval
+- `execute` - Executes commands directly (default)
 
 Security requirements:
 - Set `AGENT_API_KEY` in Vercel.

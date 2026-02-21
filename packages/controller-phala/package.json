@@ -1,0 +1,32 @@
+{
+  "name": "gitsplits-controller-phala",
+  "version": "1.0.0",
+  "description": "Sovereign CEO agent for GitSplits running on Phala Network",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@gitsplits/shared": "*",
+    "@phala/dstack-sdk": "latest",
+    "bn.js": "^5.2.1",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.16.0",
+    "near-api-js": "^3.0.4",
+    "viem": "^2.21.33"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.11.19",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
+    "tsx": "^4.7.1",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

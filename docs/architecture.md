@@ -2,19 +2,22 @@
 
 ## Overview
 
-GitSplits compensates open source contributors through an intent agent, verification mapping on NEAR, and direct payout flows from user wallets.
+GitSplits compensates open source contributors through an intent-based application, verification mapping on NEAR, and direct payout flows from user wallets.
 
 ```
-Web/Farcaster -> Intent Agent -> EigenCompute (TEE) -> GitHub + NEAR + Payments
+Web/Farcaster -> Intent Parser -> EigenCompute (TEE) -> GitHub + NEAR + Payments
 ```
+
+**Note:** GitSplits is user-initiated, not autonomous. All payment and split creation actions require explicit user commands, with optional approval workflows for sensitive operations.
 
 ## Components
 
-### 1. Intent Agent (`/agent/src/`)
+### 1. Intent Parser (`/agent/src/`)
 
 - Intent parsing: `analyze`, `create`, `pay`, `verify`, `splits`, `pending`
 - Tool orchestration: GitHub, NEAR, Ping Pay/HOT, EigenAI
 - Production readiness checks and preflight validations
+- Execution modes: `advisor` (plan only), `draft` (requires approval), `execute` (direct)
 
 ### 2. Contract Layer (`/contracts/near`)
 
@@ -43,11 +46,15 @@ Web/Farcaster -> Intent Agent -> EigenCompute (TEE) -> GitHub + NEAR + Payments
 ## System Flow
 
 1. User analyzes repository (`analyze owner/repo`)
-2. Agent returns contributors + verification coverage + AI insight
+2. Application returns contributors + verification coverage + AI insight
 3. User creates or refreshes split (`create split for owner/repo`)
-4. User funds payouts from connected wallet (NEAR first-class)
+4. User initiates payouts from connected wallet (NEAR first-class)
 5. Verified contributors receive direct distributions
 6. Unverified contributors routed to verification + pending flows
+
+**Approval Workflow:**
+- In `advisor` or `draft` mode, sensitive operations (create, pay) require explicit user approval
+- Plans expire after a set time and must be re-requested
 
 ---
 
@@ -60,7 +67,7 @@ Web/Farcaster -> Intent Agent -> EigenCompute (TEE) -> GitHub + NEAR + Payments
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    INTENT AGENT                              │
+│                    INTENT PARSER                             │
 │  ┌───────────────────────────────────────────────────────┐  │
 │  │  Intent Parser  │  Tool Registry  │  Context Manager  │  │
 │  └───────────────────────────────────────────────────────┘  │

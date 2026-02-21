@@ -7,13 +7,14 @@ import {
 } from "@/lib/verification-service";
 import { setDoc, doc, Timestamp, Firestore } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { getAgentPlaneBaseUrls } from "@/lib/agent-routing";
-
 const REQUEST_TIMEOUT_MS = 20_000;
 
-function getAgentBaseUrl(): string | null {
-  const planes = getAgentPlaneBaseUrls(process.env);
-  return planes.hetzner || planes.eigen;
+function getAgentBaseUrl(): string {
+  return (
+    process.env.CONTROLLER_URL ||
+    process.env.AGENT_BASE_URL ||
+    "http://localhost:3002"
+  );
 }
 
 async function syncVerificationToContract(params: {
@@ -24,7 +25,7 @@ async function syncVerificationToContract(params: {
   const agentBaseUrl = getAgentBaseUrl();
   if (!agentBaseUrl) {
     throw new Error(
-      "Agent upstream is not configured for contract sync (set AGENT_HETZNER_BASE_URL and/or AGENT_EIGEN_BASE_URL, or AGENT_BASE_URL)."
+      "Agent upstream is not configured for contract sync (set CONTROLLER_URL or AGENT_BASE_URL).",
     );
   }
 
@@ -53,7 +54,9 @@ async function syncVerificationToContract(params: {
 
     const payload = await upstream.json().catch(() => ({}));
     if (!upstream.ok) {
-      throw new Error(payload?.error || `Agent sync failed (${upstream.status})`);
+      throw new Error(
+        payload?.error || `Agent sync failed (${upstream.status})`,
+      );
     }
     const responseText = String(payload?.response || "");
     if (responseText.includes("❌")) {
@@ -68,7 +71,7 @@ export async function POST(request: NextRequest) {
   if (!db) {
     return NextResponse.json(
       { success: false, error: "Firebase not configured" },
-      { status: 503 }
+      { status: 503 },
     );
   }
 
@@ -90,7 +93,7 @@ export async function POST(request: NextRequest) {
     if (!walletAddress) {
       return NextResponse.json(
         { success: false, error: "Wallet address is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -105,7 +108,7 @@ export async function POST(request: NextRequest) {
       githubVerified = await verifyGitHub(
         walletAddress,
         githubUsername,
-        githubGistId
+        githubGistId,
       );
     }
 
@@ -114,7 +117,7 @@ export async function POST(request: NextRequest) {
       twitterVerified = await verifyTwitter(
         walletAddress,
         twitterHandle,
-        body.tweetUrl
+        body.tweetUrl,
       );
     }
 
@@ -128,7 +131,7 @@ export async function POST(request: NextRequest) {
       nearVerified = await verifyNearSignature(
         nearMessage,
         nearSignature,
-        nearAccountId
+        nearAccountId,
       );
     }
 
@@ -158,7 +161,7 @@ export async function POST(request: NextRequest) {
         nearVerified,
         nearVerifiedAt: nearVerified ? Timestamp.now() : null,
       },
-      { merge: true }
+      { merge: true },
     );
 
     // Log verification status
@@ -185,9 +188,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to verify identities",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to verify identities",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

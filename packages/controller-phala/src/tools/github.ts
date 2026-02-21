@@ -1,6 +1,6 @@
 /**
  * GitHub Tool
- * 
+ *
  * Fetches repository data using GitHub authentication.
  * Priority: GitHub App (production) -> personal token fallback.
  */
@@ -184,11 +184,11 @@ export const githubTool = {
 
     // Calculate total contributions
     const totalContributions = contributors.reduce(
-      (sum, c) => sum + (c.contributions || 0), 0
+      (sum: number, c: any) => sum + (c.contributions || 0), 0
     );
 
     // Calculate percentages
-    const analyzedContributors = contributors.map((c, index) => ({
+    const analyzedContributors = contributors.map((c: any, index: number) => ({
       username: c.login || (c as any).name || `anon-${index + 1}`,
       commits: c.contributions || 0,
       percentage: totalContributions > 0
@@ -197,7 +197,7 @@ export const githubTool = {
     }));
 
     // Sort by contributions (descending)
-    analyzedContributors.sort((a, b) => b.commits - a.commits);
+    analyzedContributors.sort((a: any, b: any) => b.commits - a.commits);
 
     return {
       contributors: analyzedContributors,

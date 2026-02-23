@@ -187,14 +187,19 @@ export const githubTool = {
       (sum: number, c: any) => sum + (c.contributions || 0), 0
     );
 
-    // Calculate percentages
-    const analyzedContributors = contributors.map((c: any, index: number) => ({
-      username: c.login || (c as any).name || `anon-${index + 1}`,
+    // Calculate percentages and surface contributor type for downstream quality scoring
+    const analyzedContributors = contributors.map((c: any, index: number) => {
+      const username = c.login || (c as any).name || `anon-${index + 1}`;
+      const type = c.type || ((c as any).name && !c.login ? 'Anonymous' : 'User');
+      return {
+      username,
       commits: c.contributions || 0,
       percentage: totalContributions > 0
         ? Math.round(((c.contributions || 0) / totalContributions) * 100)
         : 0,
-    }));
+      type: type as 'User' | 'Bot' | 'Anonymous',
+      };
+    });
 
     // Sort by contributions (descending)
     analyzedContributors.sort((a: any, b: any) => b.commits - a.commits);

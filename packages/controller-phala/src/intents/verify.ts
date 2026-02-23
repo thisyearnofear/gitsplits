@@ -9,8 +9,7 @@
  * - "verify identity for my-github-username"
  */
 
-import { Intent } from '@gitsplits/shared';
-import { getVerifyBaseUrl } from '@gitsplits/shared';
+import { Intent, getVerifyBaseUrl, normalizeRepoUrl, isSystemContributor } from '@gitsplits/shared';
 
 export const verifyIntent: Intent = {
   name: 'verify',
@@ -193,16 +192,3 @@ function isLikelyNearAccount(value: string | undefined): boolean {
   return /\.near$|\.testnet$/i.test(value);
 }
 
-function normalizeRepoUrl(input: string): string {
-  const cleaned = input
-    .replace(/^(https?:\/\/)?(www\.)?github\.com\//, '')
-    .replace(/\/$/, '')
-    .trim();
-
-  return `github.com/${cleaned}`;
-}
-
-function isSystemContributor(username: string): boolean {
-  const normalized = String(username || '').toLowerCase();
-  return normalized.includes('[bot]') || normalized.endsWith('-bot');
-}

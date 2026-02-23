@@ -1,22 +1,15 @@
 import { PolicyDecision } from './types';
-import { isProductionMode } from '@gitsplits/shared';
+import { isProductionMode, normalizeRepoUrl } from '@gitsplits/shared';
 
 const DEFAULT_ALLOWED_TOKENS = (process.env.AGENT_ALLOWED_TOKENS || 'NEAR,USDC').split(',').map((t) => t.trim().toUpperCase()).filter(Boolean);
 const DEFAULT_MAX_PAYOUT = Number(process.env.AGENT_MAX_PAYOUT_AMOUNT || '250');
 const REQUIRE_APPROVAL = process.env.AGENT_REQUIRE_APPROVAL === 'true';
 const CANARY_ONLY_PAY = process.env.AGENT_CANARY_ONLY_PAY === 'true';
 
-function normalizeRepo(repo: string): string {
-  return String(repo || '')
-    .replace(/^(https?:\/\/)?(www\.)?github\.com\//i, '')
-    .replace(/\/+$/, '')
-    .toLowerCase();
-}
-
 function getCanaryRepos(): string[] {
   return (process.env.TEST_CANARY_REPOS || '')
     .split(',')
-    .map((entry) => normalizeRepo(entry.trim()))
+    .map((entry) => normalizeRepoUrl(entry.trim()).toLowerCase())
     .filter(Boolean);
 }
 
@@ -40,7 +33,7 @@ export function evaluatePolicy(input: {
   if (input.intentName === 'pay') {
     const token = String(input.params.token || '').toUpperCase();
     const amount = Number(input.params.amount || 0);
-    const repo = normalizeRepo(String(input.params.repo || ''));
+    const repo = normalizeRepoUrl(String(input.params.repo || '')).toLowerCase();
 
     if (!DEFAULT_ALLOWED_TOKENS.includes(token)) {
       reasons.push(`Token ${token} is not allowed by policy.`);

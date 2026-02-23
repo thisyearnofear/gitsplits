@@ -1,14 +1,10 @@
+import { isSystemContributor } from '@gitsplits/shared';
 import { SafetyAlert } from './types';
 
 export interface RecipientSnapshot {
   github_username: string;
   percentage: number;
   wallet?: string | null;
-}
-
-function isBot(username: string): boolean {
-  const normalized = String(username || '').toLowerCase();
-  return normalized.includes('[bot]') || normalized.endsWith('-bot');
 }
 
 export function inspectDistributionRisk(recipients: RecipientSnapshot[]): SafetyAlert[] {
@@ -23,7 +19,7 @@ export function inspectDistributionRisk(recipients: RecipientSnapshot[]): Safety
   }
 
   const botShare = recipients
-    .filter((r) => isBot(r.github_username))
+    .filter((r) => isSystemContributor(r.github_username))
     .reduce((sum, r) => sum + Number(r.percentage || 0), 0);
   if (botShare >= 50) {
     alerts.push({

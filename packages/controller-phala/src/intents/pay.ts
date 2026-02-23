@@ -9,8 +9,7 @@
  * - "distribute $200 to the React team"
  */
 
-import { Intent } from '@gitsplits/shared';
-import { getVerifyBaseUrl } from '@gitsplits/shared';
+import { Intent, getVerifyBaseUrl, normalizeRepoUrl } from '@gitsplits/shared';
 import { inspectDistributionRisk, shouldBlockForSafety } from '../agentic/safety';
 
 export const payIntent: Intent = {
@@ -230,23 +229,4 @@ function isStrictAllVerifiedMode(text: string): boolean {
     normalized.includes('all-verified') ||
     normalized.includes('all verified')
   );
-}
-
-/**
- * Normalize repository URL from various formats
- */
-function normalizeRepoUrl(input: string): string {
-  // Remove common prefixes/suffixes
-  let cleaned = input
-    .replace(/^(https?:\/\/)?(www\.)?github\.com\//, '')
-    .replace(/\/$/, '')
-    .trim();
-
-  // Handle "owner/repo" format
-  if (!cleaned.includes('/')) {
-    // Try to find from context or return as-is
-    return cleaned;
-  }
-
-  return `github.com/${cleaned}`;
 }

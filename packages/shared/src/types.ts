@@ -35,6 +35,23 @@ export interface SignedContributionReport {
 }
 
 /**
+ * Multi-dimensional quality assessment for a contributor.
+ * Float scores (0.0–1.0) enable weighted split allocations
+ * instead of binary pass/fail decisions.
+ */
+export interface ContributorQuality {
+  username: string;
+  /** 0.0–1.0: Overall quality score combining all signals */
+  quality: number;
+  /** 0.0–1.0: Confidence that commit counts reflect genuine contribution value */
+  commitConfidence: number;
+  /** Routing action for split allocation */
+  creditAction: 'full_credit' | 'partial_credit' | 'no_credit' | 'flag_for_review';
+  /** Reasons for the assessment */
+  reasons: string[];
+}
+
+/**
  * Common message types for the Agent system
  */
 export type AgentMessageType = 'cast' | 'dm' | 'web';

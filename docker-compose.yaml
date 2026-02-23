@@ -43,7 +43,7 @@ services:
       # Application Configuration
       - NODE_ENV=production
       - AGENT_MODE=${AGENT_MODE}
-      - PORT=3002
+      - PORT=43127
 
       # NEAR Configuration
       - NEAR_NETWORK_ID=mainnet
@@ -87,10 +87,10 @@ services:
       - NEYNAR_SIGNER_UUID=${NEYNAR_SIGNER_UUID}
       - FARCASTER_BOT_FID=${FARCASTER_BOT_FID}
     ports:
-      - "3002:3002"
+      - "43127:43127"
     restart: always
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3002/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:43127/health"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -36,7 +36,7 @@ WORKDIR /app
 
 # Production environment
 ENV NODE_ENV=production
-ENV PORT=3002
+ENV PORT=43127
 
 # Needed by docker-compose healthcheck command
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -57,7 +57,7 @@ COPY --from=builder /app/packages/controller-phala/package.json /app/packages/co
 USER node
 
 # Expose Agent Port
-EXPOSE 3002
+EXPOSE 43127
 
 # Start the Agent
 # We use the relative path to the compiled entrypoint

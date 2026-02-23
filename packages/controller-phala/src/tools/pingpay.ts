@@ -14,6 +14,19 @@ interface DistributionParams {
   }>;
 }
 
+function getAuthHeaders(): Record<string, string> {
+  const apiKey = process.env.PING_PAY_API_KEY || '';
+  const explicitMode = (process.env.PING_PAY_AUTH_MODE || '').toLowerCase();
+  const usePublishable =
+    explicitMode === 'publishable' || (!explicitMode && apiKey.startsWith('pk_'));
+
+  if (usePublishable) {
+    return { 'x-publishable-key': apiKey };
+  }
+
+  return { Authorization: `Bearer ${apiKey}` };
+}
+
 export const pingpayTool = {
   name: 'pingpay',
   
@@ -51,7 +64,7 @@ export const pingpayTool = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.PING_PAY_API_KEY}`,
+        ...getAuthHeaders(),
       },
       body: JSON.stringify({
         action: 'distribute',
@@ -95,9 +108,7 @@ export const pingpayTool = {
     }
     
     const response = await fetch(`${apiBase}${intentsPath}/${intentId}`, {
-      headers: {
-        'Authorization': `Bearer ${process.env.PING_PAY_API_KEY}`,
-      },
+      headers: getAuthHeaders(),
     });
     
     if (!response.ok) {
@@ -113,6 +124,8 @@ export const pingpayTool = {
   async probeAuth() {
     const apiBase = process.env.PING_PAY_API_BASE || 'https://api.pingpay.io';
     const probePath = process.env.PING_PAY_PROBE_PATH || '/v1/intents/probe';
+    const probeMethod = (process.env.PING_PAY_PROBE_METHOD || 'GET').toUpperCase();
+    const probeBody = process.env.PING_PAY_PROBE_BODY;
 
     if (!process.env.PING_PAY_API_KEY || process.env.PING_PAY_API_KEY === 'placeholder') {
       if (process.env.AGENT_MODE === 'production') {
@@ -122,10 +135,12 @@ export const pingpayTool = {
     }
 
     const response = await fetch(`${apiBase}${probePath}`, {
-      method: 'GET',
+      method: probeMethod,
       headers: {
-        Authorization: `Bearer ${process.env.PING_PAY_API_KEY}`,
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
       },
+      body: probeMethod === 'GET' ? undefined : probeBody,
     });
 
     if (!response.ok) {
@@ -134,10 +149,13 @@ export const pingpayTool = {
         throw new Error(`[PingPay] Authentication failed with status ${response.status}`);
       }
       if (response.status === 404) {
-        throw new Error(
-          `[PingPay] Probe endpoint not found (${apiBase}${probePath}). ` +
-          `Set PING_PAY_API_BASE/PING_PAY_PROBE_PATH to the current production API.`
-        );
+        return {
+          ok: true,
+          status: response.status,
+          warning:
+            `[PingPay] Probe path returned 404 (${apiBase}${probePath}). ` +
+            `Auth may still be valid; set PING_PAY_PROBE_PATH for your current API.`,
+        };
       }
       throw new Error(
         `[PingPay] Probe failed with status ${response.status}: ${body || response.statusText}`

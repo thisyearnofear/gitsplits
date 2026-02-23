@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import http from 'http';
+import crypto from 'crypto';
 import { GitSplitsController } from './agent';
 import { createFarcasterClient } from './services/farcaster';
 import {
@@ -46,6 +47,21 @@ function isAuthorizedProcessRequest(req: http.IncomingMessage): boolean {
   if (!expected) return true;
   const provided = req.headers['x-agent-api-key'];
   return typeof provided === 'string' && provided === expected;
+}
+
+function verifyPingWebhookSignature(payload: string, timestamp: string, signature: string): boolean {
+  const secret = process.env.PING_PAY_WEBHOOK_SECRET;
+  if (!secret) return false;
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(`${timestamp}.${payload}`)
+    .digest('hex');
+
+  try {
+    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  } catch {
+    return false;
+  }
 }
 
 async function getHealthStatus() {
@@ -117,7 +133,10 @@ async function startServer() {
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-agent-api-key, x-webhook-signature');
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'Content-Type, x-agent-api-key, x-webhook-signature, x-ping-signature, x-ping-timestamp'
+    );
 
     if (req.method === 'OPTIONS') {
       res.writeHead(200);
@@ -228,6 +247,56 @@ async function startServer() {
         return;
       }
 
+      // Ping Pay Webhook
+      if (url.pathname === '/webhook/pingpay' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', async () => {
+          try {
+            const signature = String(req.headers['x-ping-signature'] || '');
+            const timestamp = String(req.headers['x-ping-timestamp'] || '');
+            const hasSecret = !!process.env.PING_PAY_WEBHOOK_SECRET;
+
+            if (isProductionMode() && !hasSecret) {
+              res.writeHead(503, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'PING_PAY_WEBHOOK_SECRET is required in production' }));
+              return;
+            }
+
+            if (hasSecret) {
+              if (!signature || !timestamp || !verifyPingWebhookSignature(body, timestamp, signature)) {
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid signature' }));
+                return;
+              }
+            }
+
+            // Keep this endpoint side-effect free for now; webhook events can be consumed by
+            // future payment-status reconciliation jobs.
+            let parsed: any = {};
+            try {
+              parsed = JSON.parse(body);
+            } catch {
+              parsed = { raw: body };
+            }
+
+            console.log('[PingPay webhook] Received event', {
+              event: parsed?.event || parsed?.type || 'unknown',
+              timestamp,
+              verified: hasSecret,
+            });
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true }));
+          } catch (error: any) {
+            errorCount++;
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: error.message }));
+          }
+        });
+        return;
+      }
+
       // EigenAI Grant Checking
       if (url.pathname === '/eigenai/grant' && req.method === 'GET') {
         try {
@@ -281,6 +350,7 @@ async function startServer() {
             ready: '/ready',
             process: 'POST /process',
             webhook: 'POST /webhook/farcaster',
+            pingWebhook: 'POST /webhook/pingpay',
             eigenaiGrant: '/eigenai/grant',
             canary: '/canary',
             runCanary: 'POST /canary/run',

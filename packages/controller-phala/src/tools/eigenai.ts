@@ -68,6 +68,13 @@ function looksLikeInternalReasoning(text: string): boolean {
   );
 }
 
+function isLowSignalOutput(text: string): boolean {
+  const normalized = text.trim().toLowerCase();
+  if (!normalized) return true;
+  if (normalized === 'assistant' || normalized === 'final' || normalized === 'assistantfinal') return true;
+  return normalized.length < 24;
+}
+
 /**
  * Attempt to repair truncated JSON from LLM responses (max_tokens cutoff).
  * Balances unmatched brackets, braces, and quotes.
@@ -245,7 +252,7 @@ export const eigenaiTool = {
     const rawDraft = draftResult.choices?.[0]?.message?.content ?? '';
     const sanitizedDraft = sanitizeEigenAiContent(rawDraft);
 
-    if (draftResult.mock || looksLikeInternalReasoning(sanitizedDraft)) {
+    if (draftResult.mock || looksLikeInternalReasoning(sanitizedDraft) || isLowSignalOutput(sanitizedDraft)) {
       return {
         analysis: draftResult.mock ? sanitizedDraft : buildSafeFallbackInsight(contributors),
         signature: draftResult.signature,

@@ -73,6 +73,10 @@ Originally, the project relied on an EigenCompute worker node. By realizing Eige
 - [ ] Deploy the Monolith Agent to a live Phala dstack node.
 - [ ] End-to-end testing of the "Request -> Analyze -> Pay" loop on testnet.
 
+Current deployment note:
+- Production traffic currently routes through the Hetzner-hosted controller.
+- Phala dstack remains the target runtime for attested controller execution.
+
 ---
 
 ## Core Principles Adherence

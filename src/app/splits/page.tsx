@@ -423,6 +423,36 @@ export default function SplitsPage() {
 
   const includedCount = allocationCandidates.filter((c) => c.included).length;
   const payableNowCount = livePayoutPreview.length;
+  const payoutOutcomeSummary = useMemo(() => {
+    const summary = {
+      payNowCount: 0,
+      payNowAmount: 0,
+      awaitingCount: 0,
+      awaitingAmount: 0,
+      blockedCount: 0,
+      blockedAmount: 0,
+      excludedCount: 0,
+      excludedAmount: 0,
+    };
+
+    for (const row of paymentSimulationRows) {
+      if (row.outcome === "pay_now") {
+        summary.payNowCount += 1;
+        summary.payNowAmount += row.draftAmount;
+      } else if (row.outcome === "awaiting_verification") {
+        summary.awaitingCount += 1;
+        summary.awaitingAmount += row.draftAmount;
+      } else if (row.outcome === "blocked_rule") {
+        summary.blockedCount += 1;
+        summary.blockedAmount += row.draftAmount;
+      } else {
+        summary.excludedCount += 1;
+        summary.excludedAmount += row.draftAmount;
+      }
+    }
+
+    return summary;
+  }, [paymentSimulationRows]);
 
   const outreach = useMemo<OutreachBundle | null>(() => {
     if (!selectedContributor || !repoPath) return null;
@@ -1223,6 +1253,32 @@ export default function SplitsPage() {
                   <p>Blocked (wallet/reputation/rules): {includedVerifiedButBlockedCount}</p>
                   {includedBotCount > 0 && <p>Bot/system contributors: {includedBotCount}</p>}
                 </div>
+                <div className="mt-2 grid gap-2 md:grid-cols-2 text-xs">
+                  <div className="rounded border border-green-200 bg-green-50 p-2 dark:border-green-900 dark:bg-green-950/30">
+                    <p className="font-medium text-green-800 dark:text-green-300">Pays now</p>
+                    <p className="text-green-700 dark:text-green-400">
+                      {payoutOutcomeSummary.payNowCount} recipient(s) · {payoutOutcomeSummary.payNowAmount.toFixed(4)} NEAR
+                    </p>
+                  </div>
+                  <div className="rounded border border-amber-200 bg-amber-50 p-2 dark:border-amber-900 dark:bg-amber-950/30">
+                    <p className="font-medium text-amber-800 dark:text-amber-300">Waiting for verification</p>
+                    <p className="text-amber-700 dark:text-amber-400">
+                      {payoutOutcomeSummary.awaitingCount} recipient(s) · {payoutOutcomeSummary.awaitingAmount.toFixed(4)} NEAR
+                    </p>
+                  </div>
+                  <div className="rounded border border-orange-200 bg-orange-50 p-2 dark:border-orange-900 dark:bg-orange-950/30">
+                    <p className="font-medium text-orange-800 dark:text-orange-300">Blocked by payout rules</p>
+                    <p className="text-orange-700 dark:text-orange-400">
+                      {payoutOutcomeSummary.blockedCount} recipient(s) · {payoutOutcomeSummary.blockedAmount.toFixed(4)} NEAR
+                    </p>
+                  </div>
+                  <div className="rounded border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-900/30">
+                    <p className="font-medium text-slate-800 dark:text-slate-300">Excluded from this run</p>
+                    <p className="text-slate-700 dark:text-slate-400">
+                      {payoutOutcomeSummary.excludedCount} recipient(s) · {payoutOutcomeSummary.excludedAmount.toFixed(4)} NEAR
+                    </p>
+                  </div>
+                </div>
                 <div className="mt-2 rounded border bg-muted/40 p-2 text-xs">
                   {paymentMode === "verified_now"
                     ? "Policy: Pay only included + verified recipients now. Unverified contributors are not charged and remain unpaid until they verify."
@@ -1913,6 +1969,13 @@ export default function SplitsPage() {
                   <Button type="button" variant="outline" size="sm" onClick={checkPendingClaims}>
                     View Pending Claims
                   </Button>
+                  {payReceipt.pendingCount && payReceipt.pendingCount > 0 && repoPath && (
+                    <Link href={`/verify?repo=${encodeURIComponent(repoPath)}`}>
+                      <Button type="button" variant="outline" size="sm">
+                        Invite Pending Contributors
+                      </Button>
+                    </Link>
+                  )}
                   {payReceipt.transactionRef && payReceipt.transactionRef !== "n/a" && (
                     <Button
                       type="button"

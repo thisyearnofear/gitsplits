@@ -70,6 +70,7 @@ See [**docs/ARCHITECTURE.md**](docs/ARCHITECTURE.md) for system design.
 | [**SETUP.md**](docs/SETUP.md) | Developer setup, deployment, contract details |
 | [**ARCHITECTURE.md**](docs/ARCHITECTURE.md) | System design and components |
 | [**PLATFORM.md**](docs/PLATFORM.md) | Roadmap and future vision |
+| [**PHALA_CUTOVER_RUNBOOK.md**](docs/PHALA_CUTOVER_RUNBOOK.md) | Staged migration from Hetzner runtime to Phala dstack |
 
 ## Quick Start
 
@@ -114,6 +115,7 @@ Security requirements:
 - ✅ Web UI: https://gitsplits.vercel.app
 - ✅ Live canary checks passing for core dependencies + at least one payment rail
 - 🟡 Phala dstack cutover planned (target architecture, not current runtime)
+  See `docs/PHALA_CUTOVER_RUNBOOK.md` for staged rollout gates.
 
 ## License
 

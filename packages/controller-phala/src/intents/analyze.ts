@@ -9,8 +9,7 @@
  * - "show contributors for facebook/react"
  */
 
-import { Intent } from '@gitsplits/shared';
-import { getVerifyBaseUrl } from '@gitsplits/shared';
+import { Intent, getVerifyBaseUrl, normalizeRepoUrl, isSystemContributor } from '@gitsplits/shared';
 
 export const analyzeIntent: Intent = {
   name: 'analyze',
@@ -115,24 +114,15 @@ export const analyzeIntent: Intent = {
       };
 
     } catch (error: any) {
+      const isRateLimit = error?.status === 403 || String(error.message).includes('rate limit');
+      const hint = isRateLimit
+        ? ' GitHub API rate limit may have been reached — try again shortly.'
+        : '';
       return {
-        response: `❌ Analysis failed: ${error.message}`,
+        response: `❌ Analysis failed for ${repo}: ${error.message}${hint}`,
         context,
       };
     }
   },
 };
 
-function normalizeRepoUrl(input: string): string {
-  let cleaned = input
-    .replace(/^(https?:\/\/)?(www\.)?github\.com\//, '')
-    .replace(/\/$/, '')
-    .trim();
-
-  return `github.com/${cleaned}`;
-}
-
-function isSystemContributor(username: string): boolean {
-  const normalized = String(username || '').toLowerCase();
-  return normalized.includes('[bot]') || normalized.endsWith('-bot');
-}

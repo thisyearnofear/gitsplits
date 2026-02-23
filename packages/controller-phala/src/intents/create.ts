@@ -9,8 +9,77 @@
  * - "make a split for facebook/react with 50/30/20"
  */
 
-import { Intent } from '@gitsplits/shared';
-import { getVerifyBaseUrl } from '@gitsplits/shared';
+import { Intent, ContributorQuality, getVerifyBaseUrl, normalizeRepoUrl, isSystemContributor } from '@gitsplits/shared';
+
+type QualityScoreDecision = {
+  quality: number;
+  creditAction: ContributorQuality['creditAction'];
+};
+
+export function buildQualityScoreDecisionMap(
+  qualityScores?: ContributorQuality[]
+): Map<string, QualityScoreDecision> {
+  const map = new Map<string, QualityScoreDecision>();
+  for (const score of qualityScores || []) {
+    const username = String(score.username || '').trim().toLowerCase();
+    if (!username) continue;
+    map.set(username, {
+      quality: Math.max(0, Math.min(1, Number(score.quality))),
+      creditAction: score.creditAction,
+    });
+  }
+  return map;
+}
+
+export function buildDefaultContributorsWithQuality(
+  analysisContributors: Array<{ username: string; percentage: number }>,
+  qualityScores?: ContributorQuality[]
+): Array<{ github_username: string; percentage: number }> {
+  const decisions = buildQualityScoreDecisionMap(qualityScores);
+  if (!decisions.size) {
+    return analysisContributors.map((c) => ({
+      github_username: c.username,
+      percentage: c.percentage,
+    }));
+  }
+
+  const included = analysisContributors.filter((contributor) => {
+    const key = String(contributor.username || '').trim().toLowerCase();
+    return decisions.get(key)?.creditAction !== 'no_credit';
+  });
+
+  if (!included.length) {
+    // If AI excludes everyone, retain commit-based defaults rather than creating an empty split.
+    return analysisContributors.map((c) => ({
+      github_username: c.username,
+      percentage: c.percentage,
+    }));
+  }
+
+  const weighted = included.map((contributor) => {
+    const key = String(contributor.username || '').trim().toLowerCase();
+    const decision = decisions.get(key);
+    const weight = decision ? decision.quality : 1.0;
+    return {
+      username: contributor.username,
+      raw: contributor.percentage,
+      weight,
+    };
+  });
+
+  const totalWeighted = weighted.reduce((sum, item) => sum + item.raw * item.weight, 0);
+  if (totalWeighted <= 0) {
+    return included.map((c) => ({
+      github_username: c.username,
+      percentage: c.percentage,
+    }));
+  }
+
+  return weighted.map((item) => ({
+    github_username: item.username,
+    percentage: Math.round((item.raw * item.weight / totalWeighted) * 100),
+  }));
+}
 
 export const createIntent: Intent = {
   name: 'create',
@@ -67,14 +136,29 @@ export const createIntent: Intent = {
         };
       }
 
-      // Calculate allocations
+      // Run AI quality scoring to inform allocation weights
+      let qualityScores: ContributorQuality[] | undefined;
+      try {
+        const aiResult = await tools.eigenai.analyzeContributions(
+          repoUrl,
+          analysis.contributors.slice(0, 10),
+        );
+        if (aiResult.qualityScores?.length) {
+          const scores = aiResult.qualityScores as ContributorQuality[];
+          qualityScores = scores;
+          const excluded = scores.filter((score: ContributorQuality) => score.creditAction === 'no_credit').length;
+          console.log(
+            `[Create] AI quality scores applied for ${scores.length} contributors (${excluded} no_credit)`
+          );
+        }
+      } catch (err: any) {
+        console.log('[Create] AI quality scoring skipped:', err.message);
+      }
+
+      // Calculate allocations — quality-adjusted when AI scores are available
       let contributors;
       if (allocation === 'default') {
-        // Use analysis-based allocation
-        contributors = analysis.contributors.map((c: any) => ({
-          github_username: c.username,
-          percentage: c.percentage,
-        }));
+        contributors = buildDefaultContributorsWithQuality(analysis.contributors, qualityScores);
       } else {
         // Parse custom allocation (e.g., "50/30/20")
         const percentages = allocation.split('/').map((p: string) => parseInt(p.trim()));
@@ -181,18 +265,4 @@ function resolveSplitOwner(context: any): string {
   throw new Error(
     'No valid NEAR owner account available. Connect a NEAR wallet in web UI or set NEAR_ACCOUNT_ID.'
   );
-}
-
-function normalizeRepoUrl(input: string): string {
-  let cleaned = input
-    .replace(/^(https?:\/\/)?(www\.)?github\.com\//, '')
-    .replace(/\/$/, '')
-    .trim();
-
-  return `github.com/${cleaned}`;
-}
-
-function isSystemContributor(username: string): boolean {
-  const normalized = String(username || '').toLowerCase();
-  return normalized.includes('[bot]') || normalized.endsWith('-bot');
 }

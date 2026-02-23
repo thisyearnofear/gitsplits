@@ -156,13 +156,28 @@ export function validateProductionReadiness(
   };
 }
 
-function normalizeRepo(repo: string): string {
-  const cleaned = repo
+/**
+ * Normalize a GitHub repository URL to canonical `github.com/owner/repo` form.
+ * Handles full URLs, `owner/repo` shorthand, and trailing slashes.
+ */
+export function normalizeRepoUrl(input: string): string {
+  const cleaned = input
     .replace(/^(https?:\/\/)?(www\.)?github\.com\//, '')
     .replace(/\/$/, '')
-    .trim()
-    .toLowerCase();
+    .trim();
   return `github.com/${cleaned}`;
+}
+
+/**
+ * Detect bot/system contributors that should be excluded from splits.
+ */
+export function isSystemContributor(username: string): boolean {
+  const normalized = String(username || '').toLowerCase();
+  return normalized.includes('[bot]') || normalized.endsWith('-bot');
+}
+
+function normalizeRepo(repo: string): string {
+  return normalizeRepoUrl(repo).toLowerCase();
 }
 
 export function getCanaryConfig(

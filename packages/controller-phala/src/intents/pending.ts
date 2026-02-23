@@ -4,8 +4,7 @@
  * Shows pending claims for a repository or a single GitHub username.
  */
 
-import { Intent } from '@gitsplits/shared';
-import { getVerifyBaseUrl } from '@gitsplits/shared';
+import { Intent, getVerifyBaseUrl, normalizeRepoUrl } from '@gitsplits/shared';
 
 export const pendingIntent: Intent = {
   name: 'pending',
@@ -113,11 +112,3 @@ function looksLikeRepo(input: string): boolean {
   return input.includes('/') || input.includes('github.com');
 }
 
-function normalizeRepoUrl(input: string): string {
-  let cleaned = input
-    .replace(/^(https?:\/\/)?(www\.)?github\.com\//, '')
-    .replace(/\/$/, '')
-    .trim();
-
-  return `github.com/${cleaned}`;
-}

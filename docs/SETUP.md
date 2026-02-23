@@ -35,6 +35,12 @@ NEAR_CONTRACT_ID=lhkor_marty.near
 
 # Payments
 PING_PAY_API_KEY=...
+PING_PAY_AUTH_MODE=bearer      # bearer | publishable
+PING_PAY_API_BASE=https://api.pingpay.io
+PING_PAY_INTENTS_PATH=/v1/intents
+PING_PAY_PROBE_PATH=/v1/intents/probe
+PING_PAY_PROBE_METHOD=GET
+PING_PAY_WEBHOOK_SECRET=...    # from Ping dashboard webhook settings
 HOT_PAY_JWT=...
 
 # EigenCompute
@@ -136,6 +142,25 @@ ecloud compute app upgrade 0xe852Fa024C69F871D3D67D5463F5BA35E9d19e2B \
 ```bash
 ssh snel-bot "cd /opt/gitsplits/repo/agent && git pull && npm run build && pm2 restart gitsplits-agent --update-env"
 ```
+
+---
+
+## Ping Pay Webhook Setup
+
+In Ping dashboard, configure endpoint:
+
+- URL: `https://hetzner-agent.gitsplits.thisyearnofear.com/webhook/pingpay`
+- Method: `POST`
+- Secret: set this same value as `PING_PAY_WEBHOOK_SECRET` on the server
+
+The agent verifies:
+
+- `x-ping-signature`
+- `x-ping-timestamp`
+
+Signature format:
+
+`HMAC_SHA256(secret, "${timestamp}.${rawBody}")`
 
 ---
 

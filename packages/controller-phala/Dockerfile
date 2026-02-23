@@ -38,6 +38,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3002
 
+# Needed by docker-compose healthcheck command
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create logs directory
 RUN mkdir -p /app/logs && chown -R node:node /app
 

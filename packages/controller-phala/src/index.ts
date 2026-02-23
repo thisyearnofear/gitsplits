@@ -321,9 +321,14 @@ async function startServer() {
   process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
   server.listen(PORT, async () => {
+    const runningInTee = teeWalletTool.isRunningInTEE();
     console.log('╔════════════════════════════════════════════════════════╗');
     console.log('║           GitSplits Sovereign Controller               ║');
-    console.log('║              Running on Phala (dstack)                 ║');
+    console.log(
+      runningInTee
+        ? '║              Running on Phala (dstack)                 ║'
+        : '║              Running on Standard Runtime               ║'
+    );
     console.log('╚════════════════════════════════════════════════════════╝');
     console.log(`🌐 Server running on port ${PORT}`);
     console.log(`💼 NEAR Account: ${config.nearAccountId}`);

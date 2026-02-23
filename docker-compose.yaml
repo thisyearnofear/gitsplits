@@ -42,6 +42,7 @@ services:
     environment:
       # Application Configuration
       - NODE_ENV=production
+      - AGENT_MODE=${AGENT_MODE}
       - PORT=3002
 
       # NEAR Configuration
@@ -62,7 +63,20 @@ services:
 
       # Payment Rails
       - PING_PAY_API_KEY=${PING_PAY_API_KEY}
+      - PING_PAY_API_BASE=${PING_PAY_API_BASE}
+      - PING_PAY_PROBE_PATH=${PING_PAY_PROBE_PATH}
       - HOT_PAY_JWT=${HOT_PAY_JWT}
+      - AGENT_API_KEY=${AGENT_API_KEY}
+      - AGENT_SERVER_API_KEY=${AGENT_SERVER_API_KEY}
+
+      # Canary Controls
+      - TEST_ANALYZE_REPO=${TEST_ANALYZE_REPO}
+      - TEST_CREATE_REPO=${TEST_CREATE_REPO}
+      - TEST_PAY_REPO=${TEST_PAY_REPO}
+      - TEST_PAY_TOKEN=${TEST_PAY_TOKEN}
+      - TEST_PAY_AMOUNT=${TEST_PAY_AMOUNT}
+      - TEST_PAY_MAX_AMOUNT=${TEST_PAY_MAX_AMOUNT}
+      - TEST_CANARY_REPOS=${TEST_CANARY_REPOS}
 
       # Social
       - NEYNAR_API_KEY=${NEYNAR_API_KEY}

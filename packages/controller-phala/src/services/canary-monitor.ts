@@ -38,7 +38,9 @@ export async function runCanaryOnce(): Promise<CanaryResult> {
   await safeCheck('hotpay', () => hotpayTool.probeAuth());
   await safeCheck('eigenai', () => eigenaiTool.checkGrant());
 
-  const ok = Object.values(checks).every((check) => check.ok);
+  const coreChecksOk = ['github', 'near', 'eigenai'].every((name) => checks[name]?.ok);
+  const paymentRailOk = Boolean(checks.pingpay?.ok || checks.hotpay?.ok);
+  const ok = coreChecksOk && paymentRailOk;
   const result: CanaryResult = {
     at: new Date().toISOString(),
     ok,

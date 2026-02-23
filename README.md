@@ -84,21 +84,16 @@ AGENT_MODE=mock npm run dev
 
 See [**docs/SETUP.md**](docs/SETUP.md) for full setup instructions.
 
-## Hybrid Agent Routing (Cost + Reliability)
+## Agent Routing (Current Production)
 
-Web `/api/agent` now supports two execution planes:
-
-- **Hetzner plane**: low-risk orchestration and advisory commands
-- **Eigen plane**: high-risk execution paths where TEE verification is required
+Web `/api/agent` forwards to a single upstream controller.
 
 Configure with:
 
 ```bash
-AGENT_HETZNER_BASE_URL=...
-AGENT_EIGEN_BASE_URL=...
+CONTROLLER_URL=...
+AGENT_BASE_URL=... # fallback when CONTROLLER_URL is unset
 AGENT_API_KEY=...
-AGENT_REQUIRE_EIGEN_FOR_CREATE_PAY=true
-AGENT_ALLOW_HETZNER_EXEC_FALLBACK=false
 ```
 
 **Execution Modes:**
@@ -113,13 +108,12 @@ Security requirements:
 
 ## Current Status
 
-- ✅ Hybrid routing live (`analyze` -> Hetzner, `create`/high-risk -> Eigen)
-- ✅ EigenCompute agent live on Sepolia (TEE signer active)
+- ✅ Single-upstream routing live (Vercel -> Hetzner controller)
 - ✅ Hetzner endpoint protected by API key + HTTPS domain
-- ✅ Eigen endpoint protected by API key
 - ✅ NEAR contract `lhkor_marty.near` on mainnet
 - ✅ Web UI: https://gitsplits.vercel.app
-- ✅ Live routing checks passing with attempt diagnostics enabled
+- ✅ Live canary checks passing for core dependencies + at least one payment rail
+- 🟡 Phala dstack cutover planned (target architecture, not current runtime)
 
 ## License
 

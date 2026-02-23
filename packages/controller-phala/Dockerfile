@@ -3,7 +3,7 @@
 # This build completely BYPASSES the root package-lock.json and frontend dependencies.
 
 # --- Stage 1: Builder ---
-FROM node:18-slim AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
@@ -30,7 +30,7 @@ RUN cd packages/controller-phala && \
     npm run build
 
 # --- Stage 2: Runner ---
-FROM node:18-slim AS runner
+FROM node:20-slim AS runner
 
 WORKDIR /app
 

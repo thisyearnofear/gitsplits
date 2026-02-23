@@ -54,6 +54,25 @@ This runbook defines a safe migration from the current Hetzner controller runtim
    - Route all intents to Phala.
    - Keep Hetzner fallback enabled for 7 days.
 
+## Fast-Track Mode (No Live Users)
+
+Use this mode when there is no active user traffic and you want a same-day cutover.
+
+1. **Deploy + Validate on Phala**
+   - Confirm `/health`, `/ready`, `/canary/run` all pass on the Phala endpoint.
+   - Confirm `teeWallet=tee` before any traffic switch.
+2. **Single Cutover**
+   - Update web controller routing to Phala as primary immediately.
+   - Keep Hetzner configured as fallback endpoint.
+3. **Smoke Test Immediately**
+   - Run one `analyze`, one `create`, one tiny `pay` on canary repo.
+   - Confirm tx/proof evidence and no mock markers.
+4. **Observation Window (30-60 min)**
+   - Watch health/readiness + error logs.
+   - If any gate fails, rollback immediately to Hetzner.
+
+This achieves a practical "done in one session" migration while preserving a safe rollback path.
+
 ## Rollback Conditions
 
 Rollback immediately to Hetzner if any occur:

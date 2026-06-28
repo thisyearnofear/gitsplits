@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import Badge from '@/components/ui/badge';
 import Header from '@/components/shared/Header';
 import FlowStatusStrip from '@/components/shared/FlowStatusStrip';
+import ContributorFlowNotice from '@/components/shared/ContributorFlowNotice';
 import { Search, Plus, DollarSign, Shield, Send, Loader2, Bot, Sparkles, ChevronRight, Github, ExternalLink, CheckCircle2, AlertCircle, RefreshCcw, Wallet, Info, Maximize2, Minimize2 } from 'lucide-react';
 import { trackUxEvent } from '@/lib/services/ux-events';
 
@@ -868,6 +869,7 @@ export default function AgentPage() {
       <Header />
       <div className="min-h-screen page-gradient pt-20">
         <div className="max-w-3xl mx-auto px-4 py-8">
+          <ContributorFlowNotice />
           {/* Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 glass border border-primary/20 rounded-full px-4 py-1.5 text-sm text-primary mb-4">

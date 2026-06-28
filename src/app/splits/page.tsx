@@ -7,6 +7,7 @@ import { useAppKitAccount } from "@reown/appkit/react";
 import { useNearWallet } from "@/hooks/useNearWallet";
 import WalletStatusBar from "@/components/shared/WalletStatusBar";
 import FlowStatusStrip from "@/components/shared/FlowStatusStrip";
+import ContributorFlowNotice from "@/components/shared/ContributorFlowNotice";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1055,6 +1056,7 @@ export default function SplitsPage() {
   return (
     <div className="min-h-screen page-gradient py-10">
       <div className="container mx-auto max-w-4xl px-4">
+        <ContributorFlowNotice />
         <WalletStatusBar />
         <div className="mb-4">
           <FlowStatusStrip steps={flowSteps} title="Contributor Payout Journey" />

@@ -161,7 +161,7 @@ gitsplits/
 - [x] Coding-agent usage disclosed
 - [x] OpenAPI spec for one-click UiPath API Workflow import
 - [x] External framework (LangChain) integrated as part of the case flow
-- [ ] Demo video uploaded (silent reference clips ready in [docs/demo/](docs/demo/); script in [DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md))
+- [ ] Demo video uploaded — narrated cut ready at [docs/demo/narrated-demo.mp4](docs/demo/narrated-demo.mp4) (2:32, ElevenLabs Adam voice over the Playwright walkthrough); script + b-roll in [docs/demo/](docs/demo/)
 - [ ] Devpost project page filled out
 - [ ] Presentation deck shared
 - [ ] UiPath Labs access provisioned (draft ready in [LABS_ACCESS_REQUEST.md](docs/LABS_ACCESS_REQUEST.md), submit ASAP)

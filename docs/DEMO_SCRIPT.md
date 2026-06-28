@@ -1,17 +1,27 @@
 # Demo Video Script — 5 minutes max
 
-> **Pre-recorded silent reference clips** live in `docs/demo/`:
+> **Pre-recorded demo artifacts** live in `docs/demo/`:
 >
-> - **`browser-walkthrough.mp4`** (2 min 32 s, 2.0 MB, 1440×900) — Playwright recording
->   of the full enterprise flow: landing → sponsor portal → live case timeline → dashboard
->   → orchestration. No audio. Use as the silent B-roll backbone you record voice-over on
->   top of in OBS / ScreenFlow / Loom.
+> - **`narrated-demo.mp4`** (2 min 32 s, 5.2 MB, 1440×900, H.264 + AAC) — ✨ the
+>   submission-ready cut. ElevenLabs Adam voice narrating the full enterprise flow over
+>   the Playwright screen capture. 0.8 s lead-in, ~9 s of silence at the end so the
+>   orchestration overview gets a beat to land. Upload directly to YouTube/Vimeo.
+> - **`browser-walkthrough.mp4`** (silent, 2.0 MB) — the original silent Playwright
+>   recording. Use as B-roll if you want to re-record narration in your own voice.
+> - **`narration.txt`** — the narration script. Edit + re-synthesize with
+>   `curl https://api.elevenlabs.io/v1/text-to-speech/{voice_id}` (see
+>   `git log -p docs/demo/narration.txt` for the original bash invocation).
 > - **`cli.cast`** (asciinema, 35 s) — controller `/api/case` round-trip, autonomy-tier
 >   routing across three amounts ($250 / $7,500 / $50,000 → T0 / T2 / T3), and the
 >   LangChain insight-agent CLI help. Play with `asciinema play docs/demo/cli.cast`
->   or embed with `agg docs/demo/cli.cast docs/demo/cli.gif` for a gif.
-> - **`cli-script.sh`** — the source script for the cast, so the recording is reproducible
->   against a fresh dev server (`PORT=43016 npm run dev` then `bash docs/demo/cli-script.sh`).
+>   or embed with `agg docs/demo/cli.cast docs/demo/cli.gif`.
+> - **`cli-script.sh`** — source for the cast; reproducible against a fresh dev server
+>   (`PORT=43016 npm run dev`, then `bash docs/demo/cli-script.sh`).
+>
+> **Gaps the recorded demo doesn't close**: actual UiPath Maestro Studio and Action
+> Center screens (Labs access blocked) and a "Claude Code working live" segment for
+> the coding-agent bonus. Both are short re-record windows that intercut cleanly with
+> the narrated cut once you have the source footage.
 
 
 Target length: **4:45**. Buffer for upload pipeline variance.

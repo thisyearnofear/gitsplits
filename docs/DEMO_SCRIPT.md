@@ -1,5 +1,19 @@
 # Demo Video Script — 5 minutes max
 
+> **Pre-recorded silent reference clips** live in `docs/demo/`:
+>
+> - **`browser-walkthrough.mp4`** (2 min 32 s, 2.0 MB, 1440×900) — Playwright recording
+>   of the full enterprise flow: landing → sponsor portal → live case timeline → dashboard
+>   → orchestration. No audio. Use as the silent B-roll backbone you record voice-over on
+>   top of in OBS / ScreenFlow / Loom.
+> - **`cli.cast`** (asciinema, 35 s) — controller `/api/case` round-trip, autonomy-tier
+>   routing across three amounts ($250 / $7,500 / $50,000 → T0 / T2 / T3), and the
+>   LangChain insight-agent CLI help. Play with `asciinema play docs/demo/cli.cast`
+>   or embed with `agg docs/demo/cli.cast docs/demo/cli.gif` for a gif.
+> - **`cli-script.sh`** — the source script for the cast, so the recording is reproducible
+>   against a fresh dev server (`PORT=43016 npm run dev` then `bash docs/demo/cli-script.sh`).
+
+
 Target length: **4:45**. Buffer for upload pipeline variance.
 
 Recording setup:

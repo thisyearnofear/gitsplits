@@ -121,7 +121,7 @@ python -m insight_agent.server  # serves /insight/recommend on :8088
 | [**HACKATHON.md**](docs/HACKATHON.md) | Enterprise problem framing, persona, judging-criteria mapping |
 | [**MAESTRO.md**](docs/MAESTRO.md) | Maestro case design, agent specs, OpenAPI import flow |
 | [**ARCHITECTURE.md**](docs/ARCHITECTURE.md) | System design including the Maestro orchestration layer |
-| [**DEMO_SCRIPT.md**](docs/DEMO_SCRIPT.md) | 5-minute demo storyboard |
+| [**DEMO_SCRIPT.md**](docs/DEMO_SCRIPT.md) | 5-minute demo storyboard + links to the silent reference recordings in `docs/demo/` |
 | [**SETUP.md**](docs/SETUP.md) | Developer setup, deployment, contract details |
 | [**GUIDE.md**](docs/GUIDE.md) | Commands and end-user usage reference |
 | [**PHALA_CUTOVER_RUNBOOK.md**](docs/PHALA_CUTOVER_RUNBOOK.md) | Staged migration from Hetzner runtime to Phala dstack |
@@ -161,7 +161,7 @@ gitsplits/
 - [x] Coding-agent usage disclosed
 - [x] OpenAPI spec for one-click UiPath API Workflow import
 - [x] External framework (LangChain) integrated as part of the case flow
-- [ ] Demo video uploaded (see [DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md))
+- [ ] Demo video uploaded (silent reference clips ready in [docs/demo/](docs/demo/); script in [DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md))
 - [ ] Devpost project page filled out
 - [ ] Presentation deck shared
 - [ ] UiPath Labs access provisioned (draft ready in [LABS_ACCESS_REQUEST.md](docs/LABS_ACCESS_REQUEST.md), submit ASAP)

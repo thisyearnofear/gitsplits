@@ -3,36 +3,30 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import {
-  ArrowLeft,
-  Coins,
-  ExternalLink,
-  Shield,
-  Sparkles,
-  Users,
-  Workflow,
-  AlertTriangle,
-  CheckCircle2,
-  Loader2,
-} from "lucide-react";
-import Header from "@/components/shared/Header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { ArrowLeft, AlertTriangle, Loader2 } from "lucide-react";
+import ConsoleHeader from "@/components/shared/ConsoleHeader";
 import CaseTimeline from "@/components/case/CaseTimeline";
-import { AutonomyTierBadge } from "@/components/case/badges";
-import type { CaseState } from "@/lib/case/types";
+import type { CaseState, AutonomyTier } from "@/lib/case/types";
 
-function StatusPill({ status }: { status: CaseState["status"] }) {
-  const meta = {
-    running: { label: "Running", bg: "bg-primary/10 text-primary border-primary/30", icon: Loader2, spin: true },
-    completed: { label: "Completed", bg: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30", icon: CheckCircle2 },
-    rejected: { label: "Rejected", bg: "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30", icon: AlertTriangle },
-    blocked: { label: "Blocked", bg: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30", icon: AlertTriangle },
-  }[status];
-  const Icon = meta.icon;
+const TIER_META: Record<AutonomyTier, { label: string; tint: string }> = {
+  T0: { label: "fully autonomous", tint: "text-[#b9ff66] border-[#b9ff66]/40" },
+  T1: { label: "finance only", tint: "text-[#7fc8ff] border-[#7fc8ff]/40" },
+  T2: { label: "finance + compliance", tint: "text-[#f5a524] border-[#f5a524]/40" },
+  T3: { label: "finance + compliance + exec", tint: "text-[#ff5c5c] border-[#ff5c5c]/40" },
+};
+
+function TierBadge({ tier }: { tier?: AutonomyTier }) {
+  if (!tier) {
+    return (
+      <span className="mono text-[11px] tracking-wider px-2 py-1 border border-[var(--c-line)] ink-faint">
+        TIER · PENDING
+      </span>
+    );
+  }
+  const m = TIER_META[tier];
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border ${meta.bg}`}>
-      <Icon className={`w-3.5 h-3.5 ${meta.spin ? "animate-spin" : ""}`} /> {meta.label}
+    <span className={`mono text-[11px] tracking-wider px-2 py-1 border ${m.tint}`}>
+      {tier} · {m.label.toUpperCase()}
     </span>
   );
 }
@@ -47,7 +41,6 @@ export default function CasePage() {
     if (!id) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
-
     async function tick() {
       try {
         const res = await fetch(`/api/case/${id}`, { cache: "no-store" });
@@ -61,9 +54,7 @@ export default function CasePage() {
         const data = (await res.json()) as CaseState;
         if (cancelled) return;
         setState(data);
-        if (data.status === "running") {
-          timer = setTimeout(tick, 1200);
-        }
+        if (data.status === "running") timer = setTimeout(tick, 500);
       } catch (err: any) {
         if (!cancelled) setError(err?.message || "Failed to load case");
       }
@@ -77,227 +68,193 @@ export default function CasePage() {
 
   if (error) {
     return (
-      <>
-        <Header />
-        <main className="container mx-auto max-w-4xl px-4 pt-16 pb-20">
-          <Card className="border-rose-500/40">
-            <CardContent className="pt-6">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-rose-600 mt-0.5" />
-                <div>
-                  <p className="font-semibold">{error}</p>
-                  <Button asChild variant="outline" className="mt-4">
-                    <Link href="/sponsor">
-                      <ArrowLeft className="w-4 h-4 mr-2" /> Submit a new request
-                    </Link>
-                  </Button>
-                </div>
+      <div className="console min-h-screen">
+        <ConsoleHeader />
+        <main className="max-w-5xl mx-auto px-6 pt-16">
+          <div className="panel panel-soft p-6 border-[#ff5c5c]/40">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-[#ff5c5c] mt-0.5" />
+              <div>
+                <p className="font-medium">{error}</p>
+                <Link href="/sponsor" className="inline-flex items-center gap-1 accent text-sm mt-3 hover:underline">
+                  <ArrowLeft className="w-3.5 h-3.5" /> submit a new request
+                </Link>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </main>
-      </>
+      </div>
     );
   }
 
   if (!state) {
     return (
-      <>
-        <Header />
-        <main className="container mx-auto max-w-4xl px-4 pt-16">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Loader2 className="w-4 h-4 animate-spin" /> Loading case…
+      <div className="console min-h-screen">
+        <ConsoleHeader />
+        <main className="max-w-5xl mx-auto px-6 pt-16">
+          <div className="flex items-center gap-2 ink-soft">
+            <Loader2 className="w-4 h-4 animate-spin" /> loading case…
           </div>
         </main>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
-      <Header />
-      <main className="min-h-screen bg-gradient-to-b from-background to-muted/30 pb-20">
-        <section className="container mx-auto px-4 pt-10 pb-6 max-w-5xl">
-          <div className="flex items-center gap-2 mb-4 text-xs">
-            <Link href="/orchestration" className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
-              <Workflow className="w-3.5 h-3.5" /> Orchestration
-            </Link>
-            <span className="text-muted-foreground">/</span>
-            <Link href="/sponsor" className="text-muted-foreground hover:text-foreground">
-              Sponsor Portal
-            </Link>
-            <span className="text-muted-foreground">/</span>
-            <span className="text-foreground font-mono">{state.id}</span>
-          </div>
+    <div className="console min-h-screen relative">
+      <div className="absolute inset-0 console-vignette pointer-events-none" />
+      <ConsoleHeader />
 
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-2">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight mb-1">
-                {state.request.repoUrl}
-              </h1>
-              <div className="flex flex-wrap items-center gap-3 text-sm">
-                <span className="text-muted-foreground">
-                  {state.request.amount.toLocaleString()} {state.request.token}
+      <main className="max-w-5xl mx-auto px-6 pt-10 pb-24 relative">
+        {/* Breadcrumb / id */}
+        <div className="mono text-[11px] tracking-wider ink-faint mb-6 flex flex-wrap items-center gap-2">
+          <Link href="/orchestration" className="hover:text-[var(--c-ink)]">ORCH</Link>
+          <span>/</span>
+          <Link href="/sponsor" className="hover:text-[var(--c-ink)]">SPONSOR</Link>
+          <span>/</span>
+          <span className="text-[var(--c-ink-soft)]">{state.id}</span>
+        </div>
+
+        {/* Hero header */}
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-5 mb-8 stagger">
+          <div>
+            <div className="label mb-3">case · {state.status}</div>
+            <h1 className="display text-5xl md:text-6xl mb-2">
+              {state.request.repoUrl}
+            </h1>
+            <p className="ink-soft text-sm">
+              <span className="num">{state.request.amount.toLocaleString()}</span>
+              {" "}
+              <span className="mono">{state.request.token}</span>
+              <span className="ink-faint mx-2">·</span>
+              from {state.sponsor.email}
+            </p>
+          </div>
+          <div className="flex flex-col items-start md:items-end gap-2">
+            <TierBadge tier={state.autonomyTier} />
+            <span className="micro flex items-center gap-1.5">
+              {state.status === "running" && <span className="live-dot pulse" />}
+              status · {state.status}
+            </span>
+          </div>
+        </div>
+
+        {/* Routing decision rail */}
+        {state.autonomyReasoning && (
+          <div className="panel panel-soft px-5 py-3 mb-10 flex items-start gap-4">
+            <span className="label shrink-0 pt-0.5">routing</span>
+            <p className="text-[13.5px] ink-soft leading-relaxed">
+              {state.autonomyReasoning}
+            </p>
+          </div>
+        )}
+
+        {/* Timeline + side metrics */}
+        <div className="grid lg:grid-cols-[1fr_280px] gap-x-12 gap-y-8">
+          <section>
+            <div className="flex items-baseline justify-between mb-4">
+              <h2 className="label">stage_timeline</h2>
+              {state.status === "running" && (
+                <span className="micro accent flex items-center gap-1.5">
+                  <span className="live-dot" /> live
                 </span>
-                <span className="text-muted-foreground">·</span>
-                <span className="text-muted-foreground">from {state.sponsor.email}</span>
-              </div>
+              )}
             </div>
-            <div className="flex flex-col items-start md:items-end gap-2">
-              <StatusPill status={state.status} />
-              <AutonomyTierBadge tier={state.autonomyTier} size="md" />
-            </div>
-          </div>
-
-          {state.autonomyReasoning && (
-            <Card className="mt-4 bg-muted/30">
-              <CardContent className="pt-4 pb-4">
-                <div className="flex items-start gap-2">
-                  <Sparkles className="w-4 h-4 text-primary mt-0.5" />
-                  <p className="text-sm">
-                    <span className="font-semibold">Approval Routing Agent decision:</span>{" "}
-                    {state.autonomyReasoning}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </section>
-
-        <section className="container mx-auto px-4 max-w-5xl grid lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-4">
-            <h2 className="text-xl font-bold">Case Timeline</h2>
             <CaseTimeline state={state} />
-          </div>
+          </section>
 
-          <aside className="space-y-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm flex items-center gap-1.5">
-                  <Users className="w-4 h-4" /> Recommendation
-                </CardTitle>
-                {typeof state.insightConfidence === "number" && (
-                  <CardDescription className="text-xs">
-                    confidence {state.insightConfidence.toFixed(2)}
-                  </CardDescription>
-                )}
-              </CardHeader>
-              <CardContent className="pt-0">
-                {state.recommendation && state.recommendation.length > 0 ? (
-                  <ul className="space-y-1.5">
-                    {state.recommendation.map((c) => (
-                      <li key={c.github_username} className="flex justify-between text-sm">
-                        <span className="font-medium">@{c.github_username}</span>
-                        <span className="text-muted-foreground">{c.percentage}%</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-xs text-muted-foreground">Pending repo analysis…</p>
-                )}
-              </CardContent>
-            </Card>
+          <aside className="space-y-8 lg:pl-6 lg:border-l lg:border-[var(--c-line)]">
+            {state.recommendation && state.recommendation.length > 0 && (
+              <div>
+                <div className="label mb-3">recommendation
+                  {typeof state.insightConfidence === "number" && (
+                    <span className="ink-faint ml-2 normal-case">· conf {state.insightConfidence.toFixed(2)}</span>
+                  )}
+                </div>
+                <ul className="space-y-1.5">
+                  {state.recommendation.map((c) => (
+                    <li key={c.github_username} className="flex items-center justify-between text-[13px]">
+                      <span className="mono">@{c.github_username}</span>
+                      <span className="num ink-soft">{c.percentage}%</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {state.riskFlags && state.riskFlags.length > 0 && (
-              <Card className="border-amber-500/30">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center gap-1.5">
-                    <AlertTriangle className="w-4 h-4 text-amber-600" /> Risk flags
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0 space-y-2">
+              <div>
+                <div className="label mb-3 text-[#f5a524]">risk_flags</div>
+                <div className="space-y-2.5">
                   {state.riskFlags.map((f, i) => (
-                    <div key={i} className="text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] uppercase tracking-wide text-amber-700 dark:text-amber-400">
-                          {f.severity}
-                        </span>
-                        <code className="text-muted-foreground">{f.code}</code>
+                    <div key={i}>
+                      <div className="micro" style={{ color: f.severity === "blocker" ? "var(--c-danger)" : f.severity === "warning" ? "var(--c-warn)" : "var(--c-ink-soft)" }}>
+                        {f.severity} · {f.code}
                       </div>
-                      <p className="text-foreground/80 mt-0.5">{f.message}</p>
+                      <p className="text-[12.5px] ink-soft mt-0.5">{f.message}</p>
                     </div>
                   ))}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             )}
 
             {state.payout && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center gap-1.5">
-                    <Coins className="w-4 h-4 text-emerald-600" /> Payout
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0 space-y-1.5 text-xs">
+              <div>
+                <div className="label mb-3">payout</div>
+                <dl className="space-y-2 text-[12.5px]">
                   <div>
-                    <div className="text-muted-foreground">Distributed</div>
-                    <div className="font-medium">
-                      {state.payout.distributedAmount.toFixed(2)} {state.request.token} → {state.payout.recipientCount} recipients
-                    </div>
+                    <dt className="micro">distributed</dt>
+                    <dd className="num">{state.payout.distributedAmount.toFixed(2)} {state.request.token} → {state.payout.recipientCount} recipients</dd>
                   </div>
                   <div>
-                    <div className="text-muted-foreground">Engine</div>
-                    <div className="font-medium">{state.payout.engine} ({state.payout.protocol})</div>
+                    <dt className="micro">engine</dt>
+                    <dd className="mono ink-soft">{state.payout.engine} · {state.payout.protocol}</dd>
                   </div>
                   <div>
-                    <div className="text-muted-foreground">Tx hash</div>
-                    <code className="font-mono text-[10px] break-all">{state.payout.txHash}</code>
+                    <dt className="micro">tx</dt>
+                    <dd className="mono text-[10.5px] ink-soft break-all">{state.payout.txHash}</dd>
                   </div>
                   {state.pendingClaims && state.pendingClaims > 0 ? (
-                    <div className="text-muted-foreground pt-1">
-                      {state.pendingClaims} pending claim(s) stored for unverified contributors.
+                    <div className="ink-faint text-[12px] pt-1">
+                      {state.pendingClaims} pending claim(s) stored for unverified contributors
                     </div>
                   ) : null}
-                </CardContent>
-              </Card>
+                </dl>
+              </div>
             )}
 
             {state.attestation && (
-              <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-emerald-500/5">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center gap-1.5">
-                    <Shield className="w-4 h-4 text-primary" /> TEE attestation
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0 space-y-1.5 text-xs">
+              <div>
+                <div className="label mb-3 accent">tee_attestation</div>
+                <dl className="space-y-2 text-[12.5px]">
                   <div>
-                    <div className="text-muted-foreground">Signer</div>
-                    <code className="font-mono text-[10px]">{state.attestation.signer}</code>
+                    <dt className="micro">signer</dt>
+                    <dd className="mono text-[10.5px]">{state.attestation.signer}</dd>
                   </div>
                   <div>
-                    <div className="text-muted-foreground">Signature</div>
-                    <code className="font-mono text-[10px] break-all">{state.attestation.signature.slice(0, 32)}…</code>
+                    <dt className="micro">signature</dt>
+                    <dd className="mono text-[10.5px] ink-soft break-all">{state.attestation.signature.slice(0, 48)}…</dd>
                   </div>
                   {state.attestation.insightExplorerUrl && (
-                    <Link
-                      href={state.attestation.insightExplorerUrl}
-                      target="_blank"
-                      className="inline-flex items-center gap-1 text-primary hover:underline text-xs pt-1"
-                    >
-                      EigenAI explorer <ExternalLink className="w-3 h-3" />
+                    <Link href={state.attestation.insightExplorerUrl} target="_blank" className="accent text-[12px] hover:underline inline-flex items-center gap-1">
+                      eigenai explorer →
                     </Link>
                   )}
-                </CardContent>
-              </Card>
+                </dl>
+              </div>
             )}
           </aside>
-        </section>
+        </div>
 
-        <section className="container mx-auto px-4 max-w-5xl mt-10">
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-6 border-t border-border">
-            <Button asChild variant="outline">
-              <Link href="/sponsor">
-                <ArrowLeft className="w-4 h-4 mr-2" /> Submit another request
-              </Link>
-            </Button>
-            <Button asChild variant="ghost">
-              <Link href="/orchestration">
-                <Workflow className="w-4 h-4 mr-2" /> Back to orchestration overview
-              </Link>
-            </Button>
-          </div>
-        </section>
+        <div className="mt-16 pt-6 border-t border-[var(--c-line)] flex flex-wrap items-center justify-between gap-3">
+          <Link href="/sponsor" className="text-[13px] hover:accent inline-flex items-center gap-1.5">
+            <ArrowLeft className="w-3.5 h-3.5" /> submit another request
+          </Link>
+          <Link href="/orchestration" className="text-[13px] ink-soft hover:text-[var(--c-ink)]">
+            ← orchestration overview
+          </Link>
+        </div>
       </main>
-    </>
+    </div>
   );
 }

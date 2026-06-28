@@ -187,7 +187,7 @@ function delay(ms: number) {
 async function runStages(state: CaseState): Promise<void> {
   // ---------------- Intake ----------------
   updateStage(state, "intake", { status: "running", startedAt: nowIso() });
-  await delay(1200);
+  await delay(300);
   updateStage(state, "intake", {
     status: "complete",
     completedAt: nowIso(),
@@ -218,7 +218,7 @@ async function runStages(state: CaseState): Promise<void> {
 
   // ---------------- Verification Check ----------------
   updateStage(state, "verification_check", { status: "running", startedAt: nowIso() });
-  await delay(1800);
+  await delay(500);
   const verifiedCount = Math.max(1, Math.floor((state.recommendation?.length || 0) * 0.6));
   const unverifiedCount = (state.recommendation?.length || 0) - verifiedCount;
   updateStage(state, "verification_check", {
@@ -235,7 +235,7 @@ async function runStages(state: CaseState): Promise<void> {
   state.autonomyTier = tier;
   state.autonomyReasoning = reasoning;
   // Sanctions screening always runs.
-  await delay(1500);
+  await delay(450);
   // Human gate only for T1+
   if (tier === "T0") {
     updateStage(state, "compliance_approval", {
@@ -251,7 +251,7 @@ async function runStages(state: CaseState): Promise<void> {
       summary: `Tier ${tier}: awaiting approver(s) in Action Center.`,
       detail: { tier, reasoning },
     });
-    await delay(tier === "T1" ? 3500 : tier === "T2" ? 5000 : 7000);
+    await delay(tier === "T1" ? 900 : tier === "T2" ? 1300 : 1800);
     updateStage(state, "compliance_approval", {
       status: "complete",
       completedAt: nowIso(),
@@ -262,7 +262,7 @@ async function runStages(state: CaseState): Promise<void> {
 
   // ---------------- Split Creation ----------------
   updateStage(state, "split_creation", { status: "running", startedAt: nowIso() });
-  await delay(1500);
+  await delay(420);
   state.splitId = `split-${Math.random().toString(36).slice(2, 10)}`;
   updateStage(state, "split_creation", {
     status: "complete",
@@ -273,7 +273,7 @@ async function runStages(state: CaseState): Promise<void> {
 
   // ---------------- Payout Execution ----------------
   updateStage(state, "payout_execution", { status: "running", startedAt: nowIso() });
-  await delay(2500);
+  await delay(650);
   const distributedAmount =
     state.request.amount *
     Math.max(0.1, (verifiedCount || 0) / (state.recommendation?.length || 1));
@@ -293,7 +293,7 @@ async function runStages(state: CaseState): Promise<void> {
 
   // ---------------- Reconciliation & Attestation ----------------
   updateStage(state, "reconciliation", { status: "running", startedAt: nowIso() });
-  await delay(1800);
+  await delay(520);
   state.attestation = {
     payload: JSON.stringify({
       splitId: state.splitId,
@@ -315,7 +315,7 @@ async function runStages(state: CaseState): Promise<void> {
 
   // ---------------- Closure ----------------
   updateStage(state, "closure", { status: "running", startedAt: nowIso() });
-  await delay(800);
+  await delay(280);
   updateStage(state, "closure", {
     status: "complete",
     completedAt: nowIso(),

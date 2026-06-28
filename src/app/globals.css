@@ -5,6 +5,126 @@
 /* Import NEAR Wallet Selector styles */
 @import url('@near-wallet-selector/modal-ui/styles.css');
 
+/* ============================================
+   CONSOLE THEME — opt-in via .console wrapper
+   Used by /orchestration, /sponsor, /case, /dashboard.
+   Dark canvas, editorial type, hairline borders, one accent.
+   ============================================ */
+.console {
+  --c-bg:        #0a0b0d;       /* near-black canvas */
+  --c-bg-soft:   #111316;       /* slight elevation */
+  --c-bg-deep:   #07080a;       /* deeper recess */
+  --c-line:      rgba(255,255,255,0.08);
+  --c-line-bold: rgba(255,255,255,0.18);
+  --c-ink:       #f3efe6;       /* warm cream primary text */
+  --c-ink-soft:  rgba(243,239,230,0.62);
+  --c-ink-faint: rgba(243,239,230,0.36);
+  --c-accent:    #b9ff66;       /* electric mint — single chromatic accent */
+  --c-accent-dim:#7fb240;
+  --c-warn:      #f5a524;
+  --c-danger:    #ff5c5c;
+  --c-ok:        #b9ff66;
+  background: var(--c-bg);
+  color: var(--c-ink);
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-feature-settings: "ss01" 1, "cv11" 1;
+  letter-spacing: -0.011em;
+}
+
+.console .mono     { font-family: var(--font-mono), ui-monospace, monospace; font-feature-settings: "zero" 1, "ss02" 1; }
+.console .display  { font-family: var(--font-display), ui-serif, Georgia, serif; letter-spacing: -0.02em; line-height: 0.95; }
+.console .micro    { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--c-ink-faint); }
+.console .label    { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--c-ink-soft); }
+.console .rule     { border-top: 1px solid var(--c-line); }
+.console .rule-bold{ border-top: 1px solid var(--c-line-bold); }
+.console .panel    { border: 1px solid var(--c-line); }
+.console .panel-soft { background: var(--c-bg-soft); }
+.console .ink-soft { color: var(--c-ink-soft); }
+.console .ink-faint{ color: var(--c-ink-faint); }
+.console .accent   { color: var(--c-accent); }
+.console .num      { font-family: var(--font-mono); font-feature-settings: "tnum" 1, "zero" 1; }
+
+/* Subtle scanline grid background for atmosphere */
+.console-grid {
+  background-image:
+    linear-gradient(var(--c-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--c-line) 1px, transparent 1px);
+  background-size: 56px 56px;
+  background-position: -1px -1px;
+}
+
+/* Soft radial vignette over the canvas */
+.console-vignette {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(185, 255, 102, 0.05), transparent 70%),
+    radial-gradient(ellipse 60% 50% at 50% 100%, rgba(185, 255, 102, 0.02), transparent 70%);
+}
+
+/* Pulsing dot for "live/running" status */
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.25); opacity: 0.5; }
+}
+@keyframes pulse-ring {
+  0%   { transform: scale(0.8); opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+.console .live-dot       { position: relative; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c-accent); }
+.console .live-dot::after{ content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--c-accent); animation: pulse-ring 1.6s ease-out infinite; }
+.console .live-dot.pulse { animation: pulse-dot 1.6s ease-in-out infinite; }
+
+/* Animated horizontal bar fill (stage progress) */
+@keyframes bar-fill {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.console .bar { display: block; height: 2px; background: var(--c-line); position: relative; overflow: hidden; }
+.console .bar > i { display: block; height: 100%; background: var(--c-accent); transform-origin: left; }
+.console .bar > i.running { animation: bar-fill 0.6s ease-out forwards; }
+.console .bar > i.complete { width: 100%; }
+
+/* Marquee-style ticker */
+@keyframes ticker {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.console .ticker {
+  display: flex; gap: 2.5rem;
+  animation: ticker 60s linear infinite;
+  will-change: transform;
+  white-space: nowrap;
+}
+
+/* Slow caret blink */
+@keyframes caret { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0 } }
+.console .caret { display: inline-block; width: 0.5ch; background: var(--c-accent); animation: caret 1s steps(1) infinite; height: 1em; transform: translateY(0.15em); }
+
+/* Reveal on mount (initial state visible — JS removes when ready) */
+.console .stagger > * {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: console-reveal 0.5s ease forwards;
+}
+.console .stagger > *:nth-child(1) { animation-delay: 0.05s; }
+.console .stagger > *:nth-child(2) { animation-delay: 0.10s; }
+.console .stagger > *:nth-child(3) { animation-delay: 0.15s; }
+.console .stagger > *:nth-child(4) { animation-delay: 0.20s; }
+.console .stagger > *:nth-child(5) { animation-delay: 0.25s; }
+.console .stagger > *:nth-child(6) { animation-delay: 0.30s; }
+.console .stagger > *:nth-child(7) { animation-delay: 0.35s; }
+.console .stagger > *:nth-child(8) { animation-delay: 0.40s; }
+@keyframes console-reveal {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .console .live-dot::after,
+  .console .live-dot.pulse,
+  .console .ticker,
+  .console .caret,
+  .console .stagger > * { animation: none !important; }
+}
+
 @layer base {
   :root {
     /* Base colors */

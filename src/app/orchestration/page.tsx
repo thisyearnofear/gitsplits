@@ -2,366 +2,233 @@
 
 import React from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import {
-  CheckCircle2,
-  ArrowRight,
-  AlertTriangle,
-  Bot,
-  Users,
-  Shield,
-  Coins,
-  FileCheck,
-  Mail,
-  Workflow,
-  Sparkles,
-  Github,
-  ExternalLink,
-} from "lucide-react";
-import Header from "@/components/shared/Header";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import Badge from "@/components/ui/badge";
-import { ActorBadges } from "@/components/case/badges";
+import { ArrowRight, AlertTriangle, Github, Sparkles, ExternalLink } from "lucide-react";
+import ConsoleHeader from "@/components/shared/ConsoleHeader";
+import AgentConstellation from "@/components/orchestration/AgentConstellation";
 import type { Actor } from "@/lib/case/types";
 
-type Stage = {
-  number: number;
+const ACTOR_LABEL: Record<Actor, string> = {
+  agent_builder: "agent_builder",
+  external_agent: "external_agent",
+  api_workflow: "api_workflow",
+  action_center: "action_center",
+  system: "system",
+};
+
+const ACTOR_TINT: Record<Actor, string> = {
+  agent_builder:  "text-[#c8a8ff]",
+  external_agent: "text-[#b9ff66]",
+  api_workflow:   "text-[#7fc8ff]",
+  action_center:  "text-[#f5a524]",
+  system:         "ink-soft",
+};
+
+type StageRow = {
+  num: number;
+  key: string;
   title: string;
   description: string;
   actors: Actor[];
-  icon: React.ComponentType<{ className?: string }>;
-  exceptionLane?: string;
+  exception?: string;
 };
 
-const STAGES: Stage[] = [
-  {
-    number: 1,
-    title: "Intake",
-    description: "Sponsor's free-form funding request is parsed into structured case fields by the Intake Triage Agent.",
-    actors: ["agent_builder"],
-    icon: Mail,
-    exceptionLane: "malformed_intake",
-  },
-  {
-    number: 2,
-    title: "Repo Analysis",
-    description: "Controller pulls contributor breakdown from GitHub. LangChain agent runs critique + recommend over EigenAI-attested quality scores.",
-    actors: ["api_workflow", "external_agent"],
-    icon: Github,
-    exceptionLane: "no_payable_contributors",
-  },
-  {
-    number: 3,
-    title: "Verification Check",
-    description: "Look up which recommended contributors already have NEAR wallets linked. Spawns a parallel outreach sub-case for unverified contributors.",
-    actors: ["api_workflow", "action_center"],
-    icon: Shield,
-  },
-  {
-    number: 4,
-    title: "Compliance & Approval",
-    description: "Sanctions screening runs in parallel with the Approval Routing Agent picking approvers. Action Center holds humans accountable.",
-    actors: ["api_workflow", "agent_builder", "action_center"],
-    icon: FileCheck,
-    exceptionLane: "compliance_blocked",
-  },
-  {
-    number: 5,
-    title: "Split Creation",
-    description: "Controller writes the approved allocation to the NEAR splits contract.",
-    actors: ["api_workflow"],
-    icon: Users,
-  },
-  {
-    number: 6,
-    title: "Payout Execution",
-    description: "Distribute funds via Ping Pay or HOT Pay with automatic retry and exception-lane fallback for failed payouts.",
-    actors: ["api_workflow"],
-    icon: Coins,
-    exceptionLane: "payout_failed",
-  },
-  {
-    number: 7,
-    title: "Reconciliation & Attestation",
-    description: "Verify on-chain receipts and produce a TEE-signed attestation attached to the case audit trail.",
-    actors: ["api_workflow", "system"],
-    icon: Sparkles,
-  },
+const STAGES: StageRow[] = [
+  { num: 1, key: "intake",              title: "Intake",                       description: "Sponsor's free-form request is parsed into structured case fields by the Intake Triage Agent.", actors: ["agent_builder"], exception: "malformed_intake" },
+  { num: 2, key: "repo_analysis",       title: "Repo Analysis",                description: "Controller pulls contributor breakdown. LangChain agent runs critique + recommend over EigenAI-attested quality scores.", actors: ["api_workflow", "external_agent"], exception: "no_payable_contributors" },
+  { num: 3, key: "verification_check",  title: "Verification Check",           description: "Look up which recommended contributors have wallets. Unverified contributors spawn a parallel outreach sub-case.", actors: ["api_workflow", "action_center"] },
+  { num: 4, key: "compliance_approval", title: "Compliance & Approval",        description: "Sanctions screening parallel with the Approval Routing Agent. Action Center holds humans accountable.", actors: ["api_workflow", "agent_builder", "action_center"], exception: "compliance_blocked" },
+  { num: 5, key: "split_creation",      title: "Split Creation",               description: "Controller writes the approved allocation to the NEAR splits contract.", actors: ["api_workflow"] },
+  { num: 6, key: "payout_execution",    title: "Payout Execution",             description: "Distribute via Ping Pay or HOT Pay with automatic retry and exception-lane fallback.", actors: ["api_workflow"], exception: "payout_failed" },
+  { num: 7, key: "reconciliation",      title: "Reconciliation & Attestation", description: "Verify on-chain receipts and produce a TEE-signed attestation attached to the case audit trail.", actors: ["api_workflow", "system"] },
 ];
 
-const EXCEPTION_LANES = [
-  { key: "malformed_intake", label: "Malformed Intake", route: "queue:intake-ops" },
-  { key: "no_payable_contributors", label: "No Payable Contributors", route: "queue:sponsor-success" },
-  { key: "compliance_blocked", label: "Compliance Blocked", route: "queue:compliance" },
-  { key: "payout_failed", label: "Payout Failed", route: "queue:payouts-ops" },
-  { key: "dispute_raised", label: "Dispute Raised", route: "queue:disputes" },
+const LANES = [
+  { key: "malformed_intake",         label: "malformed intake",         route: "queue:intake-ops" },
+  { key: "no_payable_contributors",  label: "no payable contributors",  route: "queue:sponsor-success" },
+  { key: "compliance_blocked",       label: "compliance blocked",       route: "queue:compliance" },
+  { key: "payout_failed",            label: "payout failed",            route: "queue:payouts-ops" },
+  { key: "dispute_raised",           label: "dispute raised",           route: "queue:disputes" },
 ];
 
-const UIPATH_COMPONENTS = [
-  { name: "Maestro Case", purpose: "Stage transitions, SLAs, escalation, audit timeline" },
-  { name: "Agent Builder", purpose: "Native UiPath agents for intake triage & approver routing" },
-  { name: "API Workflows", purpose: "12 auto-generated from controller OpenAPI; 4 integration stubs" },
-  { name: "Action Center", purpose: "Finance, compliance, dispute, and payout-recovery human tasks" },
-  { name: "Integration Service", purpose: "Email, sanctions screening, sponsor notifications" },
-  { name: "UiPath Solution (.uipx)", purpose: "All projects bundled and deployed via `uip solution` CLI" },
+const UIPATH = [
+  { name: "Maestro Case",        purpose: "Stage transitions, SLAs, escalation, audit timeline" },
+  { name: "Agent Builder",       purpose: "Native agents for intake triage + approval routing" },
+  { name: "API Workflows",       purpose: "12 auto-generated from controller OpenAPI" },
+  { name: "Action Center",       purpose: "Finance, compliance, dispute, payout-recovery tasks" },
+  { name: "Integration Service", purpose: "Email, sanctions screening, sponsor notify" },
+  { name: "Solution (.uipx)",    purpose: "Single deployable via uip solution CLI" },
 ];
 
-const AUTONOMY_TIERS = [
-  {
-    tier: "T0",
-    label: "Fully autonomous",
-    trigger: "≤ $500, no risk flags, sanctions cleared",
-    approvers: "None",
-    outcome: "Closes end-to-end in <5 min",
-    accent: "border-emerald-500/40 bg-emerald-500/5",
-  },
-  {
-    tier: "T1",
-    label: "Finance only",
-    trigger: "$501–$5,000",
-    approvers: "1 finance signature (24h SLA)",
-    outcome: "Same-day completion",
-    accent: "border-blue-500/40 bg-blue-500/5",
-  },
-  {
-    tier: "T2",
-    label: "Finance + compliance",
-    trigger: "$5,001–$25,000 or any warning flag",
-    approvers: "2 approvers in parallel",
-    outcome: "1–2 day completion",
-    accent: "border-amber-500/40 bg-amber-500/5",
-  },
-  {
-    tier: "T3",
-    label: "Finance + compliance + exec",
-    trigger: "> $25,000, high-criticality repo, or blocker flag",
-    approvers: "3 approvers in chain",
-    outcome: "Multi-day, full board-grade audit",
-    accent: "border-rose-500/40 bg-rose-500/5",
-  },
-];
-
-const EXTERNAL_COMPONENTS = [
-  { name: "LangChain Insight Agent", purpose: "Multi-step repo reasoning (Python, FastAPI)" },
-  { name: "GitSplits Controller", purpose: "Typed /v1 REST API → GitHub, NEAR, Ping/HOT, EigenAI, TEE" },
-  { name: "NEAR Contract", purpose: "Splits registry + verification map + pending claims" },
-  { name: "EigenAI deTERMinal", purpose: "Attested AI inference (signature attached to insight)" },
+const EXTERNAL = [
+  { name: "LangChain Insight Agent",     purpose: "Multi-step repo reasoning (Python · FastAPI)" },
+  { name: "GitSplits Controller",        purpose: "Typed /v1 REST → GitHub · NEAR · Ping/HOT · EigenAI · TEE" },
+  { name: "NEAR Contract",               purpose: "Splits registry + verification map + pending claims" },
+  { name: "EigenAI deTERMinal",          purpose: "Attested AI inference (signature on every insight)" },
   { name: "EigenCompute / Phala dstack", purpose: "TEE attestation of final case payload" },
 ];
 
 export default function OrchestrationPage() {
   return (
-    <>
-      <Header />
-      <main className="min-h-screen bg-gradient-to-b from-background to-muted/30 pb-20">
-        <section className="container mx-auto px-4 pt-12 pb-8 max-w-6xl">
-          <div className="flex items-center gap-2 mb-4">
-            <Badge className="bg-primary/10 text-primary border-primary/30">
-              UiPath AgentHack 2026 · Track 1 · Maestro Case
-            </Badge>
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
-            Enterprise OSS Funding,
-            <br />
-            <span className="text-muted-foreground">Orchestrated on UiPath Maestro</span>
-          </h1>
-          <p className="text-lg text-muted-foreground max-w-3xl">
-            A sponsor's funding request becomes a fully orchestrated case: intake triage,
-            AI-driven repo analysis, contributor verification, compliance and approval,
-            on-chain split creation, multi-rail payout, and TEE-attested reconciliation.
-            Humans stay in charge at every sensitive decision point.
-          </p>
+    <div className="console min-h-screen relative">
+      <div className="absolute inset-0 console-vignette pointer-events-none" />
+      <ConsoleHeader />
 
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Button asChild size="lg">
-              <Link href="/sponsor">
-                Submit a sample funding request <ArrowRight className="w-4 h-4 ml-2" />
-              </Link>
-            </Button>
-            <Button variant="outline" asChild size="lg">
-              <Link href="https://github.com/thisyearnofear/gitsplits" target="_blank">
-                <Github className="w-4 h-4 mr-2" /> View on GitHub
-                <ExternalLink className="w-3 h-3 ml-1" />
-              </Link>
-            </Button>
-          </div>
-        </section>
-
-        <section className="container mx-auto px-4 max-w-6xl mb-12">
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Workflow className="w-5 h-5 text-primary" /> UiPath Platform Components
-                </CardTitle>
-                <CardDescription>What runs inside UiPath Automation Cloud</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3">
-                  {UIPATH_COMPONENTS.map((c) => (
-                    <li key={c.name} className="flex gap-3">
-                      <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                      <div>
-                        <div className="font-medium text-sm">{c.name}</div>
-                        <div className="text-sm text-muted-foreground">{c.purpose}</div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bot className="w-5 h-5 text-emerald-600" /> External Agents & Services
-                </CardTitle>
-                <CardDescription>Called by Maestro via API Workflows</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3">
-                  {EXTERNAL_COMPONENTS.map((c) => (
-                    <li key={c.name} className="flex gap-3">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
-                      <div>
-                        <div className="font-medium text-sm">{c.name}</div>
-                        <div className="text-sm text-muted-foreground">{c.purpose}</div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-
-        <section className="container mx-auto px-4 max-w-6xl">
-          <h2 className="text-2xl font-bold mb-2">Case Flow</h2>
-          <p className="text-muted-foreground mb-8">
-            Seven stages. Five exception lanes. Every transition is logged to the Maestro case timeline.
-          </p>
-
-          <div className="space-y-4">
-            {STAGES.map((stage, idx) => {
-              const Icon = stage.icon;
-              return (
-                <motion.div
-                  key={stage.number}
-                  initial={false}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: idx * 0.05 }}
+      <main className="relative">
+        {/* HERO with constellation */}
+        <section className="max-w-7xl mx-auto px-6 pt-10 pb-16">
+          <div className="grid lg:grid-cols-[1fr_1.1fr] gap-12 items-center">
+            <div className="stagger">
+              <div className="label mb-4">
+                uipath agenthack 2026 · track 1 · maestro case
+              </div>
+              <h1 className="display text-6xl md:text-7xl mb-5">
+                Enterprise OSS funding,
+                <br />
+                <span className="ink-soft italic">orchestrated.</span>
+              </h1>
+              <p className="ink-soft text-[15px] max-w-xl leading-relaxed mb-6">
+                A sponsor's funding request becomes a UiPath Maestro case. Agents handle
+                intake triage, repo analysis, verification, and payout autonomously. Humans
+                approve only the high-impact decisions. Every step audited; every payout
+                TEE-attested.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href="/sponsor"
+                  className="group inline-flex items-center gap-2 border border-[var(--c-accent)] accent px-4 py-2 mono text-[12px] tracking-wider uppercase hover:bg-[var(--c-accent)] hover:text-[var(--c-bg)] transition-colors"
                 >
-                  <Card className="overflow-hidden">
-                    <CardContent className="p-0">
-                      <div className="flex flex-col md:flex-row">
-                        <div className="md:w-24 bg-muted/50 flex md:flex-col items-center justify-center gap-2 p-4 md:py-6 border-b md:border-b-0 md:border-r border-border">
-                          <div className="text-3xl font-bold text-muted-foreground/50">
-                            {String(stage.number).padStart(2, "0")}
-                          </div>
-                          <Icon className="w-5 h-5 text-primary" />
-                        </div>
-                        <div className="flex-1 p-5">
-                          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-3">
-                            <h3 className="text-lg font-semibold">{stage.title}</h3>
-                            <ActorBadges actors={stage.actors} />
-                          </div>
-                          <p className="text-sm text-muted-foreground mb-3">{stage.description}</p>
-                          {stage.exceptionLane && (
-                            <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-400">
-                              <AlertTriangle className="w-3.5 h-3.5" />
-                              <span>
-                                Exception lane: <code className="text-amber-900 dark:text-amber-300 font-mono">{stage.exceptionLane}</code>
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  {idx < STAGES.length - 1 && (
-                    <div className="flex justify-center my-2">
-                      <ArrowRight className="w-4 h-4 text-muted-foreground rotate-90" />
-                    </div>
-                  )}
-                </motion.div>
-              );
-            })}
+                  open a funding case
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+                <Link
+                  href="https://github.com/thisyearnofear/gitsplits"
+                  target="_blank"
+                  className="inline-flex items-center gap-2 border border-[var(--c-line-bold)] px-4 py-2 mono text-[12px] tracking-wider uppercase ink-soft hover:text-[var(--c-ink)] hover:border-[var(--c-ink)] transition-colors"
+                >
+                  <Github className="w-3.5 h-3.5" /> source
+                  <ExternalLink className="w-3 h-3" />
+                </Link>
+              </div>
+            </div>
+            <div className="relative">
+              <AgentConstellation />
+              <div className="absolute top-3 left-3 mono text-[10.5px] tracking-wider ink-faint">
+                <span className="live-dot mr-2" /> agent_topology · live
+              </div>
+            </div>
           </div>
         </section>
 
-        <section className="container mx-auto px-4 max-w-6xl mt-16">
-          <h2 className="text-2xl font-bold mb-2">Autonomy Profile</h2>
-          <p className="text-muted-foreground mb-6">
-            Agents run end-to-end where it&apos;s safe. Humans are accountable for the high-impact decisions.
-            The Approval Routing Agent assigns one of four tiers per case; ~80% of OSS funding requests fit T0.
-          </p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-12">
-            {AUTONOMY_TIERS.map((tier) => (
-              <Card key={tier.tier} className={`border-2 ${tier.accent}`}>
-                <CardContent className="pt-4 pb-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold tracking-tight">{tier.tier}</span>
-                    <span className="text-xs text-muted-foreground uppercase tracking-wide">{tier.label}</span>
-                  </div>
-                  <div className="text-xs">
-                    <div className="text-muted-foreground mb-1">Trigger</div>
-                    <div className="font-medium">{tier.trigger}</div>
-                  </div>
-                  <div className="text-xs">
-                    <div className="text-muted-foreground mb-1">Approvers</div>
-                    <div className="font-medium">{tier.approvers}</div>
-                  </div>
-                  <div className="text-xs">
-                    <div className="text-muted-foreground mb-1">Outcome</div>
-                    <div className="font-medium">{tier.outcome}</div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <h2 className="text-2xl font-bold mb-2">Exception Lanes</h2>
-          <p className="text-muted-foreground mb-6">
-            Triggerable from any stage. Each routes to an Action Center queue with its own SLA.
-          </p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {EXCEPTION_LANES.map((lane) => (
-              <Card key={lane.key} className="border-amber-500/20">
-                <CardContent className="pt-4 pb-4">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-                    <div>
-                      <div className="font-medium text-sm">{lane.label}</div>
-                      <code className="text-xs text-muted-foreground">{lane.route}</code>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-
-        <section className="container mx-auto px-4 max-w-6xl mt-16">
-          <Card className="bg-gradient-to-br from-primary/5 to-emerald-500/5 border-primary/20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-primary" /> Built with Claude Code
-              </CardTitle>
-              <CardDescription>UiPath for Coding Agents · bonus judging criterion</CardDescription>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground space-y-2">
-              <p>This submission was scaffolded end-to-end with Claude Code (Opus 4.7) acting as the coding agent:</p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>The controller&apos;s typed /v1 REST adapter and OpenAPI spec.</li>
-                <li>The LangChain Repo Insight Agent (Python, FastAPI, multi-step chain).</li>
-                <li>The Maestro case definition, API workflow catalog, and Agent Builder specs.</li>
+        {/* PLATFORM COMPONENTS — two columns, no cards */}
+        <section className="max-w-7xl mx-auto px-6 pb-20">
+          <div className="grid md:grid-cols-2 gap-12 border-t border-[var(--c-line)] pt-10">
+            <div>
+              <div className="label mb-5">uipath_platform · 6</div>
+              <ul className="divide-y divide-[var(--c-line)]">
+                {UIPATH.map((c) => (
+                  <li key={c.name} className="py-3 flex items-baseline gap-5">
+                    <span className="mono text-[13px] w-44 shrink-0">{c.name}</span>
+                    <span className="ink-soft text-[12.5px]">{c.purpose}</span>
+                  </li>
+                ))}
               </ul>
-              <p className="pt-2">The demo video shows Claude Code producing these artifacts live.</p>
-            </CardContent>
-          </Card>
+            </div>
+            <div>
+              <div className="label mb-5 accent">external_agents · 5</div>
+              <ul className="divide-y divide-[var(--c-line)]">
+                {EXTERNAL.map((c) => (
+                  <li key={c.name} className="py-3 flex items-baseline gap-5">
+                    <span className="mono text-[13px] w-44 shrink-0">{c.name}</span>
+                    <span className="ink-soft text-[12.5px]">{c.purpose}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* CASE FLOW — ticker-style list */}
+        <section className="max-w-7xl mx-auto px-6 pb-20">
+          <div className="border-t border-[var(--c-line)] pt-10">
+            <div className="flex items-baseline justify-between mb-6">
+              <h2 className="display text-4xl">Case flow</h2>
+              <span className="label">7 stages · 5 exception lanes</span>
+            </div>
+
+            <div className="font-mono text-[13px]">
+              <div className="flex items-center justify-between py-2 border-b border-[var(--c-line)]">
+                <div className="label">stage</div>
+                <div className="label">actors / exception</div>
+              </div>
+              <ol className="divide-y divide-[var(--c-line)]">
+                {STAGES.map((s) => (
+                  <li key={s.key} className="py-5 grid grid-cols-[40px_1fr_auto] gap-5 items-start">
+                    <span className="ink-faint num text-[11px] pt-1">{String(s.num).padStart(2, "0")}</span>
+                    <div>
+                      <div className="text-[15px] mb-1">{s.title}</div>
+                      <p className="ink-soft text-[12.5px] font-body leading-relaxed max-w-2xl">{s.description}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5">
+                      <div className="flex gap-1.5 flex-wrap justify-end">
+                        {s.actors.map((a) => (
+                          <span key={a} className={`mono text-[10.5px] tracking-wider ${ACTOR_TINT[a]} border border-[var(--c-line)] px-1.5 py-0.5`}>
+                            {ACTOR_LABEL[a]}
+                          </span>
+                        ))}
+                      </div>
+                      {s.exception && (
+                        <span className="flex items-center gap-1 text-[10.5px] text-[#f5a524] mono">
+                          <AlertTriangle className="w-3 h-3" />
+                          {s.exception}
+                        </span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </div>
+        </section>
+
+        {/* EXCEPTION LANES — single row */}
+        <section className="max-w-7xl mx-auto px-6 pb-20">
+          <div className="border-t border-[var(--c-line)] pt-10">
+            <div className="flex items-baseline justify-between mb-6">
+              <h2 className="display text-4xl">Exception lanes</h2>
+              <span className="label">action_center · queues</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 border border-[var(--c-line)]">
+              {LANES.map((lane, i) => (
+                <div key={lane.key} className={`px-4 py-4 border-[var(--c-line)] ${i < LANES.length - 1 ? "md:border-r" : ""} ${i % 2 === 0 ? "border-r" : ""} ${i >= 2 ? "border-t md:border-t-0" : ""}`}>
+                  <div className="flex items-center gap-1.5 text-[#f5a524] mb-2">
+                    <AlertTriangle className="w-3 h-3" />
+                    <span className="mono text-[11px] tracking-wider">{lane.label.toUpperCase().replace(/ /g, "_")}</span>
+                  </div>
+                  <div className="ink-faint text-[11px] mono">{lane.route}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* CLAUDE CODE BONUS */}
+        <section className="max-w-7xl mx-auto px-6 pb-24">
+          <div className="border-t border-[var(--c-line)] pt-10">
+            <div className="grid md:grid-cols-[auto_1fr] gap-6 items-start">
+              <div className="mono text-[10.5px] tracking-wider accent flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3" /> built_with_claude_code
+              </div>
+              <div className="ink-soft text-[13.5px] leading-relaxed max-w-3xl">
+                Scaffolded with Claude Code (Opus 4.7) via the UiPath for Coding Agents pattern.
+                The controller&apos;s typed /v1 adapter and OpenAPI spec, the LangChain insight
+                agent end-to-end, the Maestro case definition + workflow catalog + Agent Builder
+                specs — all produced by Claude Code from the architecture brief. The demo video
+                shows it generating these artifacts live.
+              </div>
+            </div>
+          </div>
         </section>
       </main>
-    </>
+    </div>
   );
 }

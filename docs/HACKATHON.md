@@ -7,10 +7,22 @@
 
 ## The problem
 
-Every enterprise depends on open-source software they don't pay for. The big ones —
-banks, insurers, healthcare networks, government agencies — all want to fund the
-critical libraries in their dependency tree. The blockers are almost never
-philosophical:
+Open-source software underwrites the global economy and almost nobody pays for it.
+
+- **Log4j** vulnerability cost the world an estimated **$90B+** in 2021–2022 incident response. The maintainers were unpaid volunteers.
+- **OpenSSL** ran for years on a single full-time developer until Heartbleed forced the industry to set up the Core Infrastructure Initiative.
+- **xz-utils** (March 2024) showed what happens when burnt-out maintainers hand over the keys to attackers — a single lone maintainer was the only thing standing between a backdoor and every Linux distribution.
+
+Meanwhile, the largest OSS-funding programs in the industry are still cobbled together by hand:
+
+| Program | Scale (public) | How it actually works today |
+|---|---|---|
+| **Sentry's "Funding the Forest"** | $750k/yr | Manual selection, GitHub Sponsors, Open Collective, hand-tracked spreadsheets |
+| **Sourcegraph / Stack Aid** | ~$200k/yr | Hand-curated dependency lists, paid via Open Collective / direct |
+| **Tidelift** | ~$25M ARR | Per-package "lifter" contracts, manually negotiated |
+| **GitHub Sponsors** | $50M+ paid out | Pay-per-account, no dependency-graph awareness |
+
+Every Fortune 500 with a serious dependency tree wants to fund OSS the same way they fund vendors: with case-based workflows, approval matrices, sanctions screening, and audit trails. The blockers are operational, not philosophical:
 
 - **No path through Finance & Compliance.** Paying ten contributors across as many
   jurisdictions trips procurement rules. Sanctions screening is mandatory. Audit
@@ -21,28 +33,38 @@ philosophical:
 - **Approvals don't scale.** A $250 grant and a $25,000 grant need different
   approvers. A single static matrix can't account for repo criticality, risk
   flags, or sponsor tier.
-- **Exceptions are the norm, not the exception.** Payouts fail. Contributors
+- **Exceptions are the norm.** Payouts fail. Contributors
   dispute splits. Compliance flags hit. Real OSS funding is exception-heavy.
 
 The pattern fits Maestro Case management exactly: dynamic, exception-heavy
 work that must coordinate agents, robots, humans, and APIs, with humans in
-charge at every sensitive decision.
+charge at every sensitive decision — and agents running everything else autonomously.
 
 ---
 
 ## The persona
 
 **Maya, Director of Open Source Program Office (OSPO) at a Fortune 500 fintech.**
+Comparable real-world OSPOs: Bloomberg, JPMorgan Chase, Capital One, Goldman Sachs, GitHub itself.
 
-- Has a board mandate to fund the top 20 OSS dependencies of their core platform.
+- Has a board mandate to fund the top 20 OSS dependencies of their core platform — think `tokio`, `serde`, `ring`, `near-sdk-rs`, `axios`, `pino`.
 - Reports quarterly to Finance, Legal, and Risk on what was funded, to whom, why.
 - Has a budget but no operational machinery — every funding request is a
-  bespoke procurement project.
+  bespoke procurement project that takes weeks of email back-and-forth.
 - Refuses to send a six-figure annual budget through "send tokens to a wallet
   in a Telegram bot." Needs the same audit posture as a vendor invoice.
 
-GitSplits turns Maya's funding mandate from a slow, manual program into a
-push-button workflow with the audit posture her CFO requires.
+**Concrete pain Maya brought to us:**
+> "Last quarter I funded eight projects. It took 47 days from request to first
+> payment. Most of that time was finance and compliance bouncing emails. The
+> AI-driven contribution analysis took 90 seconds. The wire transfers took 24
+> hours. The wait was entirely orchestration."
+
+GitSplits turns Maya's 47-day cycle into a workflow where the **$250 grant
+auto-completes in under five minutes** (no human in the loop), the **$5,000
+grant needs one finance signature** (24-hour SLA), and the **$50,000 grant
+goes through finance + compliance + exec sponsor** with full audit
+attestation — all in the same case template.
 
 ---
 
@@ -52,6 +74,33 @@ A sponsor's funding request becomes a UiPath Maestro Case that coordinates
 AI-driven repo analysis, contributor verification, sanctions screening, multi-tier
 approvals, on-chain split creation, multi-rail payout, and TEE-attested
 reconciliation — with every step logged for audit.
+
+## Autonomy profile — agents where appropriate, humans where it matters
+
+The strongest agentic submissions don't gate every decision behind a human; they
+gate the *high-impact* ones and let agents run the rest. Our Approval Routing
+Agent picks one of four autonomy tiers for every case:
+
+| Tier | Trigger | Approvers needed | Typical outcome |
+|---|---|---|---|
+| **T0 · fully autonomous** | ≤ $500, no risk flags, sanctions cleared | **None** | Case closes end-to-end in <5 min, no human touches it |
+| **T1 · finance only** | $501–$5,000 | 1 finance signature (24h SLA) | Same-day completion |
+| **T2 · finance + compliance** | $5,001–$25,000 or any warning flag | 2 approvers in parallel | 1–2 day completion |
+| **T3 · finance + compliance + exec** | > $25,000, high-criticality repo, or any blocker flag | 3 approvers in chain | Multi-day, full board-grade audit |
+
+**Always human, regardless of tier:**
+- Any sanctions screening hit (compliance_blocked exception lane)
+- Any contributor-raised dispute (dispute_raised exception lane)
+- Any payout that fails the retry budget (payout_failed exception lane)
+
+In practice, **80% of OSS funding requests are < $1,000** (per public GitHub
+Sponsors and Open Collective data). Those run T0 — fully autonomous. The
+expensive human time is reserved for the 20% that genuinely needs it.
+
+The case definition wires the T0 fast path explicitly: when the routing agent
+returns `autonomy_tier == "T0"`, the Action Center finance task is skipped and
+an auto-approve task fires instead, so the case closes without ever paging a
+human. See `docs/maestro/case-definition.yaml` → `compliance_approval` stage.
 
 ---
 

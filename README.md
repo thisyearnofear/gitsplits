@@ -12,9 +12,14 @@
 
 ## What this is
 
-Enterprises increasingly depend on open-source libraries they don't fund. GitSplits
-turns "we should pay the maintainers of [critical dependency]" into a fully
-orchestrated, auditable case:
+Open-source software underwrites the global economy and almost nobody pays for it.
+Log4j cost $90B+, OpenSSL ran on one unpaid developer until Heartbleed, xz-utils
+showed what happens when burnt-out maintainers hand over the keys. Every Fortune
+500 with a serious dependency tree wants to fund OSS the way they fund vendors —
+with case workflows, approval matrices, sanctions screening, and audit trails.
+
+GitSplits turns "we should pay the maintainers of [critical dependency]" into a
+fully orchestrated, auditable case:
 
 1. A sponsor submits a funding request (email, web form, Slack).
 2. A UiPath **Maestro Case** routes it through stages — repo analysis, verification,
@@ -25,6 +30,20 @@ orchestrated, auditable case:
    Pay, and **Action Center** holds humans accountable at the right decision points.
 4. The case closes with a TEE-signed attestation, EigenAI explorer link, and full
    audit trail — the exact evidence finance and compliance need.
+
+**Agents autonomous where appropriate, humans accountable for high-impact decisions.**
+The Approval Routing Agent assigns one of four autonomy tiers per request:
+
+| Tier | Trigger | Human approvers |
+|---|---|---|
+| T0 | ≤ $500, no risk flags | **None** — closes in <5 min, fully autonomous |
+| T1 | $501–$5,000 | 1 finance signature |
+| T2 | $5,001–$25,000 or warning flag | finance + compliance |
+| T3 | > $25,000, high-criticality repo, or blocker flag | finance + compliance + exec sponsor |
+
+Sanctions hits, contributor disputes, and payout failures always escalate to a
+human regardless of tier. See [HACKATHON.md → Autonomy profile](docs/HACKATHON.md#autonomy-profile--agents-where-appropriate-humans-where-it-matters)
+for the rationale.
 
 ```
 Sponsor → Maestro Case ─┬─→ Intake Triage Agent (UiPath Agent Builder)
@@ -89,6 +108,10 @@ python -m insight_agent.server  # serves /insight/recommend on :8088
 
 # 4. UiPath Maestro (requires UiPath Labs / Automation Cloud access)
 #    See docs/MAESTRO.md for the import + wire-up steps.
+#    For repeatable deploys, bundle as a .uipx solution:
+#      npm install -g @uipath/cli && uip login
+#      uip solution init gitsplits-funding
+#    (Full lifecycle in docs/maestro/solution.yaml)
 ```
 
 ## Documentation
@@ -104,6 +127,7 @@ python -m insight_agent.server  # serves /insight/recommend on :8088
 | [**PHALA_CUTOVER_RUNBOOK.md**](docs/PHALA_CUTOVER_RUNBOOK.md) | Staged migration from Hetzner runtime to Phala dstack |
 | [**PLATFORM.md**](docs/PLATFORM.md) | Roadmap |
 | [**LABS_ACCESS_REQUEST.md**](docs/LABS_ACCESS_REQUEST.md) | Draft answers for the UiPath Labs access form |
+| [`docs/maestro/solution.yaml`](docs/maestro/solution.yaml) | `.uipx` solution manifest — projects, assets, queues, deploy configs, `uip solution` CLI lifecycle |
 | [`docs/maestro/*.yaml`](docs/maestro) | Paste-ready case/workflow/agent definitions |
 | [`packages/controller-phala/openapi.yaml`](packages/controller-phala/openapi.yaml) | OpenAPI 3.0 spec for the controller v1 API — import directly into UiPath API Workflows |
 

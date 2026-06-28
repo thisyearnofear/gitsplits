@@ -29,6 +29,49 @@ case:
     escalation_after_hours: 96
 
   # ------------------------------------------------------------------
+  # Autonomy profile — what the agents decide vs. what humans own
+  # ------------------------------------------------------------------
+  # The Approval Routing Agent picks reviewers using these tiers. Small
+  # amounts run end-to-end without human intervention; only the high-impact
+  # decisions and exceptions surface to Action Center. This matches the
+  # AgentHack guidance: "use agents autonomously where appropriate, while
+  # ensuring humans remain accountable for high-impact decisions."
+  autonomy_tiers:
+    - tier: "T0 - fully autonomous"
+      criteria:
+        amount_usd: "<= 500"
+        risk_flags_max_severity: "info"
+        sponsor_tier_required: "internal | customer"
+      flow: >-
+        Intake → Repo Analysis → Verification Check → (no compliance gate) →
+        Split Creation → Payout → Reconciliation. Humans only see the case
+        if it falls into an exception lane (sanctions hit, payout failed,
+        dispute raised).
+    - tier: "T1 - finance approval"
+      criteria:
+        amount_usd: "501 - 5,000"
+        risk_flags_max_severity: "warning"
+      flow: >-
+        Finance approver in Action Center (24h SLA). One approver, one signature.
+    - tier: "T2 - finance + compliance"
+      criteria:
+        amount_usd: "5,001 - 25,000"
+        risk_flags_severity_any: "warning"
+      flow: >-
+        Finance + compliance approvers in parallel. Both must approve.
+    - tier: "T3 - finance + compliance + exec sponsor"
+      criteria:
+        amount_usd: "> 25,000"
+        repo_criticality: "high"
+        risk_flags_severity_any: "blocker"
+      flow: >-
+        Three-approver chain with exec sponsor as the final signature.
+  always_human:
+    - "Any sanctions screening hit (compliance_blocked exception lane)"
+    - "Any contributor-raised dispute (dispute_raised exception lane)"
+    - "Any payout that fails after the retry budget (payout_failed exception lane)"
+
+  # ------------------------------------------------------------------
   # Case-level fields (persisted across stages, populated as work flows)
   # ------------------------------------------------------------------
   fields:
@@ -168,7 +211,11 @@ case:
 
     - key: compliance_approval
       name: "Compliance & Approval"
-      description: "Sanctions screening + finance approval scaled by amount and risk."
+      description: >-
+        Sanctions screening always runs. Whether a human approves depends on
+        the autonomy tier — small low-risk requests skip the Action Center
+        task entirely (tier T0); larger or risk-flagged requests are routed
+        to the appropriate approvers.
       tasks:
         - key: sanctions_screen
           name: "Sanctions screening"
@@ -180,7 +227,7 @@ case:
           outputs:
             - field: compliance_decision.sanctions
         - key: routing
-          name: "Pick approvers"
+          name: "Pick approvers (or none, if T0)"
           action:
             type: agent_builder
             ref: approval_routing_agent
@@ -189,14 +236,29 @@ case:
             risk_flags: "{{case.risk_flags}}"
           outputs:
             - field: compliance_decision.approvers
+            - field: compliance_decision.autonomy_tier
         - key: finance_approval
-          name: "Finance approval"
+          name: "Finance / compliance approval"
+          condition: "fields.compliance_decision.autonomy_tier != 'T0'"
           depends_on: [sanctions_screen, routing]
           action:
             type: action_center
             assigned_to: "{{fields.compliance_decision.approvers}}"
             form: oss_funding_approval_form
             sla_hours: 24
+          outputs:
+            - field: compliance_decision.outcome
+            - field: compliance_decision.approver_notes
+        - key: auto_approve_t0
+          name: "Auto-approve (T0 fast path)"
+          condition: "fields.compliance_decision.autonomy_tier == 'T0' && fields.compliance_decision.sanctions.hits.length == 0"
+          depends_on: [sanctions_screen, routing]
+          action:
+            type: system
+            kind: set_field
+          inputs:
+            outcome: "approved"
+            approver_notes: "Auto-approved per autonomy tier T0 (amount <= $500, no risk flags, sanctions cleared)."
           outputs:
             - field: compliance_decision.outcome
             - field: compliance_decision.approver_notes

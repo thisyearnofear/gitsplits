@@ -18,10 +18,18 @@ shared:
       header: "x-agent-api-key"
       value:  "${ASSETS.controller_api_key}"
     openapi_spec: "../../packages/controller-phala/openapi.yaml"
+    # The controller is external to UiPath. API Workflow calls go out via
+    # UiPath's serverless robot pool and need the tenant's outbound IP ranges
+    # allowed on your edge (Cloudflare WAF / NGINX / load balancer / VPN).
+    # Find the current ranges in Automation Cloud → "Outbound traffic".
+    outbound_allowlist_required: true
   insight_connection:
     name: "Insight Agent"
     base_url: "${ASSETS.insight_agent_base_url}"
     auth: null   # internal network; add API key if exposed publicly
+    # Same outbound-IP allowlisting consideration as the controller. If
+    # you co-host both behind the same edge, one allowlist entry covers both.
+    outbound_allowlist_required: true
 
 workflows:
 

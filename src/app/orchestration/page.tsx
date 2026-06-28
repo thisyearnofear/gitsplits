@@ -112,6 +112,42 @@ const UIPATH_COMPONENTS = [
   { name: "API Workflows", purpose: "12 auto-generated from controller OpenAPI; 4 integration stubs" },
   { name: "Action Center", purpose: "Finance, compliance, dispute, and payout-recovery human tasks" },
   { name: "Integration Service", purpose: "Email, sanctions screening, sponsor notifications" },
+  { name: "UiPath Solution (.uipx)", purpose: "All projects bundled and deployed via `uip solution` CLI" },
+];
+
+const AUTONOMY_TIERS = [
+  {
+    tier: "T0",
+    label: "Fully autonomous",
+    trigger: "≤ $500, no risk flags, sanctions cleared",
+    approvers: "None",
+    outcome: "Closes end-to-end in <5 min",
+    accent: "border-emerald-500/40 bg-emerald-500/5",
+  },
+  {
+    tier: "T1",
+    label: "Finance only",
+    trigger: "$501–$5,000",
+    approvers: "1 finance signature (24h SLA)",
+    outcome: "Same-day completion",
+    accent: "border-blue-500/40 bg-blue-500/5",
+  },
+  {
+    tier: "T2",
+    label: "Finance + compliance",
+    trigger: "$5,001–$25,000 or any warning flag",
+    approvers: "2 approvers in parallel",
+    outcome: "1–2 day completion",
+    accent: "border-amber-500/40 bg-amber-500/5",
+  },
+  {
+    tier: "T3",
+    label: "Finance + compliance + exec",
+    trigger: "> $25,000, high-criticality repo, or blocker flag",
+    approvers: "3 approvers in chain",
+    outcome: "Multi-day, full board-grade audit",
+    accent: "border-rose-500/40 bg-rose-500/5",
+  },
 ];
 
 const EXTERNAL_COMPONENTS = [
@@ -273,6 +309,36 @@ export default function OrchestrationPage() {
         </section>
 
         <section className="container mx-auto px-4 max-w-6xl mt-16">
+          <h2 className="text-2xl font-bold mb-2">Autonomy Profile</h2>
+          <p className="text-muted-foreground mb-6">
+            Agents run end-to-end where it&apos;s safe. Humans are accountable for the high-impact decisions.
+            The Approval Routing Agent assigns one of four tiers per case; ~80% of OSS funding requests fit T0.
+          </p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-12">
+            {AUTONOMY_TIERS.map((tier) => (
+              <Card key={tier.tier} className={`border-2 ${tier.accent}`}>
+                <CardContent className="pt-4 pb-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl font-bold tracking-tight">{tier.tier}</span>
+                    <span className="text-xs text-muted-foreground uppercase tracking-wide">{tier.label}</span>
+                  </div>
+                  <div className="text-xs">
+                    <div className="text-muted-foreground mb-1">Trigger</div>
+                    <div className="font-medium">{tier.trigger}</div>
+                  </div>
+                  <div className="text-xs">
+                    <div className="text-muted-foreground mb-1">Approvers</div>
+                    <div className="font-medium">{tier.approvers}</div>
+                  </div>
+                  <div className="text-xs">
+                    <div className="text-muted-foreground mb-1">Outcome</div>
+                    <div className="font-medium">{tier.outcome}</div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
           <h2 className="text-2xl font-bold mb-2">Exception Lanes</h2>
           <p className="text-muted-foreground mb-6">
             Triggerable from any stage. Each routes to an Action Center queue with its own SLA.

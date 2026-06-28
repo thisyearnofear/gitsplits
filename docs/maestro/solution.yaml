@@ -1,0 +1,153 @@
+# GitSplits — UiPath Solution Manifest (intended .uipx structure)
+#
+# This document describes how the Maestro Case, Agent Builder agents, and
+# API Workflows in this repo bundle into a single deployable UiPath Solution
+# (.uipx). When Labs access lands, run `uip solution init gitsplits-funding`
+# and add the projects below in this order.
+#
+# Reference: https://github.com/UiPath/skills/blob/main/skills/uipath-solution/SKILL.md
+# CLI:       npm install -g @uipath/cli && uip login
+
+solution:
+  name: gitsplits-funding
+  version: "1.0.0"
+  description: >-
+    Enterprise OSS Funding orchestration: Maestro Case + Agent Builder agents +
+    API Workflows wrapping the GitSplits controller and the LangChain Repo
+    Insight Agent.
+
+  # ------------------------------------------------------------------
+  # Projects bundled into the .uipx
+  # ------------------------------------------------------------------
+  # Each entry corresponds to a `uip solution project add <path>` call after
+  # creating the underlying project in Studio Web (or Studio Desktop where
+  # noted). Listed in the order they should be added so dependency bindings
+  # resolve cleanly.
+  projects:
+
+    - key: case-oss-funding
+      kind: maestro_case
+      source: docs/maestro/case-definition.yaml
+      description: >-
+        The OSS Funding Request case with 7 stages and 5 exception lanes.
+        Built in Maestro Studio Web from the YAML spec, then registered with
+        `uip solution project add`.
+
+    - key: agent-intake-triage
+      kind: agent_builder
+      source: docs/maestro/agent-builder-agents.yaml#intake_triage_agent
+      description: >-
+        Native UiPath agent that parses sponsor email/webhook payloads into
+        structured case fields.
+
+    - key: agent-approval-routing
+      kind: agent_builder
+      source: docs/maestro/agent-builder-agents.yaml#approval_routing_agent
+      description: >-
+        Native UiPath agent that assigns the autonomy tier (T0–T3) and picks
+        approvers. T0 short-circuits the human approval task in the case.
+
+    - key: api-workflows-controller
+      kind: api_workflows
+      source: packages/controller-phala/openapi.yaml
+      count: 12
+      description: >-
+        Twelve workflows auto-imported from the OpenAPI spec. Each wraps a
+        /v1 endpoint on the GitSplits controller: repo analyze/insight,
+        verification check/store, reputation evaluate, split CRUD, payout
+        distribute/pending, pending list, attestation.
+
+    - key: api-workflow-langchain-insight
+      kind: api_workflows
+      source: docs/maestro/api-workflows.yaml#langchain_insight_agent
+      count: 1
+      description: >-
+        Manually-defined API Workflow calling the external LangChain Repo
+        Insight Agent at /insight/recommend.
+
+    - key: api-workflows-integrations
+      kind: api_workflows
+      source: docs/maestro/api-workflows.yaml#integrations
+      count: 4
+      description: >-
+        Integration Service stubs: send_verification_email, sanctions_screen,
+        notify_sponsor, verify_receipts.
+
+  # ------------------------------------------------------------------
+  # Solution-level resources (Assets, Queues, Connections)
+  # ------------------------------------------------------------------
+  # Add these via `uip solution resource add` after running `uip login`.
+  # The CLI keeps them in lockstep with the .uipx manifest; never hand-edit
+  # resources/solution_folder/.
+  resources:
+    assets:
+      - { name: controller_base_url,       kind: text,        scope: per_environment }
+      - { name: controller_api_key,        kind: credential,  scope: per_environment }
+      - { name: insight_agent_base_url,    kind: text,        scope: per_environment }
+      - { name: gitsplits_owner_account,   kind: text,        scope: per_environment }
+    queues:
+      - { name: queue:finance-ops }
+      - { name: queue:compliance }
+      - { name: queue:exec-approvals }
+      - { name: queue:repo-stewards }
+      - { name: queue:disputes }
+      - { name: queue:intake-ops }
+      - { name: queue:payouts-ops }
+      - { name: queue:sponsor-success }
+    connections:
+      - kind: http
+        for: controller
+        notes: "Uses controller_api_key Asset as x-agent-api-key header."
+      - kind: http
+        for: insight_agent
+        notes: "Internal network preferred; add API key if exposed publicly."
+      - kind: integration_service
+        for: email
+        provider: "Microsoft 365 Outlook (or Gmail / SendGrid)"
+      - kind: integration_service
+        for: sanctions
+        provider: "Chainalysis / TRM Labs (or stub for demo)"
+
+  # ------------------------------------------------------------------
+  # Deploy configs (one .uipx, many environments)
+  # ------------------------------------------------------------------
+  deploy_configs:
+    - key: dev
+      asset_overrides:
+        controller_base_url: "http://localhost:3000"
+        insight_agent_base_url: "http://localhost:8088"
+    - key: hackathon-demo
+      asset_overrides:
+        controller_base_url: "https://agent.gitsplits.thisyearnofear.com"
+        insight_agent_base_url: "https://insight.gitsplits.thisyearnofear.com"
+
+# ----------------------------------------------------------------------
+# CLI lifecycle (run from a working dir where you've placed the projects)
+# ----------------------------------------------------------------------
+# 1. Probe + auth
+#    uip solution init --help --output json
+#    uip login
+#
+# 2. Initialize the solution and add projects
+#    uip solution init gitsplits-funding
+#    uip solution project add ./case-oss-funding
+#    uip solution project add ./agent-intake-triage
+#    uip solution project add ./agent-approval-routing
+#    uip solution project add ./api-workflows-controller
+#    uip solution project add ./api-workflow-langchain-insight
+#    uip solution project add ./api-workflows-integrations
+#
+# 3. Sync resources, pack, publish, deploy
+#    uip solution resource refresh
+#    uip solution pack
+#    uip solution publish
+#    uip solution deploy run -c hackathon-demo --parent-folder-path "Shared"
+#
+# 4. Verify
+#    uip solution deploy status --output json
+#
+# Outbound IP allowlisting: requests to controller_base_url and
+# insight_agent_base_url leave UiPath's serverless robot pool. Ensure the
+# tenant's outbound IPs are allowed on your edge (Cloudflare WAF / NGINX /
+# load balancer). Calls to UiPath-internal services (Orchestrator) need no
+# allowlist.

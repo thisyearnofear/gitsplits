@@ -80,8 +80,16 @@ agents:
         sponsor_tier:      { type: string, enum: [partner, customer, internal], default: customer }
     outputs:
       type: object
-      required: [approvers]
+      required: [approvers, autonomy_tier]
       properties:
+        autonomy_tier:
+          type: string
+          enum: [T0, T1, T2, T3]
+          description: >-
+            T0 = fully autonomous (no human approval needed).
+            T1 = finance only.
+            T2 = finance + compliance.
+            T3 = finance + compliance + exec sponsor.
         approvers:
           type: array
           items:
@@ -99,29 +107,40 @@ agents:
         ref: lookup_repo_criticality   # define this workflow if you maintain a CMDB
         when: "input.repo_criticality == 'unknown'"
     system_prompt: |
-      You pick approvers for an OSS funding case. Use these rules as a starting point,
-      but you are allowed to add reviewers when risk flags warrant it.
+      You pick approvers and assign an autonomy tier for an OSS funding case.
+      The case engine will skip the Action Center human task entirely for T0,
+      so be deliberate about when to use it.
 
-      Base policy:
-        - amount <= $500          → finance only (SLA 24h)
-        - $500 < amount <= $5,000 → finance + repo_steward
-        - amount > $5,000         → finance + compliance + exec_sponsor
+      Autonomy tiers (default policy):
+        - T0 (fully autonomous, NO approvers)
+            amount <= $500
+            AND max risk_flag severity == "info"
+            AND sponsor_tier in [internal, customer]
+            AND repo_criticality in [low, medium, unknown]
+            → approvers: []
+        - T1 (finance only)
+            $500 < amount <= $5,000 AND no warning/blocker risk flags
+            → approvers: [{role: finance, queue: queue:finance-ops, sla_hours: 24, required: true}]
+        - T2 (finance + compliance)
+            $5,000 < amount <= $25,000
+            OR any risk_flag severity == "warning"
+            OR sponsor_tier == "partner" AND amount > $1,000
+            → approvers: finance + compliance
+        - T3 (finance + compliance + exec sponsor)
+            amount > $25,000
+            OR repo_criticality == "high"
+            OR any risk_flag severity == "blocker"
+            → approvers: finance + compliance + exec_sponsor
 
-      Add compliance when:
-        - any risk_flag has severity == "blocker"
-        - sponsor_tier == "partner" AND amount > $1,000
-
-      Add exec_sponsor when:
-        - repo_criticality == "high"
-        - or amount > $25,000
-
-      Each approver should reference an Action Center queue. Use:
+      Queues:
         finance       → queue:finance-ops
         compliance    → queue:compliance
         exec_sponsor  → queue:exec-approvals
         repo_steward  → queue:repo-stewards
 
-      Output strict JSON matching the schema. Include a one-sentence reasoning.
+      Output strict JSON matching the schema. Include a one-sentence reasoning
+      that names the tier and the trigger.
     guardrails:
-      - "Never omit finance for amounts > $0."
-      - "If risk_flags contains a 'sanctions' code, compliance approver MUST be required."
+      - "Never omit finance for tiers T1+. T0 has zero approvers by design."
+      - "If risk_flags contains a 'sanctions' code, tier MUST be at least T2 and compliance MUST be required."
+      - "Auto-escalate one tier if the AI insight confidence is below 0.5."

@@ -2,435 +2,352 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Circle,
+  Loader2,
+  Plus,
+  AlertTriangle,
+  Activity,
+  Coins,
+  Layers,
+  Sparkles,
+} from "lucide-react";
+import Header from "@/components/shared/Header";
 import WalletStatusBar from "@/components/shared/WalletStatusBar";
-import FlowStatusStrip from "@/components/shared/FlowStatusStrip";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, CheckCircle2, Circle, HelpCircle, Loader2, ArrowRight, Github, Shield, Bot, Wallet } from "lucide-react";
-import { motion } from "framer-motion";
-import Badge from "@/components/ui/badge";
-import { trackUxEvent } from "@/lib/services/ux-events";
-import { useRouter } from "next/navigation";
+import { AutonomyTierBadge } from "@/components/case/badges";
+import type { AutonomyTier } from "@/lib/case/types";
 
-type AgentStatus = "idle" | "ok" | "degraded" | "error";
-
-type FlowStep = {
+type CaseListItem = {
   id: string;
-  label: string;
-  complete: boolean;
-  actionHref?: string;
+  status: "running" | "completed" | "rejected" | "blocked";
+  repoUrl: string;
+  amount: number;
+  token: string;
+  autonomyTier?: AutonomyTier;
+  createdAt: string;
+  updatedAt: string;
 };
 
-const RECENT_REPOS_KEY = "gitsplits_recent_repos";
-const TIMELINE_KEY = "gitsplits_activity_timeline";
+type AgentHealth = "ok" | "degraded" | "error" | "unknown";
 
-type TimelineItem = {
-  action: string;
-  status: "pending" | "success" | "failed";
-  repo?: string;
-  at: string;
-};
-
-function normalizeRepoPath(input: string): string {
-  return input
-    .trim()
-    .replace(/^(https?:\/\/)?(www\.)?github\.com\//i, "")
-    .replace(/\/+$/, "");
+function relativeTime(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (ms < 60_000) return `${Math.max(1, Math.floor(ms / 1000))}s ago`;
+  if (ms < 3_600_000) return `${Math.floor(ms / 60_000)}m ago`;
+  if (ms < 86_400_000) return `${Math.floor(ms / 3_600_000)}h ago`;
+  return `${Math.floor(ms / 86_400_000)}d ago`;
 }
 
-function toUserFacingError(error: unknown): string {
-  const raw = error instanceof Error ? error.message : String(error || "Unknown error");
-  const lower = raw.toLowerCase();
-  if (lower.includes("timed out")) return "The agent timed out. Retry in a few seconds.";
-  if (lower.includes("not installed")) return "GitHub App is not installed on that repository.";
-  if (lower.includes("fetch") || lower.includes("network")) return "Network issue while contacting backend. Please retry.";
-  return raw;
+function StatusDot({ status }: { status: CaseListItem["status"] }) {
+  const cls = {
+    running: "bg-primary animate-pulse",
+    completed: "bg-emerald-500",
+    rejected: "bg-rose-500",
+    blocked: "bg-amber-500",
+  }[status];
+  return <span className={`inline-block w-2 h-2 rounded-full ${cls}`} />;
 }
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const [status, setStatus] = useState<AgentStatus>("idle");
-  const [message, setMessage] = useState("Checking live agent connection...");
-  const [repoInput, setRepoInput] = useState("");
-  const [coverageOutput, setCoverageOutput] = useState("");
-  const [coverageStats, setCoverageStats] = useState<{ verified: number; total: number } | null>(null);
-  const [pendingOutput, setPendingOutput] = useState("");
-  const [insightLoading, setInsightLoading] = useState(false);
-  const [lastCheckedAt, setLastCheckedAt] = useState<string>("");
-  const [recentRepos, setRecentRepos] = useState<string[]>([]);
-  const [timeline, setTimeline] = useState<TimelineItem[]>([]);
-
-  const normalizedRepoPath = useMemo(
-    () => (repoInput.trim() ? normalizeRepoPath(repoInput) : ""),
-    [repoInput]
-  );
-
-  const flowSteps = useMemo<FlowStep[]>(() => {
-    const hasRepo = normalizedRepoPath.length > 0;
-    const hasCoverage = !!coverageStats;
-    const hasVerified = !!coverageStats && coverageStats.verified > 0;
-    const hasPendingData = pendingOutput.length > 0;
-    return [
-      { id: "analyze", label: "Analyze repository", complete: hasCoverage },
-      {
-        id: "verify",
-        label: "Verify contributor coverage",
-        complete: !!coverageStats && coverageStats.verified === coverageStats.total,
-        actionHref: hasRepo ? `/verify?repo=${encodeURIComponent(normalizedRepoPath)}` : "/verify",
-      },
-      {
-        id: "create",
-        label: "Create or repair split",
-        complete: hasCoverage,
-        actionHref: "/splits",
-      },
-      {
-        id: "pay",
-        label: "Pay verified contributors",
-        complete: hasVerified,
-        actionHref: hasRepo
-          ? `/agent?command=${encodeURIComponent(`pay 1 USDC to github.com/${normalizedRepoPath}`)}`
-          : "/agent",
-      },
-      {
-        id: "pending",
-        label: "Review pending claims",
-        complete: hasPendingData,
-        actionHref: "/splits",
-      },
-    ];
-  }, [coverageStats, normalizedRepoPath, pendingOutput]);
-
-  const stripSteps = useMemo(
-    () =>
-      flowSteps.map((step, idx) => ({
-        id: step.id,
-        label: step.label.replace(" repository", ""),
-        href: step.actionHref,
-        complete: step.complete,
-        current: !step.complete && flowSteps.findIndex((s) => !s.complete) === idx,
-      })),
-    [flowSteps]
-  );
+  const [cases, setCases] = useState<CaseListItem[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [agentHealth, setAgentHealth] = useState<AgentHealth>("unknown");
+  const [agentReason, setAgentReason] = useState<string>("");
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(RECENT_REPOS_KEY);
-      if (raw) setRecentRepos(JSON.parse(raw));
-      const timelineRaw = localStorage.getItem(TIMELINE_KEY);
-      if (timelineRaw) setTimeline(JSON.parse(timelineRaw));
-    } catch {
-      setRecentRepos([]);
-      setTimeline([]);
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    async function tick() {
+      try {
+        const res = await fetch("/api/case", { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (cancelled) return;
+        setCases(Array.isArray(data?.cases) ? data.cases : []);
+        setError(null);
+      } catch (err: any) {
+        if (!cancelled) setError(err?.message || "Failed to load cases");
+      }
+      timer = setTimeout(tick, 4000);
     }
+    tick();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, []);
-
-  const pushTimeline = (item: Omit<TimelineItem, "at">) => {
-    setTimeline((prev) => {
-      const next = [{ ...item, at: new Date().toISOString() }, ...prev].slice(0, 10);
-      try {
-        localStorage.setItem(TIMELINE_KEY, JSON.stringify(next));
-      } catch {
-        // Ignore storage failures.
-      }
-      return next;
-    });
-  };
-
-  const persistRecentRepo = (repo: string) => {
-    const path = normalizeRepoPath(repo);
-    if (!path) return;
-    setRecentRepos((prev) => {
-      const next = [path, ...prev.filter((item) => item !== path)].slice(0, 5);
-      try {
-        localStorage.setItem(RECENT_REPOS_KEY, JSON.stringify(next));
-      } catch {
-        // Ignore storage failures.
-      }
-      return next;
-    });
-  };
-
-  const checkReadiness = async () => {
-    setStatus("idle");
-    setMessage("Checking live agent connection...");
-    try {
-      const response = await fetch("/api/agent", { method: "GET" });
-      const data = await response.json();
-      setLastCheckedAt(new Date().toLocaleTimeString());
-      if (response.ok && data?.status === "ok") {
-        setStatus("ok");
-        setMessage("Live agent connected and ready.");
-        trackUxEvent("dashboard_agent_ready");
-        pushTimeline({ action: "agent_readiness", status: "success" });
-        return;
-      }
-      setStatus("degraded");
-      setMessage(data?.reason || data?.readiness?.reasons?.join(", ") || "Agent readiness degraded.");
-      trackUxEvent("dashboard_agent_degraded");
-      pushTimeline({ action: "agent_readiness", status: "failed" });
-    } catch (error) {
-      setStatus("error");
-      setMessage(toUserFacingError(error));
-      trackUxEvent("dashboard_agent_error");
-      pushTimeline({ action: "agent_readiness", status: "failed" });
-    }
-  };
 
   useEffect(() => {
-    void checkReadiness();
+    let cancelled = false;
+    async function probe() {
+      try {
+        const res = await fetch("/api/agent", { method: "GET", cache: "no-store" });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (res.ok && data?.status === "ok") {
+          setAgentHealth("ok");
+          setAgentReason("Controller ready");
+        } else {
+          setAgentHealth("degraded");
+          setAgentReason(
+            data?.reason || data?.readiness?.reasons?.join(", ") || "Agent readiness degraded",
+          );
+        }
+      } catch (err: any) {
+        if (cancelled) return;
+        setAgentHealth("error");
+        setAgentReason(err?.message || "Unable to reach agent");
+      }
+    }
+    probe();
   }, []);
 
-  const runCoverageCheck = async () => {
-    if (!normalizedRepoPath) return;
-    setInsightLoading(true);
-    setCoverageOutput("");
-    setPendingOutput("");
-    setCoverageStats(null);
-    persistRecentRepo(normalizedRepoPath);
-    trackUxEvent("dashboard_analyze_start", { repo: normalizedRepoPath });
-    pushTimeline({ action: "analyze", status: "pending", repo: normalizedRepoPath });
+  const stats = useMemo(() => {
+    const list = cases || [];
+    const open = list.filter((c) => c.status === "running").length;
+    const completed = list.filter((c) => c.status === "completed").length;
+    const blocked = list.filter((c) => c.status === "blocked" || c.status === "rejected").length;
+    const disbursed = list
+      .filter((c) => c.status === "completed")
+      .reduce((sum, c) => sum + Number(c.amount || 0), 0);
+    const tierCounts: Record<AutonomyTier, number> = { T0: 0, T1: 0, T2: 0, T3: 0 };
+    list.forEach((c) => {
+      if (c.autonomyTier) tierCounts[c.autonomyTier]++;
+    });
+    return { open, completed, blocked, disbursed, tierCounts, total: list.length };
+  }, [cases]);
 
-    try {
-      const repo = `github.com/${normalizedRepoPath}`;
-      const analyzeRes = await fetch("/api/agent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: `analyze ${repo}` }),
-      });
-      const analyzeData = await analyzeRes.json();
-      if (!analyzeRes.ok || !analyzeData?.success) {
-        throw new Error(analyzeData?.error || "Analyze request failed");
-      }
-
-      const analyzeText = String(analyzeData.response || "");
-      const coverageLine =
-        analyzeText
-          .split("\n")
-          .find((line) => line.toLowerCase().includes("verification coverage")) ||
-        "Verification coverage unavailable.";
-      setCoverageOutput(coverageLine);
-      const coverageMatch = coverageLine.match(/(\d+)\s*\/\s*(\d+)\s+verified/i);
-      setCoverageStats(
-        coverageMatch
-          ? { verified: Number(coverageMatch[1]), total: Number(coverageMatch[2]) }
-          : null
-      );
-
-      const pendingRes = await fetch("/api/agent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: `pending ${repo}` }),
-      });
-      const pendingData = await pendingRes.json();
-      if (!pendingRes.ok || !pendingData?.success) {
-        throw new Error(pendingData?.error || "Pending claims request failed");
-      }
-      setPendingOutput(String(pendingData.response || ""));
-      trackUxEvent("dashboard_analyze_success", { repo: normalizedRepoPath });
-      pushTimeline({ action: "analyze", status: "success", repo: normalizedRepoPath });
-    } catch (error) {
-      setPendingOutput(toUserFacingError(error));
-      trackUxEvent("dashboard_analyze_failed", { repo: normalizedRepoPath });
-      pushTimeline({ action: "analyze", status: "failed", repo: normalizedRepoPath });
-    } finally {
-      setInsightLoading(false);
-    }
-  };
+  const sortedCases = useMemo(() => {
+    return [...(cases || [])].sort((a, b) =>
+      a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0,
+    );
+  }, [cases]);
 
   return (
-    <div className="min-h-screen page-gradient py-6 md:py-10">
-      <div className="container mx-auto max-w-5xl px-4 space-y-8">
-        <WalletStatusBar />
-        <FlowStatusStrip steps={stripSteps} title="Contributor Payout Journey" />
+    <>
+      <Header />
+      <main className="min-h-screen bg-gradient-to-b from-background to-muted/30 pb-20">
+        <section className="container mx-auto px-4 pt-10 pb-6 max-w-6xl">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight mb-1">Case Operations</h1>
+              <p className="text-muted-foreground">
+                Live view of every OSS Funding case across the Maestro tenant.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border ${
+                  agentHealth === "ok"
+                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                    : agentHealth === "degraded"
+                    ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30"
+                    : agentHealth === "error"
+                    ? "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30"
+                    : "bg-muted text-muted-foreground border-border"
+                }`}
+                title={agentReason}
+              >
+                <Circle
+                  className={`w-2.5 h-2.5 ${
+                    agentHealth === "ok"
+                      ? "fill-emerald-500 text-emerald-500"
+                      : agentHealth === "degraded"
+                      ? "fill-amber-500 text-amber-500"
+                      : agentHealth === "error"
+                      ? "fill-rose-500 text-rose-500"
+                      : "fill-muted text-muted"
+                  }`}
+                />
+                Controller {agentHealth === "unknown" ? "checking…" : agentHealth}
+              </span>
+              <Button asChild>
+                <Link href="/sponsor">
+                  <Plus className="w-4 h-4 mr-1.5" /> New funding request
+                </Link>
+              </Button>
+            </div>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="md:col-span-2 border-0 shadow-2xl glass overflow-hidden">
-            <div className="h-2 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600"></div>
-            <CardHeader className="pb-2">
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="text-3xl font-black tracking-tight">CONTROL CENTER</CardTitle>
-                  <CardDescription className="text-base font-medium mt-1">
-                    Guided workflow to reward your contributors.
-                  </CardDescription>
-                </div>
-                {status === "ok" ? (
-                  <Badge className="bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-900/50 dark:text-green-400 border-0 font-black px-3 py-1">AGENT ONLINE</Badge>
-                ) : (
-                  <Badge variant="secondary" className="bg-red-100 text-red-700 hover:bg-red-100 dark:bg-red-900/50 dark:text-red-400 border-0 font-black px-3 py-1">AGENT OFFLINE</Badge>
-                )}
-              </div>
+          <WalletStatusBar />
+        </section>
+
+        <section className="container mx-auto px-4 max-w-6xl">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+            <StatCard
+              icon={<Activity className="w-4 h-4 text-primary" />}
+              label="Open cases"
+              value={stats.open}
+              hint={`${stats.total} total`}
+            />
+            <StatCard
+              icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+              label="Completed"
+              value={stats.completed}
+              hint={
+                stats.disbursed > 0
+                  ? `~$${stats.disbursed.toLocaleString()} disbursed`
+                  : "no payouts yet"
+              }
+            />
+            <StatCard
+              icon={<AlertTriangle className="w-4 h-4 text-amber-600" />}
+              label="Blocked / rejected"
+              value={stats.blocked}
+              hint={stats.blocked === 0 ? "all clear" : "review exception lanes"}
+            />
+            <StatCard
+              icon={<Coins className="w-4 h-4 text-foreground/60" />}
+              label="Total disbursed"
+              value={`$${Math.round(stats.disbursed).toLocaleString()}`}
+              hint="completed cases"
+            />
+          </div>
+
+          <Card className="mb-8">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Layers className="w-4 h-4 text-primary" /> Cases by autonomy tier
+              </CardTitle>
+              <CardDescription>How many cases each tier has handled.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6 pt-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {flowSteps.map((step, index) => (
-                  <Link 
-                    key={step.id} 
-                    href={step.actionHref || "#"} 
-                    className={`group relative p-4 rounded-2xl border-2 transition-all ${
-                      step.complete 
-                        ? "bg-green-50/50 dark:bg-green-900/20 border-green-100 dark:border-green-800 hover:border-green-200 dark:hover:border-green-700" 
-                        : "bg-card border-border hover:border-primary/50 hover:shadow-lg"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                        step.complete ? "bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400" : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"
-                      }`}>
-                        {step.id === "analyze" && <Github className="w-4 h-4" />}
-                        {step.id === "verify" && <Shield className="w-4 h-4" />}
-                        {step.id === "create" && <Bot className="w-4 h-4" />}
-                        {step.id === "pay" && <Wallet className="w-4 h-4" />}
-                        {step.id === "pending" && <AlertCircle className="w-4 h-4" />}
-                      </div>
-                      {step.complete && <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />}
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {(["T0", "T1", "T2", "T3"] as AutonomyTier[]).map((tier) => (
+                  <div key={tier} className="rounded-lg border border-border p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <AutonomyTierBadge tier={tier} size="sm" />
+                      <span className="text-xl font-bold tabular-nums">
+                        {stats.tierCounts[tier]}
+                      </span>
                     </div>
-                    <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-1">Step {index + 1}</p>
-                    <p className="font-bold text-card-foreground leading-tight">{step.label}</p>
-                    {!step.complete && (
-                      <div className="mt-3 flex items-center text-[10px] font-black text-primary uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">
-                        GO TO STEP <ArrowRight className="w-3 h-3 ml-1" />
-                      </div>
-                    )}
-                  </Link>
+                    <div className="text-xs text-muted-foreground">
+                      {tier === "T0" && "Auto-approved, no humans paged"}
+                      {tier === "T1" && "Finance approver only"}
+                      {tier === "T2" && "Finance + compliance"}
+                      {tier === "T3" && "Three-approver chain"}
+                    </div>
+                  </div>
                 ))}
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <Button 
-                  onClick={() => router.push("/agent")}
-                  className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 h-14 rounded-xl font-black text-lg shadow-xl shadow-primary/20"
-                >
-                  <Bot className="w-5 h-5 mr-2" />
-                  OPEN AGENT CHAT
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={() => void checkReadiness()}
-                  className="h-14 w-14 rounded-xl border-2"
-                  title="Check connection"
-                >
-                  <Circle className={`w-4 h-4 ${status === "ok" ? "fill-green-500 text-green-500" : "fill-red-500 text-red-500"}`} />
-                </Button>
               </div>
             </CardContent>
           </Card>
+        </section>
 
-          <div className="space-y-6">
-            <Card className="border-0 shadow-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
-              <CardHeader>
-                <CardTitle className="text-xl font-black tracking-tight">QUICK ANALYZE</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="relative">
-                  <Input
-                    value={repoInput}
-                    onChange={(e) => setRepoInput(e.target.value)}
-                    placeholder="owner/repo"
-                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 h-12 rounded-xl"
-                  />
+        <section className="container mx-auto px-4 max-w-6xl">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold">Recent cases</h2>
+            <span className="text-xs text-muted-foreground">Auto-refreshes every 4s</span>
+          </div>
+
+          {error && (
+            <Card className="border-rose-500/30 mb-4">
+              <CardContent className="pt-4 pb-4 text-sm text-rose-700 dark:text-rose-300 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" />
+                {error}
+              </CardContent>
+            </Card>
+          )}
+
+          {cases === null ? (
+            <Card>
+              <CardContent className="pt-6 pb-6 text-sm text-muted-foreground flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" /> Loading cases…
+              </CardContent>
+            </Card>
+          ) : sortedCases.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="pt-10 pb-10 text-center space-y-4">
+                <div className="w-12 h-12 mx-auto rounded-full bg-muted flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-muted-foreground" />
                 </div>
-                <Button 
-                  onClick={runCoverageCheck} 
-                  disabled={insightLoading || !normalizedRepoPath}
-                  className="w-full bg-white text-blue-700 hover:bg-blue-50 h-12 rounded-xl font-black"
-                >
-                  {insightLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "CHECK READINESS"}
+                <div>
+                  <p className="font-medium">No cases yet</p>
+                  <p className="text-sm text-muted-foreground">
+                    Submit a sample funding request to see one unfold here.
+                  </p>
+                </div>
+                <Button asChild>
+                  <Link href="/sponsor">
+                    <Plus className="w-4 h-4 mr-1.5" /> Open the sponsor portal
+                  </Link>
                 </Button>
               </CardContent>
             </Card>
+          ) : (
+            <div className="space-y-2">
+              {sortedCases.map((c, idx) => (
+                <motion.div
+                  key={c.id}
+                  initial={false}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2, delay: idx * 0.02 }}
+                >
+                  <Link href={`/case/${c.id}`} className="block group">
+                    <Card className="hover:border-primary/40 transition-colors">
+                      <CardContent className="pt-4 pb-4">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <StatusDot status={c.status} />
+                            <div className="min-w-0">
+                              <div className="font-medium truncate group-hover:text-primary">
+                                {c.repoUrl}
+                              </div>
+                              <div className="text-xs text-muted-foreground font-mono">
+                                {c.id}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-3 md:gap-4">
+                            <div className="text-sm text-muted-foreground tabular-nums">
+                              {c.amount.toLocaleString()} {c.token}
+                            </div>
+                            <AutonomyTierBadge tier={c.autonomyTier} size="sm" />
+                            <span className="text-xs text-muted-foreground tabular-nums">
+                              {relativeTime(c.updatedAt)}
+                            </span>
+                            <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </section>
+      </main>
+    </>
+  );
+}
 
-            <Card className="border-0 shadow-xl">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-black tracking-tight">RECENT ACTIVITY</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {timeline.length === 0 ? (
-                  <div className="py-8 text-center">
-                    <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
-                      <Circle className="w-4 h-4 text-muted-foreground/30" />
-                    </div>
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">No activity yet</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {timeline.slice(0, 3).map((item, index) => (
-                      <div key={`${item.at}-${index}`} className="flex items-center gap-3 p-3 rounded-xl bg-muted border border-border">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                          item.status === "success" ? "bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400" : "bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400"
-                        }`}>
-                          {item.status === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-card-foreground truncate uppercase tracking-tight">
-                            {item.action.replaceAll("_", " ")}
-                          </p>
-                          <p className="text-[10px] font-bold text-muted-foreground">{new Date(item.at).toLocaleTimeString()}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+function StatCard({
+  icon,
+  label,
+  value,
+  hint,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number | string;
+  hint?: string;
+}) {
+  return (
+    <Card>
+      <CardContent className="pt-4 pb-4 space-y-1">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground uppercase tracking-wide">
+          {icon} {label}
         </div>
-
-        {/* Original Insight sections rendered only when data exists, with better styling */}
-        {normalizedRepoPath && (coverageOutput || pendingOutput) && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <Card className="border-0 shadow-2xl overflow-hidden">
-              <div className="bg-card border-b border-border px-6 py-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Github className="w-5 h-5 text-card-foreground" />
-                  <span className="font-black uppercase tracking-widest text-sm text-card-foreground">{normalizedRepoPath}</span>
-                </div>
-                {coverageStats && (
-                  <Badge className="bg-primary text-primary-foreground border-0 font-black">
-                    {coverageStats.verified}/{coverageStats.total} VERIFIED
-                  </Badge>
-                )}
-              </div>
-              <CardContent className="p-6 grid md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h4 className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em]">Verification Status</h4>
-                  {coverageOutput ? (
-                    <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 text-card-foreground text-sm font-medium">
-                      {coverageOutput}
-                    </div>
-                  ) : <Skeleton className="h-20 w-full rounded-xl" />}
-                  
-                  {coverageStats && coverageStats.verified < coverageStats.total && (
-                    <Button asChild variant="destructive" className="w-full h-12 rounded-xl font-black">
-                      <Link href={`/verify?repo=${encodeURIComponent(normalizedRepoPath)}`}>
-                        START VERIFICATION FLOW
-                      </Link>
-                    </Button>
-                  )}
-                </div>
-                <div className="space-y-4">
-                  <h4 className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em]">Pending Claims</h4>
-                  {pendingOutput ? (
-                    <div className="p-4 rounded-xl bg-muted border border-border text-card-foreground text-sm font-mono whitespace-pre-wrap leading-relaxed">
-                      {pendingOutput}
-                    </div>
-                  ) : <Skeleton className="h-20 w-full rounded-xl" />}
-                  
-                  <Button asChild className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 font-black">
-                    <Link href={`/agent?command=${encodeURIComponent(`pay 1 USDC to github.com/${normalizedRepoPath}`)}`}>
-                      EXECUTE PAYOUT
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-      </div>
-    </div>
+        <div className="text-2xl font-bold tabular-nums">{value}</div>
+        {hint && <div className="text-xs text-muted-foreground">{hint}</div>}
+      </CardContent>
+    </Card>
   );
 }

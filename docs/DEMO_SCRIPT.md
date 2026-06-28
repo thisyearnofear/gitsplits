@@ -2,12 +2,13 @@
 
 > **Pre-recorded demo artifacts** live in `docs/demo/`:
 >
-> - **`narrated-demo.mp4`** (2 min 32 s, 5.2 MB, 1440×900, H.264 + AAC) — ✨ the
->   submission-ready cut. ElevenLabs Adam voice narrating the full enterprise flow over
->   the Playwright screen capture. 0.8 s lead-in, ~9 s of silence at the end so the
->   orchestration overview gets a beat to land. Upload directly to YouTube/Vimeo.
-> - **`browser-walkthrough.mp4`** (silent, 2.0 MB) — the original silent Playwright
->   recording. Use as B-roll if you want to re-record narration in your own voice.
+> - **`narrated-demo.mp4`** (1 min 22 s, 4.6 MB, 1440×900, H.264 + AAC) — ✨ the
+>   submission-ready cut against the console-aesthetic UI. ElevenLabs Adam voice
+>   over the Playwright capture: animated agent constellation, live sponsor form,
+>   live case timeline ticking through 8 stages in ~5s, multi-case dashboard.
+>   0.6 s lead-in, no dead air. Upload directly to YouTube/Vimeo.
+> - **`browser-walkthrough.mp4`** (silent, 2.5 MB) — same source clip, no audio.
+>   Use as B-roll if you want to re-record narration in your own voice.
 > - **`narration.txt`** — the narration script. Edit + re-synthesize with
 >   `curl https://api.elevenlabs.io/v1/text-to-speech/{voice_id}` (see
 >   `git log -p docs/demo/narration.txt` for the original bash invocation).

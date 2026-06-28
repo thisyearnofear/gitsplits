@@ -1,21 +1,7 @@
-Open source underwrites the global economy and almost nobody pays for it. Log4j cost the world ninety billion dollars in incident response. Heartbleed shut down half the internet. xz-utils nearly handed a backdoor to every Linux distribution. Every Fortune Five Hundred enterprise wants to fund the open source it depends on — like a vendor invoice, with case workflows, approval matrices, and audit trails. They just lack the machinery.
+Open source underwrites the global economy. Almost nobody pays for it. GitSplits turns enterprise OSS funding into a UiPath Maestro case — agents handling intake, repo analysis, and payout autonomously, with humans approving only the high-impact decisions. Maestro at the center, agents on the perimeter, every case auditable.
 
-GitSplits is that machinery: a UiPath Maestro Case for enterprise OSS funding, orchestrated end to end.
+A sponsor picks a dependency, sets the amount, and submits. One form opens a case. The Approval Routing Agent predicts the autonomy tier live — from amount and risk flags.
 
-Here's Maya, an OSPO director at a fintech. She picks a critical dependency, sets the amount, and submits. That single form opens a case in UiPath Maestro.
+Intake. Repo analysis runs LangChain reasoning over EigenAI-attested quality scores. Verification check. This twenty-five-hundred-dollar request lands at tier T1 — finance approves once. Split written on chain. Payout via Ping Pay. TEE attestation closes the audit trail. End to end in under five seconds.
 
-Intake — a UiPath Agent Builder agent parses the request into structured fields.
-
-Repo analysis — a LangChain agent fetches the contributors, asks attested AI to score quality, and produces a recommendation with risk flags. External framework, called via API workflow.
-
-Verification check — we look up which contributors have linked wallets. Unverified ones spawn a parallel outreach sub-case.
-
-Compliance and approval — the Approval Routing Agent assigns one of four autonomy tiers. This twenty-five hundred dollar request is tier T1, finance approves once. About eighty percent of funding requests are below five hundred dollars and run tier T0 — fully autonomous, no human paged.
-
-Split written on chain, payout distributed, receipts verified, TEE attestation produced.
-
-Operators see every case in the dashboard — open, completed, blocked, total disbursed, tier breakdown. Click any row, back to that case's timeline.
-
-The architecture: seven stages, five exception lanes, four autonomy tiers, twelve API workflows auto-generated from our OpenAPI spec. UiPath Maestro for orchestration. Agent Builder for native agents. LangChain for external reasoning. Action Center for the humans. TEE attestation for the audit.
-
-GitSplits. Enterprise OSS funding, orchestrated.
+Operators see every case across the tenant. Open, completed, total disbursed. The autonomy distribution shows how much work agents handled without paging a human. This is what enterprise OSS funding looks like — orchestrated on UiPath.

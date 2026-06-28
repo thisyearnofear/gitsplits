@@ -1,122 +1,147 @@
-# GitSplits
+# GitSplits — Enterprise OSS Funding, Orchestrated
 
-AI-powered application that helps compensate open source contributors via natural language commands, running on EigenCompute for cryptographic transparency.
+> **UiPath AgentHack 2026 — Track 1: Maestro Case** submission.
+>
+> End-to-end agentic orchestration for sponsoring open-source contributors:
+> intake → AI-driven repo analysis → contributor verification → compliance & approval →
+> on-chain split creation → multi-rail payout → TEE-attested reconciliation. Built on
+> the UiPath Platform with external LangChain agents and a TEE-attested execution
+> service. Scaffolded with Claude Code (UiPath for Coding Agents).
 
-## Quick Demo
+---
 
-```
-@gitsplits pay 100 USDC to github.com/near/near-sdk-rs
-```
+## What this is
 
-The application analyzes the repository, calculates fair splits based on contribution history, and distributes funds to verified contributors.
+Enterprises increasingly depend on open-source libraries they don't fund. GitSplits
+turns "we should pay the maintainers of [critical dependency]" into a fully
+orchestrated, auditable case:
 
-## Features
-
-- **Natural Language**: Just mention @gitsplits with a command
-- **No Setup**: Contributors verify once, then receive payments automatically
-- **Cross-Chain**: Contributors receive funds on their preferred chain
-- **Cryptographic Transparency**: Attested execution via EigenCompute TEE
-- **Web UI**: Interactive chat interface at https://gitsplits.vercel.app/agent
-- **Approval Workflow**: Advisor and draft modes require human confirmation before executing payments
-
-## How to Use
-
-### For Contributors
-
-1. **Verify (one-time):** `DM @gitsplits: verify your-github-username`
-2. **Receive payments** automatically when someone pays your repo
-
-### For Repository Owners
+1. A sponsor submits a funding request (email, web form, Slack).
+2. A UiPath **Maestro Case** routes it through stages — repo analysis, verification,
+   sanctions screening, approval, split creation, payout, reconciliation.
+3. Each stage calls the right actor: **Agent Builder** agents handle intake triage and
+   approval routing, an external **LangChain** agent does multi-step repo reasoning,
+   the **GitSplits controller** writes splits on NEAR and disburses via Ping Pay / HOT
+   Pay, and **Action Center** holds humans accountable at the right decision points.
+4. The case closes with a TEE-signed attestation, EigenAI explorer link, and full
+   audit trail — the exact evidence finance and compliance need.
 
 ```
-@gitsplits analyze my-org/my-repo     # Check contributions
-@gitsplits create split for my-org/my-repo  # Set up split
-@gitsplits pay 100 USDC to my-org/my-repo   # Pay contributors
-@gitsplits pending my-org/my-repo     # Check pending claims
+Sponsor → Maestro Case ─┬─→ Intake Triage Agent (UiPath Agent Builder)
+                        ├─→ LangChain Repo Insight Agent (external framework)
+                        ├─→ GitSplits Controller v1 API (NEAR + Ping/HOT + EigenAI)
+                        ├─→ Action Center (Finance / Compliance / Disputes)
+                        └─→ TEE Attestation (EigenCompute / Phala dstack)
 ```
 
-See [**docs/GUIDE.md**](docs/GUIDE.md) for full command reference.
+## UiPath components used
 
-## Web Interface
+| Capability | Where it lives | What it does |
+|---|---|---|
+| **Maestro Case** | `docs/maestro/case-definition.yaml` | 7 stages + 5 exception lanes orchestrating the full funding flow |
+| **Agent Builder** | `docs/maestro/agent-builder-agents.yaml` | `intake_triage_agent` + `approval_routing_agent` (native UiPath agents) |
+| **API Workflows** | `docs/maestro/api-workflows.yaml` + `packages/controller-phala/openapi.yaml` | One workflow per `/v1` controller endpoint; import the OpenAPI spec to auto-generate 12 of them |
+| **Action Center** | Case definition (finance approval, compliance review, dispute review, payout recovery) | Human-in-the-loop tasks at every sensitive decision |
+| **Integration Service** | API workflow stubs in `docs/maestro/api-workflows.yaml` | Sponsor notifications, sanctions screening, repo criticality lookups |
 
-- **Agent Chat**: https://gitsplits.vercel.app/agent
-- **Verify Identity**: https://gitsplits.vercel.app/verify
-- **View Splits**: https://gitsplits.vercel.app/splits
-- **Dashboard**: https://gitsplits.vercel.app/dashboard
+## External agents & services
 
-## Architecture
+| Component | Role | Code |
+|---|---|---|
+| **LangChain Repo Insight Agent** | Multi-step reasoning (fetch → AI quality scores → critique → recommend). Counts toward the "external framework" judging note. | `packages/insight-agent/` |
+| **GitSplits Controller** | Typed v1 REST API wrapping GitHub, NEAR, Ping Pay, HOT Pay, EigenAI, and TEE attestation. | `packages/controller-phala/` |
+| **NEAR Smart Contract** | Splits registry, verification mapping, pending claims. | `contracts/near/` |
+| **EigenAI deTERMinal** | Attested AI inference; signature attached to every analysis. | Called from controller `/v1/repo/insight` |
+| **EigenCompute / Phala dstack** | TEE runtime that signs the final case attestation. | `packages/controller-phala/Dockerfile.eigen` |
 
+## Coding agents disclosure (bonus points)
+
+This submission was scaffolded with **Claude Code** (an Opus 4.7 powered CLI),
+invoked through the UiPath for Coding Agents pattern. Specifically:
+
+- The v1 REST adapter (`packages/controller-phala/src/http/v1/*`) and its OpenAPI spec
+  were generated and validated by Claude Code.
+- The LangChain insight agent (`packages/insight-agent/`) was scaffolded end-to-end
+  by Claude Code, including the multi-step chain and FastAPI server.
+- The Maestro case definition, API workflow catalog, and Agent Builder specs in
+  `docs/maestro/` were produced by Claude Code from the architecture diagram.
+
+The demo video shows Claude Code generating these artifacts live.
+
+## Quick start
+
+```bash
+# 1. Clone
+git clone https://github.com/thisyearnofear/gitsplits && cd gitsplits
+
+# 2. Controller (Node 20+)
+npm install
+npm run build:shared
+cd packages/controller-phala
+cp .env.example .env  # fill in NEAR + GitHub + Ping/HOT + EigenAI creds
+AGENT_MODE=mock npx tsx src/index.ts   # serves /v1/* on :3000
+
+# 3. LangChain insight agent (Python 3.11+)
+cd ../insight-agent
+pip install -r requirements.txt
+cp .env.example .env  # CONTROLLER_BASE_URL + ANTHROPIC_API_KEY
+python -m insight_agent.server  # serves /insight/recommend on :8088
+
+# 4. UiPath Maestro (requires UiPath Labs / Automation Cloud access)
+#    See docs/MAESTRO.md for the import + wire-up steps.
 ```
-Farcaster/Web → Intent Parser → EigenCompute (TEE) → NEAR + Payments
-                                    ↓
-                          Attestation of Execution
-```
-
-| Layer | Technology |
-|-------|-----------|
-| Social | Farcaster (@gitsplits bot) |
-| Intent Parser | Custom natural language framework |
-| Compute | EigenCompute (TEE + AVS) |
-| Blockchain | NEAR Protocol |
-| Payments | Ping Pay, HOT Pay |
-
-See [**docs/ARCHITECTURE.md**](docs/ARCHITECTURE.md) for system design.
 
 ## Documentation
 
-| Doc | Description |
-|-----|-------------|
-| [**GUIDE.md**](docs/GUIDE.md) | Commands and usage reference |
+| Doc | What's in it |
+|---|---|
+| [**HACKATHON.md**](docs/HACKATHON.md) | Enterprise problem framing, persona, judging-criteria mapping |
+| [**MAESTRO.md**](docs/MAESTRO.md) | Maestro case design, agent specs, OpenAPI import flow |
+| [**ARCHITECTURE.md**](docs/ARCHITECTURE.md) | System design including the Maestro orchestration layer |
+| [**DEMO_SCRIPT.md**](docs/DEMO_SCRIPT.md) | 5-minute demo storyboard |
 | [**SETUP.md**](docs/SETUP.md) | Developer setup, deployment, contract details |
-| [**ARCHITECTURE.md**](docs/ARCHITECTURE.md) | System design and components |
-| [**PLATFORM.md**](docs/PLATFORM.md) | Roadmap and future vision |
+| [**GUIDE.md**](docs/GUIDE.md) | Commands and end-user usage reference |
 | [**PHALA_CUTOVER_RUNBOOK.md**](docs/PHALA_CUTOVER_RUNBOOK.md) | Staged migration from Hetzner runtime to Phala dstack |
+| [**PLATFORM.md**](docs/PLATFORM.md) | Roadmap |
+| [**LABS_ACCESS_REQUEST.md**](docs/LABS_ACCESS_REQUEST.md) | Draft answers for the UiPath Labs access form |
+| [`docs/maestro/*.yaml`](docs/maestro) | Paste-ready case/workflow/agent definitions |
+| [`packages/controller-phala/openapi.yaml`](packages/controller-phala/openapi.yaml) | OpenAPI 3.0 spec for the controller v1 API — import directly into UiPath API Workflows |
 
-## Quick Start
+## Repository layout
 
-```bash
-git clone https://github.com/thisyearnofear/gitsplits
-cd gitsplits/agent
-npm install
-cp .env.example .env
-# Edit .env with your API keys
-AGENT_MODE=mock npm run dev
+```
+gitsplits/
+├── packages/
+│   ├── controller-phala/         # Node controller: /v1 REST API + tools + TEE wallet
+│   │   ├── src/http/v1/          # Structured endpoints (Maestro-friendly)
+│   │   └── openapi.yaml          # Import into UiPath API Workflows
+│   ├── insight-agent/            # Python LangChain agent (external framework)
+│   │   └── src/insight_agent/    # client.py, chain.py, server.py, schemas.py
+│   ├── shared/                   # TS types shared across packages
+│   └── legacy-worker/            # Pre-monolith worker; retained for cutover
+├── contracts/near/               # Rust smart contract: splits + verification map
+├── docs/
+│   ├── HACKATHON.md              # Pitch
+│   ├── MAESTRO.md                # UiPath wire-up guide
+│   ├── DEMO_SCRIPT.md            # 5-min demo storyboard
+│   ├── LABS_ACCESS_REQUEST.md    # Draft for the UiPath Labs access form
+│   ├── ARCHITECTURE.md           # System design
+│   └── maestro/                  # Case, workflow, and agent specs (paste-ready)
+└── src/                          # Next.js web app (sponsor portal + /orchestration)
 ```
 
-See [**docs/SETUP.md**](docs/SETUP.md) for full setup instructions.
+## Hackathon submission checklist
 
-## Agent Routing (Current Production)
-
-Web `/api/agent` forwards to a single upstream controller.
-
-Configure with:
-
-```bash
-CONTROLLER_URL=...
-AGENT_BASE_URL=... # fallback when CONTROLLER_URL is unset
-AGENT_API_KEY=...
-```
-
-**Execution Modes:**
-- `advisor` - Returns a plan for human review (no execution)
-- `draft` - Returns a plan requiring explicit approval
-- `execute` - Executes commands directly (default)
-
-Security requirements:
-- Set `AGENT_API_KEY` in Vercel.
-- Set matching `AGENT_SERVER_API_KEY` on each upstream agent (Hetzner + Eigen).
-- Keep direct compute `/process` protected; only the web proxy should call it.
-
-## Current Status
-
-- ✅ Single-upstream routing live (Vercel -> Hetzner controller)
-- ✅ Hetzner endpoint protected by API key + HTTPS domain
-- ✅ NEAR contract `lhkor_marty.near` on mainnet
-- ✅ Web UI: https://gitsplits.vercel.app
-- ✅ Live canary checks passing for core dependencies + at least one payment rail
-- 🟡 Phala dstack cutover planned (target architecture, not current runtime)
-  See `docs/PHALA_CUTOVER_RUNBOOK.md` for staged rollout gates.
+- [x] Public GitHub repo with MIT license
+- [x] All UiPath components listed in README (Maestro Case, Agent Builder, API Workflows, Action Center, Integration Service)
+- [x] Coding-agent usage disclosed
+- [x] OpenAPI spec for one-click UiPath API Workflow import
+- [x] External framework (LangChain) integrated as part of the case flow
+- [ ] Demo video uploaded (see [DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md))
+- [ ] Devpost project page filled out
+- [ ] Presentation deck shared
+- [ ] UiPath Labs access provisioned (draft ready in [LABS_ACCESS_REQUEST.md](docs/LABS_ACCESS_REQUEST.md), submit ASAP)
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).

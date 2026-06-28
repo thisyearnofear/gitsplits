@@ -1,0 +1,408 @@
+# GitSplits Enterprise OSS Funding — Maestro Case Definition
+#
+# Target: UiPath AgentHack Track 1 (Maestro Case).
+# Scope: dynamic, exception-heavy orchestration of a sponsor funding an
+#        open-source repository, with verification, compliance, payout,
+#        and TEE-attested reconciliation.
+#
+# Mapping convention:
+#   stages[].tasks[].action.type → maps to a Maestro task action.
+#     - "api_workflow"      → UiPath API Workflow Call
+#     - "agent_builder"     → UiPath Agent Builder agent invocation
+#     - "external_agent"    → External HTTP agent (LangChain) called via API Workflow
+#     - "action_center"     → UiPath Action Center human task
+#     - "rpa"               → UiPath Studio robot
+#     - "system"            → Maestro internal (e.g. wait, branch, archive)
+#
+# All `api_workflow` references resolve to entries in api-workflows.yaml.
+# All `agent_builder` references resolve to entries in agent-builder-agents.yaml.
+
+case:
+  key: oss_funding_request
+  name: "OSS Funding Request"
+  description: >-
+    Sponsor-driven case for paying open-source contributors on a specific
+    repository. Handles verification gaps, sanctions checks, payout failures,
+    and produces a TEE-attested audit trail.
+  sla:
+    target_completion_hours: 72
+    escalation_after_hours: 96
+
+  # ------------------------------------------------------------------
+  # Case-level fields (persisted across stages, populated as work flows)
+  # ------------------------------------------------------------------
+  fields:
+    - { key: sponsor_id,          type: string,  required: true,  source: intake }
+    - { key: sponsor_email,       type: string,  required: true,  source: intake }
+    - { key: repo_url,            type: string,  required: true,  source: intake }
+    - { key: requested_amount,    type: number,  required: true,  source: intake }
+    - { key: requested_token,     type: string,  required: true,  source: intake, default: "USDC" }
+    - { key: sponsor_context,     type: string,  required: false, source: intake }
+    - { key: contributors_raw,    type: json,    source: stage:repo_analysis }
+    - { key: insight_recommendation, type: json, source: stage:repo_analysis }
+    - { key: verification,        type: json,    source: stage:verification_check }
+    - { key: compliance_decision, type: json,    source: stage:compliance_approval }
+    - { key: split_id,            type: string,  source: stage:split_creation }
+    - { key: payout_receipts,     type: json,    source: stage:payout_execution }
+    - { key: attestation,         type: json,    source: stage:reconciliation }
+    - { key: risk_flags,          type: json,    source: stage:repo_analysis }
+
+  # ------------------------------------------------------------------
+  # Stages (sequential by default; some have parallel sub-tasks)
+  # ------------------------------------------------------------------
+  stages:
+
+    - key: intake
+      name: "Intake"
+      description: "Capture sponsor request and normalize the funding ask."
+      tasks:
+        - key: triage
+          name: "Triage sponsor request"
+          action:
+            type: agent_builder
+            ref: intake_triage_agent
+          inputs:
+            sponsor_email: "{{case.sponsor_email}}"
+            raw_request:   "{{case.intake.raw_payload}}"
+          outputs:
+            - field: repo_url
+            - field: requested_amount
+            - field: requested_token
+            - field: sponsor_context
+      transitions:
+        - to: repo_analysis
+          when: "fields.repo_url != null && fields.requested_amount > 0"
+        - to: exception:malformed_intake
+          when: "otherwise"
+
+    - key: repo_analysis
+      name: "Repo Analysis"
+      description: "Pull contributor breakdown + verifiable AI insight via the external LangChain agent."
+      tasks:
+        - key: contributor_breakdown
+          name: "Fetch contributors"
+          action:
+            type: api_workflow
+            ref: analyze_repo
+          inputs:
+            repoUrl: "{{case.repo_url}}"
+          outputs:
+            - field: contributors_raw
+        - key: ai_insight
+          name: "LangChain insight & quality scoring"
+          depends_on: [contributor_breakdown]
+          action:
+            type: external_agent
+            ref: langchain_insight_agent
+            endpoint: "/insight/recommend"
+          inputs:
+            repo_url:           "{{case.repo_url}}"
+            sponsor_context:    "{{case.sponsor_context}}"
+            funding_amount_usd: "{{case.requested_amount}}"
+          outputs:
+            - field: insight_recommendation
+            - field: risk_flags
+              from: insight_recommendation.risk_flags
+      transitions:
+        - to: verification_check
+          when: "fields.insight_recommendation.recommended_allocation.length > 0"
+        - to: exception:no_payable_contributors
+          when: "otherwise"
+
+    - key: verification_check
+      name: "Verification Check"
+      description: "Look up which recommended contributors already have linked wallets."
+      tasks:
+        - key: check_wallets
+          name: "Look up verified wallets"
+          action:
+            type: api_workflow
+            ref: check_verification
+          inputs:
+            githubUsernames: "{{fields.insight_recommendation.recommended_allocation[*].github_username}}"
+          outputs:
+            - field: verification
+      transitions:
+        - to: contributor_outreach
+          when: "fields.verification.unverified.length > 0"
+        - to: compliance_approval
+          when: "otherwise"
+
+    # ----- exception lane / sub-case -----
+    - key: contributor_outreach
+      name: "Contributor Outreach (sub-case)"
+      description: >-
+        For each unverified contributor: send an outreach email, wait up to
+        SLA, then either mark them ready for payout or push their share to a
+        pending claim.
+      type: parallel_subcase
+      iterator: "fields.verification.unverified"
+      sla_hours: 48
+      tasks:
+        - key: outreach_email
+          name: "Email contributor with verification link"
+          action:
+            type: api_workflow
+            ref: send_verification_email
+          inputs:
+            githubUsername: "{{item}}"
+            repoUrl: "{{case.repo_url}}"
+        - key: wait_for_verification
+          name: "Wait for verification or SLA expiry"
+          action:
+            type: system
+            kind: wait_for_event
+            event: "verification_stored:{{item}}"
+            timeout_hours: 48
+        - key: classify_outcome
+          name: "Either ready-for-payout or pending-claim"
+          action:
+            type: system
+            kind: branch
+            on_event: "ready"
+            otherwise: "pending"
+      on_complete:
+        merge_into: verification
+      transitions:
+        - to: compliance_approval
+
+    - key: compliance_approval
+      name: "Compliance & Approval"
+      description: "Sanctions screening + finance approval scaled by amount and risk."
+      tasks:
+        - key: sanctions_screen
+          name: "Sanctions screening"
+          action:
+            type: api_workflow
+            ref: sanctions_screen
+          inputs:
+            wallets: "{{fields.verification.verified}}"
+          outputs:
+            - field: compliance_decision.sanctions
+        - key: routing
+          name: "Pick approvers"
+          action:
+            type: agent_builder
+            ref: approval_routing_agent
+          inputs:
+            amount_usd: "{{case.requested_amount}}"
+            risk_flags: "{{case.risk_flags}}"
+          outputs:
+            - field: compliance_decision.approvers
+        - key: finance_approval
+          name: "Finance approval"
+          depends_on: [sanctions_screen, routing]
+          action:
+            type: action_center
+            assigned_to: "{{fields.compliance_decision.approvers}}"
+            form: oss_funding_approval_form
+            sla_hours: 24
+          outputs:
+            - field: compliance_decision.outcome
+            - field: compliance_decision.approver_notes
+      transitions:
+        - to: split_creation
+          when: "fields.compliance_decision.outcome == 'approved'"
+        - to: exception:compliance_blocked
+          when: "fields.compliance_decision.sanctions.hits.length > 0"
+        - to: closure_rejected
+          when: "fields.compliance_decision.outcome == 'rejected'"
+
+    - key: split_creation
+      name: "Split Creation"
+      description: "Write the approved allocation to the NEAR split contract."
+      tasks:
+        - key: lookup_existing
+          name: "Check for existing split"
+          action:
+            type: api_workflow
+            ref: get_split
+          inputs:
+            repoUrl: "{{case.repo_url}}"
+          outputs:
+            - field: split_lookup
+        - key: write_split
+          name: "Create or update split"
+          depends_on: [lookup_existing]
+          action:
+            type: api_workflow
+            ref: "{{ fields.split_lookup.split == null ? 'create_split' : 'update_split' }}"
+          inputs:
+            repoUrl: "{{case.repo_url}}"
+            owner:   "{{config.gitsplits_owner_account}}"
+            contributors: "{{fields.insight_recommendation.recommended_allocation}}"
+          outputs:
+            - field: split_id
+              from: splitId
+      transitions:
+        - to: payout_execution
+
+    - key: payout_execution
+      name: "Payout Execution"
+      description: "Distribute to verified eligible contributors and store pending claims for the rest."
+      tasks:
+        - key: distribute
+          name: "Distribute funds via Ping Pay / HOT Pay"
+          action:
+            type: api_workflow
+            ref: distribute_payout
+          inputs:
+            splitId: "{{case.split_id}}"
+            amount:  "{{ case.requested_amount * (fields.verification.counts.verified / fields.verification.counts.total) }}"
+            token:   "{{case.requested_token}}"
+            recipients: "{{fields.verification.verified_recipients}}"
+          outputs:
+            - field: payout_receipts.distribution
+          retry:
+            max_attempts: 3
+            backoff: exponential
+            on_failure: exception:payout_failed
+        - key: pending_claims
+          name: "Store pending claims for unverified"
+          condition: "fields.verification.unverified.length > 0"
+          action:
+            type: api_workflow
+            ref: store_pending_payouts_bulk
+          inputs:
+            unverified: "{{fields.verification.unverified}}"
+            token:      "{{case.requested_token}}"
+            total:      "{{case.requested_amount}}"
+            allocation: "{{fields.insight_recommendation.recommended_allocation}}"
+          outputs:
+            - field: payout_receipts.pending
+      transitions:
+        - to: reconciliation
+
+    - key: reconciliation
+      name: "Reconciliation & Attestation"
+      description: "Verify on-chain receipts and produce a TEE-signed attestation."
+      tasks:
+        - key: verify_receipts
+          name: "Verify on-chain receipts"
+          action:
+            type: api_workflow
+            ref: verify_receipts
+          inputs:
+            txHash: "{{fields.payout_receipts.distribution.txHash}}"
+          outputs:
+            - field: payout_receipts.verified
+        - key: tee_attest
+          name: "TEE attestation"
+          depends_on: [verify_receipts]
+          action:
+            type: api_workflow
+            ref: attest_distribution
+          inputs:
+            splitId: "{{case.split_id}}"
+            txHash:  "{{fields.payout_receipts.distribution.txHash}}"
+            summary:
+              repo:            "{{case.repo_url}}"
+              sponsor:         "{{case.sponsor_id}}"
+              amount:          "{{case.requested_amount}}"
+              token:           "{{case.requested_token}}"
+              recipients:      "{{fields.verification.counts.verified}}"
+              pending_count:   "{{fields.verification.counts.unverified}}"
+              insight_attest:  "{{fields.insight_recommendation.attestation}}"
+          outputs:
+            - field: attestation
+      transitions:
+        - to: closure_approved
+
+    - key: closure_approved
+      name: "Closure (approved)"
+      description: "Notify sponsor, archive case with full audit pack."
+      tasks:
+        - key: sponsor_notify
+          action:
+            type: api_workflow
+            ref: notify_sponsor
+          inputs:
+            sponsor_id: "{{case.sponsor_id}}"
+            status:     "completed"
+            payload:    "{{case.payout_receipts}}"
+            attestation:"{{case.attestation}}"
+        - key: archive
+          action:
+            type: system
+            kind: archive_case
+
+    - key: closure_rejected
+      name: "Closure (rejected)"
+      tasks:
+        - key: sponsor_notify
+          action:
+            type: api_workflow
+            ref: notify_sponsor
+          inputs:
+            sponsor_id: "{{case.sponsor_id}}"
+            status:     "rejected"
+            reasons:    "{{fields.compliance_decision.approver_notes}}"
+        - key: archive
+          action:
+            type: system
+            kind: archive_case
+
+  # ------------------------------------------------------------------
+  # Exception lanes — triggerable from any stage
+  # ------------------------------------------------------------------
+  exception_lanes:
+
+    - key: malformed_intake
+      name: "Malformed Intake"
+      action:
+        type: action_center
+        assigned_to: "queue:intake-ops"
+        form: intake_repair_form
+      resolution_transitions:
+        - to: repo_analysis
+          when: "task.outcome == 'repaired'"
+        - to: closure_rejected
+          when: "task.outcome == 'abandoned'"
+
+    - key: no_payable_contributors
+      name: "No Payable Contributors"
+      action:
+        type: action_center
+        assigned_to: "queue:sponsor-success"
+        form: no_payable_form
+      resolution_transitions:
+        - to: closure_rejected
+
+    - key: compliance_blocked
+      name: "Compliance Blocked"
+      action:
+        type: action_center
+        assigned_to: "queue:compliance"
+        form: compliance_review_form
+        sla_hours: 24
+      resolution_transitions:
+        - to: compliance_approval
+          when: "task.outcome == 'cleared'"
+        - to: closure_rejected
+          when: "task.outcome == 'blocked'"
+
+    - key: payout_failed
+      name: "Payout Failed"
+      action:
+        type: action_center
+        assigned_to: "queue:payouts-ops"
+        form: payout_recovery_form
+      resolution_transitions:
+        - to: payout_execution
+          when: "task.outcome == 'retry'"
+        - to: closure_rejected
+          when: "task.outcome == 'refund'"
+
+    - key: dispute_raised
+      name: "Dispute Raised"
+      trigger:
+        event_pattern: "dispute.raised:{{case.id}}"
+      action:
+        type: action_center
+        assigned_to: "queue:disputes"
+        form: dispute_review_form
+      resolution_transitions:
+        - to: payout_execution
+          when: "task.outcome == 're_execute'"
+        - to: closure_approved
+          when: "task.outcome == 'no_change'"

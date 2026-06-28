@@ -280,6 +280,25 @@ const LandingPage: React.FC<LandingPageProps> = ({
         onSelectNEAR={handleNEARLogin}
       />
 
+      {/* UiPath AgentHack banner */}
+      <motion.a
+        href="/orchestration"
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="block w-full bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 text-white text-sm font-medium hover:brightness-110 transition-all"
+      >
+        <div className="container mx-auto px-4 py-2.5 flex flex-wrap items-center justify-center gap-2 text-center">
+          <span className="inline-flex items-center gap-1.5 bg-white/15 rounded-full px-2.5 py-0.5 text-xs uppercase tracking-wide">
+            <Sparkles className="w-3 h-3" /> UiPath AgentHack 2026
+          </span>
+          <span>Now orchestrated on UiPath Maestro for enterprise OSS funding</span>
+          <span className="inline-flex items-center gap-1 underline underline-offset-2">
+            See the case flow <ArrowRight className="w-3.5 h-3.5" />
+          </span>
+        </div>
+      </motion.a>
+
       <div className="container mx-auto px-4 pt-8 pb-16">
         {/* Hero Section */}
         <motion.div

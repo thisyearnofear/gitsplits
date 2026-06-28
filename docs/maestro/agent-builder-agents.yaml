@@ -1,0 +1,127 @@
+# GitSplits Maestro — Agent Builder Specifications
+#
+# These are the two UiPath-native agents (built in Agent Builder) that the
+# OSS Funding case relies on. They sit alongside the external LangChain
+# Repo Insight Agent (see api-workflows.yaml → langchain_insight_agent).
+#
+# Each spec maps onto the fields you fill in Agent Builder's Studio Web UI:
+#   - model            → "Model" dropdown
+#   - system_prompt    → "Instructions" pane
+#   - tools            → "Tools" tab; bind each to an API Workflow from
+#                         api-workflows.yaml or to a built-in connector
+#   - inputs/outputs   → "Inputs / Outputs" tabs (JSON Schema)
+#   - guardrails       → "Guardrails" pane (content filters + retry policy)
+
+agents:
+
+  - key: intake_triage_agent
+    name: "OSS Funding Intake Triage"
+    purpose: >-
+      Parse a sponsor's free-form funding request (email body, web form, or
+      Slack message) into structured case fields. Reject obviously malformed
+      requests so the Compliance stage never sees junk.
+    model:
+      provider: anthropic
+      id: claude-sonnet-4-6
+      temperature: 0.1
+    inputs:
+      type: object
+      required: [raw_request]
+      properties:
+        raw_request:   { type: string, description: "Email body or webhook payload" }
+        sponsor_email: { type: string }
+    outputs:
+      type: object
+      required: [repo_url, requested_amount, requested_token]
+      properties:
+        repo_url:          { type: string }
+        requested_amount:  { type: number }
+        requested_token:   { type: string, default: "USDC" }
+        sponsor_context:   { type: string }
+        confidence:        { type: number, minimum: 0, maximum: 1 }
+        rejected_reasons:  { type: array, items: { type: string } }
+    tools: []   # pure LLM transform; no external calls
+    system_prompt: |
+      You triage open-source funding requests into structured case data.
+
+      Extract:
+        - repo_url: a github.com URL or owner/repo string. If multiple, pick the
+          one the sponsor is funding (not the one they are referencing for context).
+        - requested_amount: numeric value in the requested token. Reject if missing.
+        - requested_token: default "USDC". Accept "NEAR", "USDT", "ETH" if mentioned.
+        - sponsor_context: 1-2 sentence explanation of WHY the sponsor is funding.
+          Pull verbatim phrases when possible.
+        - confidence: your confidence the extraction is correct (0-1).
+        - rejected_reasons: populate ONLY if extraction is impossible. Examples:
+          "no repository specified", "amount missing", "personal expense, not OSS".
+
+      Output strict JSON matching the output schema. No prose.
+    guardrails:
+      - "Refuse requests that are not about OSS funding (e.g. payroll, expense reimbursement)."
+      - "If confidence < 0.6, set rejected_reasons and let the case fall into the malformed_intake exception lane."
+
+  - key: approval_routing_agent
+    name: "OSS Funding Approval Routing"
+    purpose: >-
+      Decide who needs to approve a given funding request based on amount,
+      risk flags, and repository criticality. Replaces a static approval
+      matrix with a policy-aware agent.
+    model:
+      provider: anthropic
+      id: claude-sonnet-4-6
+      temperature: 0.0
+    inputs:
+      type: object
+      required: [amount_usd]
+      properties:
+        amount_usd:        { type: number }
+        risk_flags:        { type: array, items: { type: object } }
+        repo_criticality:  { type: string, enum: [low, medium, high, unknown], default: unknown }
+        sponsor_tier:      { type: string, enum: [partner, customer, internal], default: customer }
+    outputs:
+      type: object
+      required: [approvers]
+      properties:
+        approvers:
+          type: array
+          items:
+            type: object
+            required: [role, queue]
+            properties:
+              role:       { type: string, enum: [finance, compliance, exec_sponsor, repo_steward] }
+              queue:      { type: string }    # UiPath Action Center queue name
+              sla_hours:  { type: integer }
+              required:   { type: boolean }
+        reasoning:        { type: string }
+    tools:
+      - name: lookup_repo_criticality
+        kind: api_workflow
+        ref: lookup_repo_criticality   # define this workflow if you maintain a CMDB
+        when: "input.repo_criticality == 'unknown'"
+    system_prompt: |
+      You pick approvers for an OSS funding case. Use these rules as a starting point,
+      but you are allowed to add reviewers when risk flags warrant it.
+
+      Base policy:
+        - amount <= $500          → finance only (SLA 24h)
+        - $500 < amount <= $5,000 → finance + repo_steward
+        - amount > $5,000         → finance + compliance + exec_sponsor
+
+      Add compliance when:
+        - any risk_flag has severity == "blocker"
+        - sponsor_tier == "partner" AND amount > $1,000
+
+      Add exec_sponsor when:
+        - repo_criticality == "high"
+        - or amount > $25,000
+
+      Each approver should reference an Action Center queue. Use:
+        finance       → queue:finance-ops
+        compliance    → queue:compliance
+        exec_sponsor  → queue:exec-approvals
+        repo_steward  → queue:repo-stewards
+
+      Output strict JSON matching the schema. Include a one-sentence reasoning.
+    guardrails:
+      - "Never omit finance for amounts > $0."
+      - "If risk_flags contains a 'sanctions' code, compliance approver MUST be required."

@@ -42,3 +42,12 @@ next-env.d.ts
 tsconfig.tsbuildinfo
 contracts/near/target/
 contracts/near/Cargo.lock
+
+# Python (insight-agent)
+.venv/
+__pycache__/
+*.egg-info/
+*.pyc
+
+# Local Claude Code state
+.claude/

@@ -1,0 +1,159 @@
+# GitSplits Maestro — API Workflow Catalog
+#
+# Each entry maps directly onto a UiPath API Workflow you create in Studio Web.
+# All controller-targeted workflows import the same OpenAPI spec located at
+# `packages/controller-phala/openapi.yaml` — the `binding.path` field names the
+# operationId from that spec.
+#
+# Workflows split into three groups:
+#   - controller_v1     → wrap a /v1 endpoint on the GitSplits controller
+#   - external_agent    → call the LangChain insight agent
+#   - integrations      → SAP / email / sanctions / etc. (stubs to fill in later)
+
+shared:
+  controller_connection:
+    name: "GitSplits Controller"
+    base_url: "${ASSETS.controller_base_url}"            # store in UiPath Assets, not in the workflow
+    auth:
+      header: "x-agent-api-key"
+      value:  "${ASSETS.controller_api_key}"
+    openapi_spec: "../../packages/controller-phala/openapi.yaml"
+  insight_connection:
+    name: "Insight Agent"
+    base_url: "${ASSETS.insight_agent_base_url}"
+    auth: null   # internal network; add API key if exposed publicly
+
+workflows:
+
+  # ===================== Controller v1 wrappers =====================
+
+  - key: analyze_repo
+    group: controller_v1
+    connection: controller_connection
+    binding:
+      method: POST
+      path:   /v1/repo/analyze
+      operationId: analyzeRepo
+    input_schema:
+      type: object
+      required: [repoUrl]
+      properties:
+        repoUrl: { type: string }
+    notes: "Returns the raw contributor list (commit-based)."
+
+  - key: repo_insight
+    group: controller_v1
+    connection: controller_connection
+    binding: { method: POST, path: /v1/repo/insight, operationId: insightRepo }
+    notes: "Direct EigenAI insight. Most callers should prefer the LangChain agent which calls this internally."
+
+  - key: check_verification
+    group: controller_v1
+    connection: controller_connection
+    binding: { method: POST, path: /v1/verification/check, operationId: checkVerification }
+    notes: "Returns {verified, unverified, counts}. Used by Verification Check stage."
+
+  - key: send_verification_email
+    group: integrations
+    connection: null  # email provider of your choice; example uses UiPath Integration Service > Microsoft 365 Outlook
+    notes: >-
+      Out-of-the-box UiPath Integration Service connector. Body should include the
+      contributor invite link in the form `https://gitsplits.thisyearnofear.com/verify?github={{githubUsername}}&repo={{repoUrl}}`.
+
+  - key: store_verification
+    group: controller_v1
+    connection: controller_connection
+    binding: { method: POST, path: /v1/verification/store, operationId: storeVerification }
+    notes: "Called when an unverified contributor responds with their wallet."
+
+  - key: evaluate_reputation
+    group: controller_v1
+    connection: controller_connection
+    binding: { method: POST, path: /v1/reputation/evaluate, operationId: evaluateReputation }
+    notes: "Optional pre-payout reputation check; case can use this to add risk flags."
+
+  - key: get_split
+    group: controller_v1
+    connection: controller_connection
+    binding: { method: POST, path: /v1/split/get, operationId: getSplit }
+
+  - key: create_split
+    group: controller_v1
+    connection: controller_connection
+    binding: { method: POST, path: /v1/split/create, operationId: createSplit }
+
+  - key: update_split
+    group: controller_v1
+    connection: controller_connection
+    binding: { method: POST, path: /v1/split/update, operationId: updateSplit }
+
+  - key: distribute_payout
+    group: controller_v1
+    connection: controller_connection
+    binding: { method: POST, path: /v1/payout/distribute, operationId: distributePayout }
+    notes: >-
+      Returns {engine, protocol, txHash}. Wrap in retry policy in Maestro; on terminal
+      failure raise the `payout_failed` exception lane.
+
+  - key: store_pending_payouts_bulk
+    group: controller_v1
+    connection: controller_connection
+    binding: { method: POST, path: /v1/payout/pending, operationId: storePendingPayout }
+    notes: >-
+      v1 endpoint is per-contributor; the workflow loops over the unverified array and
+      issues one POST per recipient. Aggregate results into a list before returning.
+
+  - key: list_pending
+    group: controller_v1
+    connection: controller_connection
+    binding: { method: POST, path: /v1/pending/list, operationId: listPending }
+
+  - key: attest_distribution
+    group: controller_v1
+    connection: controller_connection
+    binding: { method: POST, path: /v1/attest/distribution, operationId: attestDistribution }
+    notes: "Produces a TEE-signed attestation. Attach the result to the case timeline."
+
+  # ===================== External LangChain agent =====================
+
+  - key: langchain_insight_agent
+    group: external_agent
+    connection: insight_connection
+    binding:
+      method: POST
+      path:   /insight/recommend
+    input_schema:
+      type: object
+      required: [repo_url]
+      properties:
+        repo_url:           { type: string }
+        sponsor_context:    { type: string }
+        funding_amount_usd: { type: number }
+    notes: >-
+      Wraps the GitSplits controller and produces a structured recommendation
+      (allocation, risk flags, sponsor summary, confidence). Counts toward the
+      "external framework" bonus in judging.
+
+  # ===================== Integrations (templates to flesh out) =====================
+
+  - key: sanctions_screen
+    group: integrations
+    connection: null
+    notes: >-
+      Use any sanctions-screening API (e.g. Chainalysis, TRM Labs). Input: wallet list.
+      Output: { hits: [{wallet, list, severity}], cleared: [...] }. Hits drive the
+      `compliance_blocked` exception lane.
+
+  - key: notify_sponsor
+    group: integrations
+    connection: null
+    notes: >-
+      Either send via UiPath Integration Service (email / Slack / Teams) or POST to your
+      sponsor portal. Include the attestation explorer URL when present.
+
+  - key: verify_receipts
+    group: integrations
+    connection: null
+    notes: >-
+      Optional public RPC call to confirm the txHash landed. Keep this in Maestro (not
+      the controller) so the audit trail shows independent verification.

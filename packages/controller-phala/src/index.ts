@@ -18,6 +18,7 @@ import {
 } from '@gitsplits/shared';
 import { eigenaiTool } from './tools/eigenai';
 import { teeWalletTool } from './tools/tee-wallet';
+import { handleV1Request, isV1Path } from './http/v1/router';
 
 dotenv.config();
 
@@ -146,6 +147,12 @@ async function startServer() {
 
     try {
       const url = new URL(req.url || '/', `http://${req.headers.host}`);
+
+      // v1 structured API for orchestration callers (UiPath, etc.)
+      if (isV1Path(url.pathname)) {
+        await handleV1Request(req, res, url.pathname);
+        return;
+      }
 
       // Health check endpoint
       if (url.pathname === '/health' && req.method === 'GET') {
@@ -354,6 +361,20 @@ async function startServer() {
             eigenaiGrant: '/eigenai/grant',
             canary: '/canary',
             runCanary: 'POST /canary/run',
+            v1: {
+              analyzeRepo: 'POST /v1/repo/analyze',
+              insightRepo: 'POST /v1/repo/insight',
+              checkVerification: 'POST /v1/verification/check',
+              storeVerification: 'POST /v1/verification/store',
+              evaluateReputation: 'POST /v1/reputation/evaluate',
+              getSplit: 'POST /v1/split/get',
+              createSplit: 'POST /v1/split/create',
+              updateSplit: 'POST /v1/split/update',
+              distributePayout: 'POST /v1/payout/distribute',
+              storePendingPayout: 'POST /v1/payout/pending',
+              listPending: 'POST /v1/pending/list',
+              attestDistribution: 'POST /v1/attest/distribution',
+            },
           },
         }, null, 2));
         return;

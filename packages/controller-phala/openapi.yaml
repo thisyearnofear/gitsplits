@@ -1,0 +1,482 @@
+openapi: 3.0.3
+info:
+  title: GitSplits Controller v1 API
+  version: 1.0.0
+  description: |
+    Structured JSON API used by orchestration callers (UiPath Maestro,
+    UiPath API Workflows, LangChain agents). Each endpoint wraps a single
+    underlying tool action (GitHub analysis, NEAR contract call, payout
+    engine, attestation) and returns typed JSON suitable for case fields.
+
+    Authentication: requests must include the header `x-agent-api-key`
+    matching the controller's `AGENT_SERVER_API_KEY` env variable when set.
+servers:
+  - url: https://agent.gitsplits.thisyearnofear.com
+    description: Production controller
+  - url: http://localhost:3000
+    description: Local development
+security:
+  - ApiKeyAuth: []
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-agent-api-key
+  schemas:
+    Contributor:
+      type: object
+      required: [github_username, percentage]
+      properties:
+        github_username:
+          type: string
+        percentage:
+          type: number
+          minimum: 0
+          maximum: 100
+    Recipient:
+      type: object
+      required: [wallet, percentage]
+      properties:
+        wallet:
+          type: string
+        percentage:
+          type: number
+          minimum: 0
+          maximum: 100
+    InsightContributor:
+      type: object
+      required: [username, commits, percentage]
+      properties:
+        username:
+          type: string
+        commits:
+          type: integer
+          minimum: 0
+        percentage:
+          type: number
+          minimum: 0
+          maximum: 100
+    ValidationError:
+      type: object
+      properties:
+        error:
+          type: string
+        issues:
+          type: array
+          items:
+            type: object
+            properties:
+              path: { type: string }
+              message: { type: string }
+              code: { type: string }
+    ErrorResponse:
+      type: object
+      properties:
+        error: { type: string }
+        code: { type: string }
+paths:
+  /v1/repo/analyze:
+    post:
+      summary: Analyze a GitHub repository and return contributor breakdown
+      operationId: analyzeRepo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [repoUrl]
+              properties:
+                repoUrl: { type: string }
+      responses:
+        '200':
+          description: Contributor breakdown
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  repoUrl: { type: string }
+                  owner: { type: string, nullable: true }
+                  repo: { type: string, nullable: true }
+                  totalContributions: { type: integer }
+                  contributors:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        username: { type: string }
+                        commits: { type: integer }
+                        percentage: { type: number }
+                        type: { type: string }
+        '400':
+          description: Validation failed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ValidationError' }
+  /v1/repo/insight:
+    post:
+      summary: Verifiable AI insight + quality scores via EigenAI
+      operationId: insightRepo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [repoUrl, contributors]
+              properties:
+                repoUrl: { type: string }
+                contributors:
+                  type: array
+                  items: { $ref: '#/components/schemas/InsightContributor' }
+      responses:
+        '200':
+          description: AI-generated analysis with optional quality scores and attestation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  repoUrl: { type: string }
+                  analysis: { type: string }
+                  qualityScores:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        username: { type: string }
+                        quality: { type: number }
+                        commitConfidence: { type: number }
+                        creditAction: { type: string }
+                        reasons:
+                          type: array
+                          items: { type: string }
+                  signature: { type: string, nullable: true }
+                  model: { type: string, nullable: true }
+                  explorerUrl: { type: string, nullable: true }
+                  mock: { type: boolean }
+  /v1/verification/check:
+    post:
+      summary: Look up which GitHub usernames have linked wallets
+      operationId: checkVerification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [githubUsernames]
+              properties:
+                githubUsernames:
+                  type: array
+                  items: { type: string }
+      responses:
+        '200':
+          description: Verified and unverified buckets
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  verified:
+                    type: object
+                    additionalProperties: { type: string }
+                  unverified:
+                    type: array
+                    items: { type: string }
+                  counts:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      verified: { type: integer }
+                      unverified: { type: integer }
+  /v1/verification/store:
+    post:
+      summary: Persist a GitHub→wallet verification on the NEAR contract
+      operationId: storeVerification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [githubUsername, walletAddress]
+              properties:
+                githubUsername: { type: string }
+                walletAddress: { type: string }
+                xUsername: { type: string }
+      responses:
+        '200':
+          description: Verification stored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  githubUsername: { type: string }
+                  walletAddress: { type: string }
+  /v1/reputation/evaluate:
+    post:
+      summary: Decide whether a contributor is payout-eligible
+      operationId: evaluateReputation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [githubUsername]
+              properties:
+                githubUsername: { type: string }
+                walletAddress: { type: string, nullable: true }
+      responses:
+        '200':
+          description: Eligibility decision and reasons
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  githubUsername: { type: string }
+                  eligible: { type: boolean }
+                  reasons:
+                    type: array
+                    items: { type: string }
+                  profile:
+                    type: object
+  /v1/split/get:
+    post:
+      summary: Fetch the NEAR split for a repository (or null)
+      operationId: getSplit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [repoUrl]
+              properties:
+                repoUrl: { type: string }
+      responses:
+        '200':
+          description: Split record or null
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  repoUrl: { type: string }
+                  split:
+                    type: object
+                    nullable: true
+  /v1/split/create:
+    post:
+      summary: Create a new split on the NEAR contract
+      operationId: createSplit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [repoUrl, owner, contributors]
+              properties:
+                repoUrl: { type: string }
+                owner: { type: string, description: "NEAR account that owns the split" }
+                contributors:
+                  type: array
+                  items: { $ref: '#/components/schemas/Contributor' }
+      responses:
+        '200':
+          description: Created split id
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  repoUrl: { type: string }
+                  splitId: { type: string }
+                  contributors:
+                    type: array
+                    items: { $ref: '#/components/schemas/Contributor' }
+  /v1/split/update:
+    post:
+      summary: Replace the contributor allocation of an existing split
+      operationId: updateSplit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [splitId, contributors]
+              properties:
+                splitId: { type: string }
+                contributors:
+                  type: array
+                  items: { $ref: '#/components/schemas/Contributor' }
+      responses:
+        '200':
+          description: Updated split
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  splitId: { type: string }
+                  contributors:
+                    type: array
+                    items: { $ref: '#/components/schemas/Contributor' }
+  /v1/payout/distribute:
+    post:
+      summary: Distribute funds to verified recipients via Ping Pay or HOT Pay
+      operationId: distributePayout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [splitId, amount, token, recipients]
+              properties:
+                splitId: { type: string }
+                amount: { type: number, exclusiveMinimum: 0 }
+                token: { type: string }
+                recipients:
+                  type: array
+                  items: { $ref: '#/components/schemas/Recipient' }
+                preferEngine:
+                  type: string
+                  enum: [auto, pingpay, hotpay]
+      responses:
+        '200':
+          description: Payout submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  splitId: { type: string }
+                  amount: { type: number }
+                  token: { type: string }
+                  recipients: { type: integer }
+                  engine: { type: string }
+                  protocol: { type: string }
+                  txHash: { type: string }
+                  intentId: { type: string, nullable: true }
+                  status: { type: string }
+  /v1/payout/pending:
+    post:
+      summary: Store a pending claim for an unverified contributor
+      operationId: storePendingPayout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [githubUsername, amount, token]
+              properties:
+                githubUsername: { type: string }
+                amount: { type: number, exclusiveMinimum: 0 }
+                token: { type: string }
+      responses:
+        '200':
+          description: Pending claim recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pendingId: { type: string }
+                  githubUsername: { type: string }
+                  amount: { type: number }
+                  token: { type: string }
+  /v1/pending/list:
+    post:
+      summary: List pending claims for a repository or GitHub user
+      operationId: listPending
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target]
+              properties:
+                target:
+                  type: string
+                  description: "owner/repo, full GitHub URL, or a GitHub username"
+      responses:
+        '200':
+          description: Pending claims
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  target: { type: string }
+                  kind: { type: string, enum: [repo, user] }
+                  splitId: { type: string, nullable: true }
+                  pending:
+                    type: array
+                    items: { type: object }
+  /v1/attest/distribution:
+    post:
+      summary: Produce a TEE-signed attestation for a completed distribution
+      operationId: attestDistribution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [splitId, txHash, summary]
+              properties:
+                splitId: { type: string }
+                txHash: { type: string }
+                summary:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Signed attestation payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  splitId: { type: string }
+                  txHash: { type: string }
+                  attestation:
+                    type: object
+                    properties:
+                      payload: { type: string }
+                      signature: { type: string }
+                      signer: { type: string }
+                      isTee: { type: boolean }
+  /health:
+    get:
+      summary: Service health
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: Health snapshot
+          content:
+            application/json:
+              schema: { type: object }
+  /ready:
+    get:
+      summary: Readiness probe
+      operationId: getReady
+      security: []
+      responses:
+        '200':
+          description: Ready
+        '503':
+          description: Not ready
+

@@ -50,11 +50,11 @@ export function OnboardingFlow() {
     {
       id: "welcome",
       title: "Welcome to GitSplits",
-      description: "The easiest way to pay open source contributors",
+      description: "Enterprise OSS funding, orchestrated on UiPath Maestro",
       icon: Sparkles,
       content: (
         <div className="text-center space-y-6 py-4">
-          <motion.div 
+          <motion.div
             initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             className="w-24 h-24 bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-700 rounded-3xl flex items-center justify-center mx-auto shadow-2xl shadow-purple-200 dark:shadow-none"
@@ -62,9 +62,9 @@ export function OnboardingFlow() {
             <span className="text-white text-4xl font-black italic tracking-tighter">GS</span>
           </motion.div>
           <div className="space-y-2">
-            <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Fair rewards for every commit.</h3>
-            <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed max-w-[280px] mx-auto">
-              GitSplits uses verifiable AI to analyze GitHub contributions and distribute rewards fairly.
+            <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">A funding case, not a tip jar.</h3>
+            <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed max-w-[300px] mx-auto">
+              Sponsors submit a funding request, agents handle repo analysis and verification, humans approve only the high-impact decisions, and every payout is TEE-attested for audit.
             </p>
           </div>
         </div>

@@ -24,6 +24,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const NAV_ITEMS = [
   { label: "Orchestration", href: "/orchestration" },
+  { label: "Sponsor", href: "/sponsor" },
   { label: "Agent", href: "/agent" },
   { label: "Dashboard", href: "/dashboard" },
   { label: "Splits", href: "/splits" },

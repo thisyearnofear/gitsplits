@@ -319,31 +319,31 @@ const LandingPage: React.FC<LandingPageProps> = ({
           </motion.div>
 
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-gray-900 dark:text-white mb-6 tracking-tighter leading-[0.9]">
-            Reward open source
+            Fund open source
             <span className="block gradient-text mt-2">
-              in one command.
+              like a vendor invoice.
             </span>
           </h1>
-          
+
           <p className="text-xl md:text-2xl font-medium text-gray-600 dark:text-gray-300 mb-6 max-w-2xl mx-auto leading-tight">
-            Verifiable AI analysis for fair contributor splits. 
-            Powered by hardware-secured intelligence.
+            Enterprise OSS funding orchestrated on UiPath Maestro. Agents handle the routine,
+            humans approve only what matters, every payout is TEE-attested for audit.
           </p>
-          
+
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-8 max-w-lg mx-auto">
             <Shield className="w-4 h-4 inline mr-1 text-blue-600 dark:text-blue-400" />
-            Every calculation runs in a secure TEE with optional attestations — 
-            <span className="text-blue-600 dark:text-blue-400">verify the agent behaved correctly</span>
+            7 stages · 5 exception lanes · 4 autonomy tiers —
+            <span className="text-blue-600 dark:text-blue-400"> ~80% of requests close without paging a human</span>
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
             <Button
-              onClick={() => handleTryAgent()}
+              onClick={() => router.push("/sponsor")}
               size="lg"
               className="bg-black dark:bg-white text-white dark:text-black hover:bg-gray-900 dark:hover:bg-gray-100 font-black text-lg px-10 py-8 rounded-2xl transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl group shadow-xl"
             >
-              <Bot className="mr-3 h-6 w-6" />
-              LAUNCH AGENT
+              <Sparkles className="mr-3 h-6 w-6" />
+              FUND A REPO
               <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-1 transition-transform" />
             </Button>
             

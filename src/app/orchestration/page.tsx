@@ -22,16 +22,8 @@ import Header from "@/components/shared/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Badge from "@/components/ui/badge";
-
-type Actor = "agent_builder" | "external_agent" | "api_workflow" | "action_center" | "system";
-
-const ACTOR_META: Record<Actor, { label: string; color: string }> = {
-  agent_builder: { label: "UiPath Agent Builder", color: "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30" },
-  external_agent: { label: "LangChain (External)", color: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30" },
-  api_workflow: { label: "UiPath API Workflow", color: "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30" },
-  action_center: { label: "UiPath Action Center", color: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30" },
-  system: { label: "Maestro / TEE", color: "bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/30" },
-};
+import { ActorBadges } from "@/components/case/badges";
+import type { Actor } from "@/lib/case/types";
 
 type Stage = {
   number: number;
@@ -158,18 +150,6 @@ const EXTERNAL_COMPONENTS = [
   { name: "EigenCompute / Phala dstack", purpose: "TEE attestation of final case payload" },
 ];
 
-function ActorBadges({ actors }: { actors: Actor[] }) {
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {actors.map((a) => (
-        <span key={a} className={`text-xs px-2 py-0.5 rounded-md border ${ACTOR_META[a].color}`}>
-          {ACTOR_META[a].label}
-        </span>
-      ))}
-    </div>
-  );
-}
-
 export default function OrchestrationPage() {
   return (
     <>
@@ -194,14 +174,16 @@ export default function OrchestrationPage() {
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
-            <Button asChild>
+            <Button asChild size="lg">
+              <Link href="/sponsor">
+                Submit a sample funding request <ArrowRight className="w-4 h-4 ml-2" />
+              </Link>
+            </Button>
+            <Button variant="outline" asChild size="lg">
               <Link href="https://github.com/thisyearnofear/gitsplits" target="_blank">
                 <Github className="w-4 h-4 mr-2" /> View on GitHub
                 <ExternalLink className="w-3 h-3 ml-1" />
               </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/agent">Try the contributor chat</Link>
             </Button>
           </div>
         </section>
